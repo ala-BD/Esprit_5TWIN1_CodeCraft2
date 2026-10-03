@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Dashboard')
+@section('body-class', 'no-hero')
 
 @section('content')
 <div class="min-h-screen bg-[#FAFAF8] py-12">

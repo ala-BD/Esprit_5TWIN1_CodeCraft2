@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Mot de passe oublié')
+@section('body-class', 'no-hero')
 
 @section('content')
 <div class="min-h-screen flex">
