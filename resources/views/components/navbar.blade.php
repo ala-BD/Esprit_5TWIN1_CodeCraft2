@@ -121,6 +121,13 @@
                 <a href="{{ request()->routeIs('home') ? '#acteurs' : route('home') . '#acteurs' }}" class="nav-link">
                     Rejoindre
                 </a>
+                @auth
+                    @if(in_array(Auth::user()->role, ['CLIENT', 'DONATEUR', 'ADMIN']))
+                        <a href="{{ route('upcycling.dashboard') }}" class="nav-link {{ request()->routeIs('upcycling.*') ? 'font-semibold' : '' }}">
+                            Upcycling
+                        </a>
+                    @endif
+                @endauth
             </div>
 
             {{-- ===== AUTH BUTTONS ===== --}}
@@ -141,6 +148,11 @@
                     {{-- Dashboard --}}
                     @if(Auth::user()->role === 'RECYCLEUR')
                         <a href="{{ route('recyclage.dashboard') }}"
+                           class="nav-dashboard flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl transition-all duration-200">
+                            <i class="fas fa-th-large text-xs"></i> Dashboard
+                        </a>
+                    @elseif(Auth::user()->role === 'ATELIER')
+                        <a href="{{ route('upcycling.dashboard') }}"
                            class="nav-dashboard flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl transition-all duration-200">
                             <i class="fas fa-th-large text-xs"></i> Dashboard
                         </a>
@@ -205,11 +217,26 @@
                style="text-decoration:none">
                 <i class="fas fa-users w-4 text-center" style="color:#0d9488"></i> Rejoindre
             </a>
+            @auth
+                @if(in_array(Auth::user()->role, ['CLIENT', 'DONATEUR', 'ADMIN']))
+                    <a href="{{ route('upcycling.dashboard') }}"
+                       class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                       style="text-decoration:none">
+                        <i class="fas fa-cut w-4 text-center" style="color:#0d9488"></i> Upcycling
+                    </a>
+                @endif
+            @endauth
 
             <div class="pt-4 mt-2 space-y-2" style="border-top: 1px solid #e2e8f0">
                 @auth
                     @if(Auth::user()->role === 'RECYCLEUR')
                         <a href="{{ route('recyclage.dashboard') }}"
+                           class="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white text-sm font-bold"
+                           style="background: linear-gradient(135deg, #0d9488, #2DD4BF)">
+                            <i class="fas fa-th-large text-xs"></i> Dashboard
+                        </a>
+                    @elseif(Auth::user()->role === 'ATELIER')
+                        <a href="{{ route('upcycling.dashboard') }}"
                            class="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white text-sm font-bold"
                            style="background: linear-gradient(135deg, #0d9488, #2DD4BF)">
                             <i class="fas fa-th-large text-xs"></i> Dashboard

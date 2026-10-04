@@ -10,6 +10,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RecyclageSeeder::class,
+            UpcyclingSeeder::class,
         ]);
     }
 }
