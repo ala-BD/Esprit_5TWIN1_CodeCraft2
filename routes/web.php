@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\AdresseController;
+use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Recyclage\LotTextileController;
 use App\Http\Controllers\Recyclage\EtapeTraitementController;
@@ -73,9 +75,28 @@ Route::middleware(['auth'])->group(function () {
     | Profil utilisateur
     |----------------------------------------------------------------------
     */
-    Route::get('/profile',    [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile',  [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/profile',          [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile',        [ProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile/role',   [ProfileController::class, 'updateRole'])->name('profile.role');
+    Route::delete('/profile',       [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    /*
+    |----------------------------------------------------------------------
+    | Adresses utilisateur (TextileCycle)
+    |----------------------------------------------------------------------
+    */
+    Route::get('adresses/reverse-geocode', [AdresseController::class, 'reverseGeocode'])->name('adresses.reverse-geocode');
+    Route::resource('adresses', AdresseController::class)
+        ->parameters(['adresses' => 'adresse'])
+        ->except(['show']);
+    Route::patch('adresses/{adresse}/defaut', [AdresseController::class, 'setDefault'])->name('adresses.defaut');
+
+    /*
+    |----------------------------------------------------------------------
+    | Marketplace — Articles textiles
+    |----------------------------------------------------------------------
+    */
+    Route::resource('articles', ArticleController::class);
 });
 
 /*

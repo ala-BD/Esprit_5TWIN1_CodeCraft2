@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class DonVetement extends Model
@@ -49,5 +50,11 @@ class DonVetement extends Model
     public function lotTextile(): HasOne
     {
         return $this->hasOne(LotTextile::class);
+    }
+
+    /** Un don peut être vendu comme un ou plusieurs articles */
+    public function articles(): HasMany
+    {
+        return $this->hasMany(Article::class);
     }
 }

@@ -126,8 +126,12 @@
             {{-- ===== AUTH BUTTONS ===== --}}
             <div class="hidden lg:flex items-center gap-3">
                 @auth
-                    {{-- Avatar --}}
-                    <div class="nav-avatar-wrap flex items-center gap-2 px-3 py-1.5 rounded-xl">
+                    {{-- Avatar (cliquable → profil) --}}
+                    <a href="{{ route('profile.edit') }}"
+                       class="nav-avatar-wrap flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all duration-200"
+                       style="text-decoration:none"
+                       title="Voir mon profil"
+                       onmouseover="this.style.boxShadow='0 0 0 2px #0d9488'" onmouseout="this.style.boxShadow='none'">
                         <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                              style="background: linear-gradient(135deg, #0d9488, #4ade80)">
                             {{ Auth::user()->initials }}
@@ -136,7 +140,22 @@
                             <p class="nav-username text-xs font-semibold">{{ Auth::user()->prenom ?? Auth::user()->name }}</p>
                             <p class="nav-role text-[10px]">{{ Auth::user()->role }}</p>
                         </div>
-                    </div>
+                        <i class="fas fa-chevron-right nav-role" style="font-size:9px;margin-left:2px"></i>
+                    </a>
+
+                    {{-- Marketplace --}}
+                    <a href="{{ route('articles.index') }}"
+                       class="nav-link flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-all duration-200 {{ request()->routeIs('articles.*') ? 'text-teal-600 bg-teal-50' : '' }}"
+                       title="Marketplace textile">
+                        <i class="fas fa-store text-xs text-teal-600"></i> Marketplace
+                    </a>
+
+                    {{-- Adresses --}}
+                    <a href="{{ route('adresses.index') }}"
+                       class="nav-link flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-all duration-200 {{ request()->routeIs('adresses.*') ? 'text-teal-600 bg-teal-50' : '' }}"
+                       title="Mes adresses">
+                        <i class="fas fa-map-marker-alt text-xs text-teal-600"></i> Adresses
+                    </a>
 
                     {{-- Dashboard --}}
                     @if(Auth::user()->role === 'RECYCLEUR')
@@ -208,6 +227,18 @@
 
             <div class="pt-4 mt-2 space-y-2" style="border-top: 1px solid #e2e8f0">
                 @auth
+                    <a href="{{ route('articles.index') }}"
+                       class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors {{ request()->routeIs('articles.*') ? 'bg-teal-50 text-teal-700 font-bold' : '' }}"
+                       style="text-decoration:none">
+                        <i class="fas fa-store w-4 text-center" style="color:#0d9488"></i> Marketplace Textile
+                    </a>
+
+                    <a href="{{ route('adresses.index') }}"
+                       class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors {{ request()->routeIs('adresses.*') ? 'bg-teal-50 text-teal-700 font-bold' : '' }}"
+                       style="text-decoration:none">
+                        <i class="fas fa-map-marker-alt w-4 text-center" style="color:#0d9488"></i> Mes Adresses
+                    </a>
+
                     @if(Auth::user()->role === 'RECYCLEUR')
                         <a href="{{ route('recyclage.dashboard') }}"
                            class="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white text-sm font-bold"
