@@ -146,12 +146,21 @@
 
                 {{-- Action button + Counters --}}
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    <a href="{{ route('articles.create') }}"
-                       class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm text-slate-900 bg-emerald-400 hover:bg-emerald-300 shadow-lg shadow-emerald-500/20 transition-all duration-200 transform hover:-translate-y-0.5"
+                    <a href="{{ route('commandes.index') }}"
+                       class="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl font-bold text-sm text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all duration-200"
                        style="text-decoration:none">
-                        <i class="fas fa-plus-circle text-base"></i>
-                        <span>Publier un article</span>
+                        <i class="fas fa-shopping-bag text-teal-300"></i>
+                        <span>Mes Commandes</span>
                     </a>
+
+                    @can('create', \App\Models\Article::class)
+                        <a href="{{ route('articles.create') }}"
+                           class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm text-slate-900 bg-emerald-400 hover:bg-emerald-300 shadow-lg shadow-emerald-500/20 transition-all duration-200 transform hover:-translate-y-0.5"
+                           style="text-decoration:none">
+                            <i class="fas fa-plus-circle text-base"></i>
+                            <span>Publier un article</span>
+                        </a>
+                    @endcan
                 </div>
             </div>
 
@@ -419,8 +428,18 @@
                             <a href="{{ route('articles.show', $article) }}"
                                class="flex-1 text-center py-2 px-3 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 transition-colors"
                                style="text-decoration:none">
-                                <i class="fas fa-eye mr-1"></i> Voir détails
+                                <i class="fas fa-eye mr-1"></i> Détails
                             </a>
+
+                            @if($article->isDisponible() && !$isOwner)
+                                <a href="{{ route('commandes.create', ['article_id' => $article->id]) }}"
+                                   class="py-2 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                                   title="Commander cet article"
+                                   style="text-decoration:none">
+                                    <i class="fas fa-shopping-bag"></i>
+                                    <span>Acheter</span>
+                                </a>
+                            @endif
 
                             {{-- Edit & Delete buttons: ONLY for owner or admin --}}
                             @can('update', $article)

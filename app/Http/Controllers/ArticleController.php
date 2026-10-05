@@ -130,9 +130,8 @@ class ArticleController extends Controller
         // Sécurité stricte : user_id provient toujours de l'utilisateur authentifié
         $validated['user_id'] = $request->user()->id;
 
-        if (empty($validated['statut'])) {
-            $validated['statut'] = Article::STATUT_DISPONIBLE;
-        }
+        // Lors de la publication initiale, le statut est toujours "DISPONIBLE"
+        $validated['statut'] = Article::STATUT_DISPONIBLE;
 
         // Traitement des images multiples
         $imagePaths = [];

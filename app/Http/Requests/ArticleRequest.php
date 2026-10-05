@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Article;
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -17,16 +18,33 @@ class ArticleRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     * An article added by a Donateur is always a free donation (prix = 0.00).
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->user() && $this->user()->role === User::ROLE_DONATEUR) {
+            $this->merge([
+                'prix' => 0.00,
+            ]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
+        $isDonateur = $this->user() && $this->user()->role === User::ROLE_DONATEUR;
+
         return [
             'titre'           => ['required', 'string', 'max:255'],
             'description'     => ['nullable', 'string', 'max:5000'],
-            'prix'            => ['required', 'numeric', 'gt:0'],
+            'prix'            => $isDonateur
+                ? ['nullable', 'numeric', 'min:0']
+                : ['required', 'numeric', 'gt:0'],
             'stock'           => ['required', 'integer', 'min:0'],
             'categorie'       => ['required', 'string', 'max:100'],
             'statut'          => ['nullable', 'string', Rule::in(Article::STATUTS)],
@@ -43,20 +61,20 @@ class ArticleRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'titre.required'     => 'Le titre de l\'article est obligatoire.',
-            'titre.max'          => 'Le titre ne peut pas dépasser 255 caractères.',
-            'prix.required'      => 'Le prix de vente est obligatoire.',
-            'prix.numeric'       => 'Le prix doit être un nombre valide.',
-            'prix.gt'            => 'Le prix doit être strictement supérieur à zéro (positif).',
-            'stock.required'     => 'La quantité en stock est obligatoire.',
-            'stock.integer'      => 'Le stock doit être un nombre entier.',
-            'stock.min'          => 'Le stock ne peut pas être négatif.',
-            'categorie.required' => 'La catégorie est obligatoire.',
-            'statut.in'          => 'Le statut sélectionné est invalide.',
+            'titre.required'         => 'Le titre de l\'article est obligatoire.',
+            'titre.max'              => 'Le titre ne peut pas dépasser 255 caractères.',
+            'prix.required'          => 'Le prix de vente est obligatoire pour l\'Atelier.',
+            'prix.numeric'           => 'Le prix doit être un montant valide.',
+            'prix.gt'                => 'Le prix doit être strictement supérieur à zéro (positif).',
+            'stock.required'         => 'La quantité en stock est obligatoire.',
+            'stock.integer'          => 'Le stock doit être un nombre entier.',
+            'stock.min'              => 'Le stock ne peut pas être négatif.',
+            'categorie.required'     => 'La catégorie est obligatoire.',
+            'statut.in'              => 'Le statut sélectionné est invalide.',
             'don_vetement_id.exists' => 'Le don sélectionné est introuvable.',
-            'images.*.image'     => 'Chaque fichier doit être une image valide.',
-            'images.*.mimes'     => 'Formats acceptés : jpeg, png, jpg, webp, gif.',
-            'images.*.max'       => 'La taille maximale par image est de 4 Mo.',
+            'images.*.image'         => 'Chaque fichier doit être une image valide.',
+            'images.*.mimes'         => 'Formats acceptés : jpeg, png, jpg, webp, gif.',
+            'images.*.max'           => 'La taille maximale par image est de 4 Mo.',
         ];
     }
 }

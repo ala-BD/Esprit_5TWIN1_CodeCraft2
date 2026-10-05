@@ -26,6 +26,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Adresse> $adresses
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\DonVetement> $dons
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Article> $articles
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Commande> $commandes
  */
 class User extends Authenticatable
 {
@@ -101,6 +102,18 @@ class User extends Authenticatable
         return $this->role === self::ROLE_ADMIN;
     }
 
+    /** Roles allowed to create / manage articles */
+    public function canCreateArticle(): bool
+    {
+        return in_array($this->role, [self::ROLE_ATELIER, self::ROLE_DONATEUR, self::ROLE_ADMIN]);
+    }
+
+    /** Whether this user gets the automatic 10% discount on Atelier articles */
+    public function getsRemise(): bool
+    {
+        return in_array($this->role, Commande::ROLES_AVEC_REMISE);
+    }
+
     /** Retourne le nom complet (prénom + nom) */
     public function getFullNameAttribute(): string
     {
@@ -159,5 +172,13 @@ class User extends Authenticatable
     public function articles(): HasMany
     {
         return $this->hasMany(Article::class);
+    }
+
+    /**
+     * Relation 1-N : Commandes passées par l'utilisateur.
+     */
+    public function commandes(): HasMany
+    {
+        return $this->hasMany(Commande::class);
     }
 }

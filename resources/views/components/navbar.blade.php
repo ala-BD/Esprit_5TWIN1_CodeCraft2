@@ -150,6 +150,13 @@
                         <i class="fas fa-store text-xs text-teal-600"></i> Marketplace
                     </a>
 
+                    {{-- Commandes --}}
+                    <a href="{{ route('commandes.index') }}"
+                       class="nav-link flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-all duration-200 {{ request()->routeIs('commandes.*') ? 'text-teal-600 bg-teal-50' : '' }}"
+                       title="Mes commandes & suivi">
+                        <i class="fas fa-shopping-bag text-xs text-teal-600"></i> Commandes
+                    </a>
+
                     {{-- Adresses --}}
                     <a href="{{ route('adresses.index') }}"
                        class="nav-link flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-all duration-200 {{ request()->routeIs('adresses.*') ? 'text-teal-600 bg-teal-50' : '' }}"
@@ -231,6 +238,12 @@
                        class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors {{ request()->routeIs('articles.*') ? 'bg-teal-50 text-teal-700 font-bold' : '' }}"
                        style="text-decoration:none">
                         <i class="fas fa-store w-4 text-center" style="color:#0d9488"></i> Marketplace Textile
+                    </a>
+
+                    <a href="{{ route('commandes.index') }}"
+                       class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors {{ request()->routeIs('commandes.*') ? 'bg-teal-50 text-teal-700 font-bold' : '' }}"
+                       style="text-decoration:none">
+                        <i class="fas fa-shopping-bag w-4 text-center" style="color:#0d9488"></i> Mes Commandes
                     </a>
 
                     <a href="{{ route('adresses.index') }}"

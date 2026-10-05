@@ -6,6 +6,7 @@ use Database\Factories\ArticleFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -108,6 +109,14 @@ class Article extends Model
     public function donVetement(): BelongsTo
     {
         return $this->belongsTo(DonVetement::class, 'don_vetement_id');
+    }
+
+    /**
+     * L'article peut être présent dans plusieurs lignes de commande.
+     */
+    public function lignesCommande(): HasMany
+    {
+        return $this->hasMany(LigneCommande::class);
     }
 
     /*
