@@ -144,6 +144,16 @@
                            class="nav-dashboard flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl transition-all duration-200">
                             <i class="fas fa-th-large text-xs"></i> Dashboard
                         </a>
+                    @elseif(Auth::user()->role === 'COLLECTEUR')
+                        <a href="{{ route('logistique.tournees.index') }}"
+                           class="nav-dashboard flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl transition-all duration-200">
+                            <i class="fas fa-route text-xs"></i> Mes tournées
+                        </a>
+                    @elseif(Auth::user()->role === 'ADMIN')
+                        <a href="{{ route('admin.users.index') }}"
+                           class="nav-dashboard flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl transition-all duration-200">
+                            <i class="fas fa-user-shield text-xs"></i> Administration
+                        </a>
                     @else
                         <a href="{{ route('dashboard') }}"
                            class="nav-dashboard flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl transition-all duration-200">
@@ -213,6 +223,18 @@
                            class="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white text-sm font-bold"
                            style="background: linear-gradient(135deg, #0d9488, #2DD4BF)">
                             <i class="fas fa-th-large text-xs"></i> Dashboard
+                        </a>
+                    @elseif(Auth::user()->role === 'COLLECTEUR')
+                        <a href="{{ route('logistique.tournees.index') }}"
+                           class="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white text-sm font-bold"
+                           style="background: linear-gradient(135deg, #0d9488, #2DD4BF)">
+                            <i class="fas fa-route text-xs"></i> Mes tournées
+                        </a>
+                    @elseif(Auth::user()->role === 'ADMIN')
+                        <a href="{{ route('admin.users.index') }}"
+                           class="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white text-sm font-bold"
+                           style="background: linear-gradient(135deg, #0d9488, #2DD4BF)">
+                            <i class="fas fa-user-shield text-xs"></i> Administration
                         </a>
                     @else
                         <a href="{{ route('dashboard') }}"

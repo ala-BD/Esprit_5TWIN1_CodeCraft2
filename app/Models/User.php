@@ -25,6 +25,15 @@ class User extends Authenticatable
     const ROLE_RECYCLEUR  = 'RECYCLEUR';
     const ROLE_ADMIN      = 'ADMIN';
 
+    const ROLES = [
+        self::ROLE_DONATEUR,
+        self::ROLE_CLIENT,
+        self::ROLE_COLLECTEUR,
+        self::ROLE_ATELIER,
+        self::ROLE_RECYCLEUR,
+        self::ROLE_ADMIN,
+    ];
+
     /*
     |----------------------------------------------------------------------
     | Mass assignable
@@ -80,6 +89,12 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === self::ROLE_ADMIN;
+    }
+
+    /** Tournées effectuées par le collecteur (M5) */
+    public function tournees(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Tournee::class);
     }
 
     /** Retourne le nom complet (prénom + nom) */
