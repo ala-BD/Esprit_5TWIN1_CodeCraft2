@@ -7,6 +7,9 @@ use App\Http\Controllers\Recyclage\LotTextileController;
 use App\Http\Controllers\Recyclage\EtapeTraitementController;
 use App\Http\Controllers\Recyclage\PasseportNumeriqueController;
 use App\Http\Controllers\Recyclage\StatistiqueController;
+use App\Http\Controllers\Upcycling\AtelierController;
+use App\Http\Controllers\Upcycling\DevisController;
+use App\Http\Controllers\Upcycling\ProjetUpcyclingController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -94,6 +97,55 @@ Route::middleware(['auth'])->group(function () {
         // Statistiques
         Route::get('statistiques', [StatistiqueController::class, 'index'])
             ->name('statistiques');
+    });
+
+    /*
+    |----------------------------------------------------------------------
+    | Module M3 — Upcycling
+    |----------------------------------------------------------------------
+    */
+    Route::prefix('upcycling')->name('upcycling.')->group(function () {
+
+        // Dashboard (client, atelier ou admin)
+        Route::get('/', [ProjetUpcyclingController::class, 'dashboard'])
+            ->name('dashboard');
+
+        // CRUD Ateliers (catalogue + portfolio)
+        Route::resource('ateliers', AtelierController::class);
+
+        // CRUD Projets d'upcycling
+        Route::resource('projets', ProjetUpcyclingController::class)
+            ->parameters(['projets' => 'projet']);
+
+        // IA : analyse de photo (AJAX) et idées d'upcycling
+        Route::post('analyse-photo', [ProjetUpcyclingController::class, 'analyserPhoto'])
+            ->name('analyse-photo');
+        Route::post('projets/{projet}/idees', [ProjetUpcyclingController::class, 'regenererIdees'])
+            ->name('projets.idees');
+        Route::patch('projets/{projet}/idee', [ProjetUpcyclingController::class, 'choisirIdee'])
+            ->name('projets.idee');
+
+        // Matching atelier
+        Route::get('projets/{projet}/matching', [ProjetUpcyclingController::class, 'matching'])
+            ->name('projets.matching');
+        Route::patch('projets/{projet}/atelier', [ProjetUpcyclingController::class, 'choisirAtelier'])
+            ->name('projets.atelier');
+
+        // Suivi par étapes
+        Route::patch('projets/{projet}/avancer', [ProjetUpcyclingController::class, 'avancer'])
+            ->name('projets.avancer');
+        Route::patch('projets/{projet}/annuler', [ProjetUpcyclingController::class, 'annuler'])
+            ->name('projets.annuler');
+        Route::patch('projets/{projet}/noter', [ProjetUpcyclingController::class, 'noter'])
+            ->name('projets.noter');
+
+        // Devis
+        Route::post('projets/{projet}/devis', [DevisController::class, 'store'])
+            ->name('devis.store');
+        Route::patch('devis/{devis}/accepter', [DevisController::class, 'accepter'])
+            ->name('devis.accepter');
+        Route::patch('devis/{devis}/refuser', [DevisController::class, 'refuser'])
+            ->name('devis.refuser');
     });
 
     /*

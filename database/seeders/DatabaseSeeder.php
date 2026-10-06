@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             PointCollecteSeeder::class,
             RecyclageSeeder::class,
+            UpcyclingSeeder::class,
         ]);
     }
 }
