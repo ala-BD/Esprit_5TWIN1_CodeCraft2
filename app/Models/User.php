@@ -18,15 +18,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $telephone
  * @property string $role
  * @property bool $actif
- * @property \Carbon\Carbon|null $email_verified_at
- * @property \Carbon\Carbon|null $created_at
- * @property \Carbon\Carbon|null $updated_at
  * @property-read string $full_name
  * @property-read string $initials
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Adresse> $adresses
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\DonVetement> $dons
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Article> $articles
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Commande> $commandes
  */
 class User extends Authenticatable
 {
@@ -45,6 +38,15 @@ class User extends Authenticatable
     const ROLE_RECYCLEUR  = 'RECYCLEUR';
     const ROLE_ADMIN      = 'ADMIN';
 
+    const ROLES = [
+        self::ROLE_DONATEUR,
+        self::ROLE_CLIENT,
+        self::ROLE_COLLECTEUR,
+        self::ROLE_ATELIER,
+        self::ROLE_RECYCLEUR,
+        self::ROLE_ADMIN,
+    ];
+
     /*
     |----------------------------------------------------------------------
     | Mass assignable
@@ -60,21 +62,11 @@ class User extends Authenticatable
         'password',
     ];
 
-    /*
-    |----------------------------------------------------------------------
-    | Attributs cachés (sérialisation JSON)
-    |----------------------------------------------------------------------
-    */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /*
-    |----------------------------------------------------------------------
-    | Casts
-    |----------------------------------------------------------------------
-    */
     protected function casts(): array
     {
         return [
@@ -90,37 +82,33 @@ class User extends Authenticatable
     |----------------------------------------------------------------------
     */
 
-    /** Vérifie si l'utilisateur a un rôle donné */
     public function hasRole(string $role): bool
     {
         return $this->role === strtoupper($role);
     }
 
-    /** Vérifie si l'utilisateur est admin */
     public function isAdmin(): bool
     {
         return $this->role === self::ROLE_ADMIN;
     }
 
-    /** Roles allowed to create / manage articles */
+    /** Roles autorisés à créer/gérer des articles (M2) */
     public function canCreateArticle(): bool
     {
         return in_array($this->role, [self::ROLE_ATELIER, self::ROLE_DONATEUR, self::ROLE_ADMIN]);
     }
 
-    /** Whether this user gets the automatic 10% discount on Atelier articles */
+    /** Remise automatique 10% sur articles Atelier (M2) */
     public function getsRemise(): bool
     {
         return in_array($this->role, Commande::ROLES_AVEC_REMISE);
     }
 
-    /** Retourne le nom complet (prénom + nom) */
     public function getFullNameAttribute(): string
     {
         return trim("{$this->prenom} {$this->name}");
     }
 
-    /** Retourne les initiales pour l'avatar */
     public function getInitialsAttribute(): string
     {
         $prenom = $this->prenom ? strtoupper(substr($this->prenom, 0, 1)) : '';
@@ -134,51 +122,39 @@ class User extends Authenticatable
     |----------------------------------------------------------------------
     */
 
-    /**
-     * Relation 1-N : Un utilisateur possède plusieurs adresses.
-     */
     public function adresses(): HasMany
     {
         return $this->hasMany(Adresse::class);
     }
 
-    /**
-     * Récupère l'adresse par défaut de l'utilisateur (le cas échéant).
-     */
     public function adresseParDefaut(): HasOne
     {
         return $this->hasOne(Adresse::class)->where('par_defaut', true);
     }
 
-    /**
-     * Relation 1-N : Dons de vêtements de l'utilisateur.
-     */
     public function donVetements(): HasMany
     {
         return $this->hasMany(DonVetement::class);
     }
 
-    /**
-     * Alias de donVetements()
-     */
     public function dons(): HasMany
     {
         return $this->hasMany(DonVetement::class);
     }
 
-    /**
-     * Relation 1-N : Articles publiés par l'utilisateur.
-     */
     public function articles(): HasMany
     {
         return $this->hasMany(Article::class);
     }
 
-    /**
-     * Relation 1-N : Commandes passées par l'utilisateur.
-     */
     public function commandes(): HasMany
     {
         return $this->hasMany(Commande::class);
+    }
+
+    /** Tournées effectuées par le collecteur (M5) */
+    public function tournees(): HasMany
+    {
+        return $this->hasMany(Tournee::class);
     }
 }
