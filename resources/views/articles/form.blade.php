@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app-auth')
 
 @section('title', ($isEdit ? 'Modifier l\'article' : 'Publier un article') . ' — Marketplace RETISS')
 

@@ -225,6 +225,26 @@
 
             @show
 
+            <p class="px-2.5 pt-5 pb-1.5 text-xs text-white/35">Marketplace</p>
+
+            <a href="{{ route('articles.index') }}"
+               class="a-nav-link {{ request()->routeIs('articles.index') || request()->routeIs('articles.show') ? 'active' : '' }}">
+                <i class="fas fa-store"></i>
+                Articles
+            </a>
+
+            <a href="{{ route('articles.create') }}"
+               class="a-nav-link {{ request()->routeIs('articles.create') ? 'active' : '' }}">
+                <i class="fas fa-plus"></i>
+                Publier un article
+            </a>
+
+            <a href="{{ route('commandes.index') }}"
+               class="a-nav-link {{ request()->routeIs('commandes.*') ? 'active' : '' }}">
+                <i class="fas fa-shopping-bag"></i>
+                Commandes
+            </a>
+
             <p class="px-2.5 pt-5 pb-1.5 text-xs text-white/35">Plateforme</p>
 
             <a href="{{ route('home') }}" class="a-nav-link">

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app-auth')
 
 @php
     /** @var \App\Models\User $user */
@@ -433,7 +433,7 @@
                 <span class="text-white/70 text-sm">Mon profil</span>
             </div>
             <h1 class="font-display text-3xl font-bold text-white mb-1">
-                Bonjour, {{ Auth::user()->prenom ?? Auth::user()->name }} 👋
+                Bonjour, {{ Auth::user()->prenom ?? Auth::user()->name }}
             </h1>
             <p class="text-white/60 text-sm">Gérez vos informations personnelles et la sécurité de votre compte.</p>
         </div>

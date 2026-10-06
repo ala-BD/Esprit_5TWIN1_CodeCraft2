@@ -21,14 +21,22 @@ class AuthenticatedSessionController extends Controller
 
     /**
      * Handle an incoming authentication request.
+     * Redirige vers le bon espace selon le rôle de l'utilisateur.
      */
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
-
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $role = Auth::user()->role;
+
+        return match($role) {
+            'RECYCLEUR'  => redirect()->route('recyclage.dashboard'),
+            'ADMIN'      => redirect()->route('admin.users.index'),
+            'COLLECTEUR' => redirect()->route('logistique.tournees.index'),
+            'ATELIER'    => redirect()->route('upcycling.dashboard'),
+            default      => redirect()->route('dashboard'),
+        };
     }
 
     /**

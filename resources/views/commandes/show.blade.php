@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app-auth')
 
 @section('title', 'Commande ' . $commande->numero . ' — RETISS')
 
@@ -255,7 +255,7 @@
                         </div>
                     </div>
                     <p class="text-xs text-emerald-600/80 mt-3 text-center">
-                        En achetant d'occasion, vous avez contribué à l'économie circulaire textile. Merci ! 🌿
+        En achetant d'occasion, vous avez contribué à l'économie circulaire textile. Merci !
                     </p>
                 </div>
 

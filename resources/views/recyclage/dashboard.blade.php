@@ -7,7 +7,7 @@
 {{-- Header --}}
 <div class="mb-8">
     <h1 class="font-display text-2xl font-bold text-gray-900">
-        Bonjour, <span class="text-primary-DEFAULT">{{ Auth::user()->prenom ?? Auth::user()->name }}</span> 👋
+        Bonjour, <span class="text-primary-DEFAULT">{{ Auth::user()->prenom ?? Auth::user()->name }}</span>
     </h1>
     <p class="text-gray-500 text-sm mt-1">Tableau de bord — Module Recyclage M4</p>
 </div>

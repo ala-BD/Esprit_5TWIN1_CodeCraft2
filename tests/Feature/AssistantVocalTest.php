@@ -486,7 +486,7 @@ class AssistantVocalTest extends TestCase
         $this->actingAs($admin)->postJson('/assistant/executer', ['action' => 'supprimer_utilisateur', 'arguments' => ['cible' => 'Nobody Here'], ...$en])
             ->assertJson(['type' => 'message', 'message' => 'No user matches "Nobody Here".', 'voix' => 'en']);
         $this->actingAs($admin)->postJson('/assistant/executer', ['action' => 'creer_utilisateur', 'arguments' => ['prenom' => 'A', 'nom' => 'B', 'email' => $karim->email], ...$en])
-            ->assertJson(['type' => 'message', 'message' => 'The email has already been taken.']);
+            ->assertJson(['type' => 'message', 'message' => 'The adresse e-mail has already been taken.']);
         $this->actingAs($admin)->postJson('/assistant/executer', ['action' => 'supprimer_utilisateur', 'arguments' => ['utilisateur_id' => $karim->id], ...$en])
             ->assertJson(['type' => 'succes', 'message' => 'User Karim Mansouri deleted.', 'voix' => 'en']);
     }

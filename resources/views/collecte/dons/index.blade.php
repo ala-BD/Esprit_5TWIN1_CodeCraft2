@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app-auth')
 
 @section('title', Auth::user()->role === 'DONATEUR' ? 'Mes dons' : 'Dons reçus')
 

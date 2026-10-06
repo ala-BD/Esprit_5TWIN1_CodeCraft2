@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app-auth')
 
 @section('title', 'Modifier la commande ' . $commande->numero . ' — RETISS')
 

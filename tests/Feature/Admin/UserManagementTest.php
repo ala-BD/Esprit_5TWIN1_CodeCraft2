@@ -40,7 +40,13 @@ class UserManagementTest extends TestCase
         $user = User::factory()->create(['role' => User::ROLE_DONATEUR]);
 
         $this->actingAs($user)->get('/admin/users')->assertForbidden();
-        $this->actingAs($user)->post('/admin/users', $this->payload())->assertForbidden();
+
+        // Désactiver CSRF pour tester uniquement le middleware EnsureAdmin sur POST
+        $this->actingAs($user)
+            ->from('/admin/users')
+            ->post('/admin/users', array_merge($this->payload(), ['_token' => csrf_token()]))
+            ->assertForbidden();
+
         $this->assertDatabaseMissing('users', ['email' => 'karim@example.com']);
     }
 

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app-auth')
 
 @php
     $role = Auth::user()->role;
@@ -9,12 +9,12 @@
 @endphp
 
 @section('content')
-<div class="min-h-screen bg-gray-50 pt-[72px]">
+<div class="min-h-[calc(100vh-56px)] bg-gray-50">
 
     <div class="flex">
 
         {{-- ===== SIDEBAR ===== --}}
-        <aside class="hidden lg:flex flex-col w-64 flex-shrink-0 self-start sticky top-[72px] h-[calc(100vh-72px)] overflow-y-auto bg-gradient-to-b from-navy-dark via-navy to-forest text-white pt-6 pb-6 z-30">
+        <aside class="hidden lg:flex flex-col w-64 flex-shrink-0 self-start sticky top-14 h-[calc(100vh-56px)] overflow-y-auto bg-gradient-to-b from-navy-dark via-navy to-forest-DEFAULT text-white pt-6 pb-6 z-30">
 
             {{-- Titre module --}}
             <div class="px-6 mb-8">
@@ -71,6 +71,42 @@
                         </a>
                     @endif
                 @endif
+
+                {{-- ===== MARKETPLACE (ATELIER uniquement — DONATEUR a son propre dashboard) ===== --}}
+                @if($estAtelier)
+                <div class="pt-4 pb-2 px-4">
+                    <p class="text-white/30 text-xs uppercase tracking-wider font-semibold">Marketplace</p>
+                </div>
+
+                <a href="{{ route('articles.index') }}"
+                   class="{{ $lien(request()->routeIs('articles.index') || (request()->routeIs('articles.show'))) }}">
+                    <i class="fas fa-store w-4 text-center"></i>
+                    Mes articles
+                </a>
+
+                <a href="{{ route('articles.create') }}"
+                   class="{{ $lien(request()->routeIs('articles.create') || request()->routeIs('articles.edit')) }}">
+                    <i class="fas fa-plus-circle w-4 text-center"></i>
+                    Publier un article
+                </a>
+                @endif
+
+                {{-- ===== MON COMPTE ===== --}}
+                <div class="pt-4 pb-2 px-4">
+                    <p class="text-white/30 text-xs uppercase tracking-wider font-semibold">Mon compte</p>
+                </div>
+
+                <a href="{{ route('adresses.index') }}"
+                   class="{{ $lien(request()->routeIs('adresses.*')) }}">
+                    <i class="fas fa-map-pin w-4 text-center"></i>
+                    Mes adresses
+                </a>
+
+                <a href="{{ route('profile.edit') }}"
+                   class="{{ $lien(request()->routeIs('profile.*')) }}">
+                    <i class="fas fa-user-circle w-4 text-center"></i>
+                    Mon profil
+                </a>
             </nav>
 
             {{-- Profil bas --}}

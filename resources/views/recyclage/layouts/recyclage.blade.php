@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app-auth')
 
 @section('content')
 <div class="min-h-screen bg-gray-50">
@@ -7,7 +7,7 @@
     <div class="flex">
 
         {{-- ===== SIDEBAR ===== --}}
-        <aside class="hidden lg:flex flex-col w-64 min-h-screen bg-primary-dark text-white fixed top-16 left-0 pt-6 pb-10 z-30">
+        <aside class="hidden lg:flex flex-col w-64 min-h-[calc(100vh-56px)] bg-primary-dark text-white fixed top-14 left-0 pt-6 pb-10 z-30">
 
             {{-- Titre module --}}
             <div class="px-6 mb-8">

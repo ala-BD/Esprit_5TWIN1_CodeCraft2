@@ -51,6 +51,14 @@ class RegisteredUserController extends Controller
         event(new Registered($user));
         Auth::login($user);
 
-        return redirect()->route('dashboard');
+        $role = $user->role;
+
+        return match($role) {
+            'RECYCLEUR'  => redirect()->route('recyclage.dashboard'),
+            'ADMIN'      => redirect()->route('admin.users.index'),
+            'COLLECTEUR' => redirect()->route('logistique.tournees.index'),
+            'ATELIER'    => redirect()->route('upcycling.dashboard'),
+            default      => redirect()->route('dashboard'),
+        };
     }
 }

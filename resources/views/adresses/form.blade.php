@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app-auth')
 
 @section('title', ($isEdit ? 'Modifier l\'adresse' : 'Ajouter une adresse') . ' — RETISS')
 
@@ -462,11 +462,11 @@
                             </div>
                             <div class="flex flex-wrap items-center gap-1.5">
                                 <span class="text-[11px] text-slate-400 mr-1">Suggestions :</span>
-                                <button type="button" class="tag-preset-btn" onclick="setLibelle('Maison')">🏠 Maison</button>
-                                <button type="button" class="tag-preset-btn" onclick="setLibelle('Travail')">💼 Travail</button>
-                                <button type="button" class="tag-preset-btn" onclick="setLibelle('Atelier')">✂️ Atelier</button>
-                                <button type="button" class="tag-preset-btn" onclick="setLibelle('Dépôt')">📦 Dépôt</button>
-                                <button type="button" class="tag-preset-btn" onclick="setLibelle('Famille')">❤️ Famille</button>
+                                <button type="button" class="tag-preset-btn" onclick="setLibelle('Maison')">Maison</button>
+                                <button type="button" class="tag-preset-btn" onclick="setLibelle('Travail')">Travail</button>
+                                <button type="button" class="tag-preset-btn" onclick="setLibelle('Atelier')">Atelier</button>
+                                <button type="button" class="tag-preset-btn" onclick="setLibelle('Dépôt')">Dépôt</button>
+                                <button type="button" class="tag-preset-btn" onclick="setLibelle('Famille')">Famille</button>
                             </div>
                             @error('libelle')
                                 <p class="mt-1.5 text-xs text-red-500 flex items-center gap-1">

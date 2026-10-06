@@ -290,7 +290,7 @@
     {{-- ECOLOGICAL IMPACT STATEMENT --}}
     @php $impact = $commande->impactEcologique(); @endphp
     <div class="eco-box">
-        <div class="eco-title">🌿 Bilan écologique certifié RETISS</div>
+        <div class="eco-title">Bilan écologique certifié RETISS</div>
         <p class="eco-text">
             En choisissant la mode circulaire sur RETISS, cette commande a permis d'éviter 
             <strong>{{ $impact['co2_kg'] }} kg de CO₂</strong> et de préserver 

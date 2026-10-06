@@ -114,7 +114,7 @@
                 </div>
 
                 <div class="hash-box">
-                    <div class="hash-label">🔒 Hash d'intégrité SHA-256</div>
+                    <div class="hash-label">Hash d'intégrité SHA-256</div>
                     <div class="hash-value">{{ $passeport->hash_integrite }}</div>
                 </div>
             </div>
