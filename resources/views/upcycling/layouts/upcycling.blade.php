@@ -14,7 +14,7 @@
     <div class="flex">
 
         {{-- ===== SIDEBAR ===== --}}
-        <aside class="hidden lg:flex flex-col w-64 min-h-screen bg-primary-dark text-white fixed top-[72px] left-0 pt-6 pb-10 z-30">
+        <aside class="hidden lg:flex flex-col w-64 flex-shrink-0 self-start sticky top-[72px] h-[calc(100vh-72px)] overflow-y-auto bg-gradient-to-b from-navy-dark via-navy to-forest text-white pt-6 pb-6 z-30">
 
             {{-- Titre module --}}
             <div class="px-6 mb-8">
@@ -88,7 +88,7 @@
         </aside>
 
         {{-- ===== CONTENU PRINCIPAL ===== --}}
-        <main class="flex-1 lg:ml-64 p-6 lg:p-8 min-w-0">
+        <main class="flex-1 p-6 lg:p-8 min-w-0">
 
             {{-- Navigation mobile du module --}}
             <div class="lg:hidden flex gap-2 overflow-x-auto pb-4 mb-2 -mx-1 px-1">

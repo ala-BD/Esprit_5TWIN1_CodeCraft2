@@ -21,16 +21,24 @@
 <div class="max-w-2xl">
 
     <div class="mb-8">
-        <h1 class="font-display text-2xl font-bold text-gray-900">{{ $edition ? 'Modifier mon atelier' : 'Créer mon profil atelier' }}</h1>
+        <h1 class="font-display text-3xl font-extrabold text-gray-900">{{ $edition ? 'Modifier mon atelier' : 'Créer mon profil atelier' }}</h1>
         <p class="text-gray-500 text-sm mt-1">Ces informations servent au matching : spécialité, tarif et disponibilité déterminent votre classement.</p>
     </div>
 
     <form method="POST" action="{{ $edition ? route('upcycling.ateliers.update', $atelier) : route('upcycling.ateliers.store') }}"
-          class="space-y-6" novalidate>
+          enctype="multipart/form-data" class="space-y-6" novalidate>
         @csrf
         @if($edition) @method('PUT') @endif
 
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+        @include('upcycling.partials.photo-input', [
+            'nom'      => 'photo',
+            'actuelle' => $atelier->photo_url,
+            'titre'    => 'Photo de couverture',
+            'aide'     => "Votre atelier, une création phare ou votre logo (sinon, votre dernière réalisation s'affiche)",
+            'hauteur'  => 'h-52',
+        ])
+
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-5">
 
             {{-- Nom --}}
             <div>
