@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Upcycling;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Upcycling\Concerns\AccesUpcycling;
+use App\Http\Requests\Upcycling\AtelierRequest;
 use App\Models\Atelier;
 use App\Models\ProjetUpcycling;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AtelierController extends Controller
@@ -30,13 +30,14 @@ class AtelierController extends Controller
                     ->orWhere('localisation', 'like', '%' . $request->q . '%');
             }))
             ->withCount(['projetUpcyclings as projets_termines' => fn ($q) => $q->where('statut', ProjetUpcycling::STATUT_TERMINE)])
+            ->with(['projetUpcyclings' => fn ($q) => $q->where('statut', ProjetUpcycling::STATUT_TERMINE)->latest('date_fin')])
             ->orderByDesc('note_moyenne')
             ->paginate(9)
             ->withQueryString();
 
         return view('upcycling.ateliers.index', [
-            'ateliers'     => $ateliers,
-            'monAtelier'   => $this->atelierConnecte(),
+            'ateliers'   => $ateliers,
+            'monAtelier' => $this->atelierConnecte(),
         ]);
     }
 
@@ -78,12 +79,12 @@ class AtelierController extends Controller
     | POST /upcycling/ateliers — Enregistrer son profil atelier
     |------------------------------------------------------------------
     */
-    public function store(Request $request): RedirectResponse
+    public function store(AtelierRequest $request): RedirectResponse
     {
         abort_unless($this->estAtelier(), 403, 'Réservé aux comptes Atelier.');
         abort_if($this->atelierConnecte() !== null, 422, 'Vous avez déjà un profil atelier.');
 
-        $atelier = Atelier::create($this->valider($request) + [
+        $atelier = Atelier::create($this->donnees($request) + [
             'user_id' => Auth::id(),
             'actif'   => true,
         ]);
@@ -110,11 +111,11 @@ class AtelierController extends Controller
     | PUT /upcycling/ateliers/{atelier}
     |------------------------------------------------------------------
     */
-    public function update(Request $request, Atelier $atelier): RedirectResponse
+    public function update(AtelierRequest $request, Atelier $atelier): RedirectResponse
     {
         abort_if($atelier->user_id !== Auth::id(), 403);
 
-        $atelier->update($this->valider($request) + [
+        $atelier->update($this->donnees($request, $atelier) + [
             'actif' => $request->boolean('actif'),
         ]);
 
@@ -137,6 +138,7 @@ class AtelierController extends Controller
             return back()->with('error', 'Impossible de supprimer un atelier qui a des projets en cours.');
         }
 
+        ProjetUpcycling::supprimerPhoto($atelier->photo);
         $atelier->delete();
 
         return redirect()
@@ -146,28 +148,18 @@ class AtelierController extends Controller
 
     /*
     |------------------------------------------------------------------
-    | Validation commune store / update
+    | Données validées + photo de couverture
     |------------------------------------------------------------------
     */
-    private function valider(Request $request): array
+    private function donnees(AtelierRequest $request, ?Atelier $atelier = null): array
     {
-        return $request->validate([
-            'nom'           => ['required', 'string', 'max:100'],
-            'specialite'    => ['required', Rule::in(array_keys(Atelier::SPECIALITES))],
-            'description'   => ['nullable', 'string', 'max:1000'],
-            'portfolio_url' => ['nullable', 'url', 'max:255'],
-            'tarif_horaire' => ['required', 'numeric', 'min:1', 'max:500'],
-            'localisation'  => ['required', 'string', 'max:150'],
-        ], [
-            'nom.required'           => "Le nom de l'atelier est obligatoire.",
-            'specialite.required'    => 'La spécialité est obligatoire.',
-            'specialite.in'          => 'Spécialité invalide.',
-            'portfolio_url.url'      => "Le lien du portfolio doit être une URL valide (https://...).",
-            'tarif_horaire.required' => 'Le tarif horaire est obligatoire.',
-            'tarif_horaire.numeric'  => 'Le tarif horaire doit être un nombre.',
-            'tarif_horaire.min'      => 'Le tarif horaire minimum est 1 DT.',
-            'tarif_horaire.max'      => 'Le tarif horaire maximum est 500 DT.',
-            'localisation.required'  => 'La localisation est obligatoire.',
-        ]);
+        $data = $request->safe()->except('photo');
+
+        if ($request->hasFile('photo')) {
+            ProjetUpcycling::supprimerPhoto($atelier?->photo);
+            $data['photo'] = $request->file('photo')->store('upcycling/ateliers', 'public');
+        }
+
+        return $data;
     }
 }
