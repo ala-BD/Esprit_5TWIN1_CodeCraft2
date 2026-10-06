@@ -138,22 +138,31 @@ class TourneeController extends Controller
     */
     private function valider(Request $request): array
     {
-        return $request->validate([
+        return $request->validate(self::regles(), self::MESSAGES);
+    }
+
+    /** Règles de validation, partagées avec l'assistant vocal */
+    public static function regles(): array
+    {
+        return [
             'date'        => ['required', 'date'],
             'zone'        => ['required', 'string', 'max:255'],
             'vehicule'    => ['required', 'string', 'max:255'],
             'distance_km' => ['nullable', 'numeric', 'min:0', 'max:9999'],
             'statut'      => ['required', Rule::in(array_keys(Tournee::STATUTS))],
-        ], [
-            'date.required'       => 'La date de la tournée est obligatoire.',
-            'date.date'           => "La date n'est pas valide.",
-            'zone.required'       => 'La zone est obligatoire.',
-            'vehicule.required'   => 'Le véhicule est obligatoire.',
-            'distance_km.numeric' => 'La distance doit être un nombre.',
-            'distance_km.min'     => 'La distance ne peut pas être négative.',
-            'distance_km.max'     => 'La distance ne peut pas dépasser :max km.',
-            'statut.required'     => 'Le statut est obligatoire.',
-            'statut.in'           => 'Le statut sélectionné est invalide.',
-        ]);
+        ];
     }
+
+    /** Messages de validation, partagés avec l'assistant vocal */
+    public const MESSAGES = [
+        'date.required'       => 'La date de la tournée est obligatoire.',
+        'date.date'           => "La date n'est pas valide.",
+        'zone.required'       => 'La zone est obligatoire.',
+        'vehicule.required'   => 'Le véhicule est obligatoire.',
+        'distance_km.numeric' => 'La distance doit être un nombre.',
+        'distance_km.min'     => 'La distance ne peut pas être négative.',
+        'distance_km.max'     => 'La distance ne peut pas dépasser :max km.',
+        'statut.required'     => 'Le statut est obligatoire.',
+        'statut.in'           => 'Le statut sélectionné est invalide.',
+    ];
 }

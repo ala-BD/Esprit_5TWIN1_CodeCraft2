@@ -122,7 +122,13 @@ class MissionController extends Controller
     */
     private function valider(Request $request): array
     {
-        return $request->validate([
+        return $request->validate(self::regles(), self::MESSAGES);
+    }
+
+    /** Règles de validation, partagées avec l'assistant vocal */
+    public static function regles(): array
+    {
+        return [
             'type'             => ['required', Rule::in(array_keys(Mission::TYPES))],
             'adresse'          => ['required', 'string', 'max:255'],
             'ordre'            => ['required', 'integer', 'min:1', 'max:999'],
@@ -130,18 +136,21 @@ class MissionController extends Controller
             'statut'           => ['required', Rule::in(array_keys(Mission::STATUTS))],
             'preuve_livraison' => ['nullable', 'string', 'max:255'],
             'don_vetement_id'  => ['nullable', 'integer', 'exists:don_vetements,id'],
-        ], [
-            'type.required'            => 'Le type de mission est obligatoire.',
-            'type.in'                  => 'Le type sélectionné est invalide.',
-            'adresse.required'         => "L'adresse est obligatoire.",
-            'ordre.required'           => "L'ordre de passage est obligatoire.",
-            'ordre.integer'            => "L'ordre de passage doit être un nombre entier.",
-            'ordre.min'                => "L'ordre de passage commence à 1.",
-            'heure_prevue.required'    => "L'heure prévue est obligatoire.",
-            'heure_prevue.date_format' => "L'heure prévue doit être au format HH:MM.",
-            'statut.required'          => 'Le statut est obligatoire.',
-            'statut.in'                => 'Le statut sélectionné est invalide.',
-            'don_vetement_id.exists'   => "Le don sélectionné n'existe pas.",
-        ]);
+        ];
     }
+
+    /** Messages de validation, partagés avec l'assistant vocal */
+    public const MESSAGES = [
+        'type.required'            => 'Le type de mission est obligatoire.',
+        'type.in'                  => 'Le type sélectionné est invalide.',
+        'adresse.required'         => "L'adresse est obligatoire.",
+        'ordre.required'           => "L'ordre de passage est obligatoire.",
+        'ordre.integer'            => "L'ordre de passage doit être un nombre entier.",
+        'ordre.min'                => "L'ordre de passage commence à 1.",
+        'heure_prevue.required'    => "L'heure prévue est obligatoire.",
+        'heure_prevue.date_format' => "L'heure prévue doit être au format HH:MM.",
+        'statut.required'          => 'Le statut est obligatoire.',
+        'statut.in'                => 'Le statut sélectionné est invalide.',
+        'don_vetement_id.exists'   => "Le don sélectionné n'existe pas.",
+    ];
 }

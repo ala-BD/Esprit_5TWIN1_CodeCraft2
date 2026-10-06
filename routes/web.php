@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\StatistiqueController as AdminStatistiqueController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\Logistique\MissionController;
 use App\Http\Controllers\Logistique\TourneeController;
 use App\Http\Controllers\ProfileController;
@@ -103,6 +104,19 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('tournees.missions', MissionController::class)
             ->shallow()
             ->except(['index', 'show']);
+    });
+
+    /*
+    |----------------------------------------------------------------------
+    | Assistant vocal (administration et logistique)
+    |----------------------------------------------------------------------
+    */
+    Route::prefix('assistant')->name('assistant.')->middleware('throttle:90,1')->group(function () {
+        Route::post('transcrire', [AssistantController::class, 'transcrire'])->name('transcrire');
+        Route::post('parler', [AssistantController::class, 'parler'])->name('parler');
+        Route::post('interpreter', [AssistantController::class, 'interpreter'])->name('interpreter');
+        Route::post('preparer', [AssistantController::class, 'preparer'])->name('preparer');
+        Route::post('executer', [AssistantController::class, 'executer'])->name('executer');
     });
 
     /*

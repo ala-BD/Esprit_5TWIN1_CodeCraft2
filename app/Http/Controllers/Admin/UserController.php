@@ -155,7 +155,13 @@ class UserController extends Controller
     */
     private function valider(Request $request, ?User $user = null): array
     {
-        return $request->validate([
+        return $request->validate(self::regles($user), self::MESSAGES);
+    }
+
+    /** Règles de validation, partagées avec l'assistant vocal */
+    public static function regles(?User $user = null): array
+    {
+        return [
             'name'      => ['required', 'string', 'max:255'],
             'prenom'    => ['required', 'string', 'max:255'],
             'email'     => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user)],
@@ -163,19 +169,22 @@ class UserController extends Controller
             'role'      => ['required', Rule::in(User::ROLES)],
             // Mot de passe obligatoire à la création, optionnel à l'édition
             'password'  => [$user ? 'nullable' : 'required', 'confirmed', Rules\Password::defaults()],
-        ], [
-            'name.required'      => 'Le nom est obligatoire.',
-            'prenom.required'    => 'Le prénom est obligatoire.',
-            'email.required'     => "L'adresse e-mail est obligatoire.",
-            'email.email'        => "L'adresse e-mail n'est pas valide.",
-            'email.lowercase'    => "L'adresse e-mail doit être en minuscules.",
-            'email.unique'       => 'Cette adresse e-mail est déjà utilisée.',
-            'telephone.max'      => 'Le téléphone ne doit pas dépasser 20 caractères.',
-            'role.required'      => 'Le rôle est obligatoire.',
-            'role.in'            => 'Le rôle sélectionné est invalide.',
-            'password.required'  => 'Le mot de passe est obligatoire.',
-            'password.confirmed' => 'La confirmation du mot de passe ne correspond pas.',
-            'password.min'       => 'Le mot de passe doit contenir au moins :min caractères.',
-        ]);
+        ];
     }
+
+    /** Messages de validation, partagés avec l'assistant vocal */
+    public const MESSAGES = [
+        'name.required'      => 'Le nom est obligatoire.',
+        'prenom.required'    => 'Le prénom est obligatoire.',
+        'email.required'     => "L'adresse e-mail est obligatoire.",
+        'email.email'        => "L'adresse e-mail n'est pas valide.",
+        'email.lowercase'    => "L'adresse e-mail doit être en minuscules.",
+        'email.unique'       => 'Cette adresse e-mail est déjà utilisée.',
+        'telephone.max'      => 'Le téléphone ne doit pas dépasser 20 caractères.',
+        'role.required'      => 'Le rôle est obligatoire.',
+        'role.in'            => 'Le rôle sélectionné est invalide.',
+        'password.required'  => 'Le mot de passe est obligatoire.',
+        'password.confirmed' => 'La confirmation du mot de passe ne correspond pas.',
+        'password.min'       => 'Le mot de passe doit contenir au moins :min caractères.',
+    ];
 }

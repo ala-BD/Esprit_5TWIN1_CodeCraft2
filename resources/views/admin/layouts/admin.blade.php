@@ -299,6 +299,9 @@
     </div>
 </div>
 
+{{-- ===== ASSISTANT VOCAL ===== --}}
+@include('admin.partials.assistant')
+
 {{-- ===== FENÊTRE DE CONFIRMATION (formulaires [data-confirm-title]) ===== --}}
 <div id="admin-confirm" class="a-modal" role="dialog" aria-modal="true"
      aria-labelledby="admin-confirm-title" aria-describedby="admin-confirm-message">
