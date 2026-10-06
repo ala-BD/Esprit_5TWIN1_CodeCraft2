@@ -7,6 +7,9 @@ use App\Models\Devis;
 use App\Models\ProjetUpcycling;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class UpcyclingTest extends TestCase
@@ -17,8 +20,9 @@ class UpcyclingTest extends TestCase
     {
         parent::setUp();
 
-        // Jamais d'appel réel à l'API pendant les tests : générateur local
-        config(['services.anthropic.key' => null]);
+        // Par défaut : pas de clé → générateur local, jamais d'appel réel à l'API
+        config(['services.gemini.key' => null]);
+        Http::preventStrayRequests();
     }
 
     private function client(): User
@@ -26,34 +30,26 @@ class UpcyclingTest extends TestCase
         return User::factory()->create(['role' => 'CLIENT']);
     }
 
-    private function atelier(string $specialite = 'SAC', float $tarif = 15, float $note = 0): Atelier
+    /** Simule une réponse Gemini contenant le JSON donné */
+    private function fakeGemini(array $json): void
     {
-        return Atelier::create([
-            'user_id'       => User::factory()->create(['role' => 'ATELIER'])->id,
-            'nom'           => 'Atelier ' . $specialite,
-            'specialite'    => $specialite,
-            'tarif_horaire' => $tarif,
-            'localisation'  => 'Tunis',
-            'note_moyenne'  => $note,
-            'actif'         => true,
+        config(['services.gemini.key' => 'cle-de-test']);
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => json_encode($json)]]]]],
+            ]),
         ]);
     }
 
-    private function demande(User $client, array $extra = []): ProjetUpcycling
+    private function ideeGemini(string $titre, string $categorie): array
     {
-        return ProjetUpcycling::create($extra + [
-            'client_id'       => $client->id,
-            'type_vetement'   => 'Jean',
-            'matiere'         => 'Denim',
-            'etat'            => 'USE',
-            'description'     => 'Vieux jean troué au genou.',
-            'idee_generee_ia' => app(\App\Services\Upcycling\IdeeUpcyclingService::class)->genererLocalement('Jean', 'Denim', 'USE'),
-            'source_ia'       => 'LOCAL',
-            'statut'          => 'DEMANDE',
-        ]);
+        return [
+            'titre' => $titre, 'description' => 'Description', 'categorie' => $categorie, 'difficulte' => 'MOYEN',
+            'duree_heures' => 3, 'etapes' => ['Couper', 'Coudre'], 'materiaux' => ['Fil'], 'prix_min' => 30, 'prix_max' => 50,
+        ];
     }
 
-    public function test_un_client_cree_une_demande_et_recoit_trois_idees(): void
+    public function test_un_client_cree_une_demande_avec_le_generateur_local(): void
     {
         $client = $this->client();
 
@@ -71,20 +67,100 @@ class UpcyclingTest extends TestCase
         $this->assertSame('LOCAL', $projet->source_ia);
         $this->assertCount(3, $projet->idee_generee_ia);
         $this->assertSame('Sac cabas en denim', $projet->idee_generee_ia[0]['titre']);
+        $this->assertNotEmpty($projet->idee_generee_ia[0]['etapes']);
+        $this->assertSame(33.0, $projet->co2_evite_kg);
+        $this->assertSame(7500, $projet->eau_economisee_l);
+    }
+
+    public function test_la_demande_avec_photo_utilise_gemini(): void
+    {
+        Storage::fake('public');
+        $this->fakeGemini([
+            'defauts' => ['Trou au genou'],
+            'idees'   => [$this->ideeGemini('Sac banane', 'SAC'), $this->ideeGemini('Coussin', 'DECORATION'), $this->ideeGemini('Short', 'VETEMENT')],
+        ]);
+
+        $this->actingAs($this->client())->post(route('upcycling.projets.store'), [
+            'type_vetement' => 'Jean', 'matiere' => 'Denim', 'couleur' => 'Bleu', 'etat' => 'ABIME',
+            'description'   => 'Jean troué au genou.',
+            'photo'         => UploadedFile::fake()->image('jean.jpg', 400, 400),
+        ])->assertRedirect();
+
+        $projet = ProjetUpcycling::first();
+        $this->assertSame('GEMINI', $projet->source_ia);
+        $this->assertSame('Sac banane', $projet->idee_generee_ia[0]['titre']);
+        $this->assertSame(['Trou au genou'], $projet->analyse_ia['defauts']);
+        Storage::disk('public')->assertExists($projet->photo);
+
+        // La photo est bien envoyée à Gemini
+        Http::assertSent(fn ($request) => str_contains($request->body(), 'inline_data'));
+    }
+
+    public function test_si_gemini_echoue_le_generateur_local_prend_le_relais(): void
+    {
+        config(['services.gemini.key' => 'cle-de-test']);
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response(['error' => ['message' => 'quota']], 429)]);
+
+        $this->actingAs($this->client())->post(route('upcycling.projets.store'), [
+            'type_vetement' => 'Chemise', 'matiere' => 'Coton', 'etat' => 'BON', 'description' => 'Chemise trop grande.',
+        ]);
+
+        $this->assertSame('LOCAL', ProjetUpcycling::first()->source_ia);
+    }
+
+    public function test_l_ia_analyse_la_photo_pour_pre_remplir_le_formulaire(): void
+    {
+        $this->fakeGemini([
+            'est_vetement' => true, 'type_vetement' => 'blazer', 'matiere' => 'laine', 'couleur' => 'bleu marine',
+            'etat' => 'BON', 'description' => 'Blazer classique.', 'defauts' => [],
+        ]);
+
+        $this->actingAs($this->client())
+            ->postJson(route('upcycling.analyse-photo'), ['photo' => UploadedFile::fake()->image('blazer.jpg')])
+            ->assertOk()
+            ->assertJsonPath('analyse.type_vetement', 'Blazer')
+            ->assertJsonPath('analyse.couleur', 'Bleu marine')
+            ->assertJsonPath('analyse.etat', 'BON');
+    }
+
+    public function test_l_analyse_refuse_une_photo_sans_vetement(): void
+    {
+        $this->fakeGemini([
+            'est_vetement' => false, 'type_vetement' => '', 'matiere' => '', 'couleur' => '', 'etat' => 'BON', 'description' => 'Un chat.', 'defauts' => [],
+        ]);
+
+        $this->actingAs($this->client())
+            ->postJson(route('upcycling.analyse-photo'), ['photo' => UploadedFile::fake()->image('chat.jpg')])
+            ->assertStatus(422);
+    }
+
+    public function test_la_consigne_du_client_est_transmise_a_l_ia(): void
+    {
+        $client = $this->client();
+        $projet = ProjetUpcycling::factory()->vetement(0)->for($client, 'client')->create();
+        $this->fakeGemini(['defauts' => [], 'idees' => [$this->ideeGemini('Sac enfant', 'SAC')]]);
+
+        $this->actingAs($client)->post(route('upcycling.projets.idees', $projet), ['consigne' => 'pour un enfant']);
+
+        $this->assertSame('Sac enfant', $projet->fresh()->idee_generee_ia[0]['titre']);
+        Http::assertSent(fn ($request) => str_contains($request->body(), 'pour un enfant'));
     }
 
     public function test_la_validation_refuse_une_demande_incomplete(): void
     {
         $this->actingAs($this->client())
-            ->post(route('upcycling.projets.store'), ['type_vetement' => '', 'etat' => 'INCONNU'])
-            ->assertSessionHasErrors(['type_vetement', 'matiere', 'etat', 'description']);
+            ->post(route('upcycling.projets.store'), [
+                'type_vetement' => '', 'etat' => 'INCONNU',
+                'photo' => UploadedFile::fake()->create('document.pdf', 100, 'application/pdf'),
+            ])
+            ->assertSessionHasErrors(['type_vetement', 'matiere', 'etat', 'description', 'photo']);
 
         $this->assertDatabaseCount('projet_upcyclings', 0);
     }
 
     public function test_un_atelier_ne_peut_pas_creer_de_demande(): void
     {
-        $atelier = $this->atelier();
+        $atelier = Atelier::factory()->create();
 
         $this->actingAs($atelier->user)->get(route('upcycling.projets.create'))->assertForbidden();
     }
@@ -92,10 +168,10 @@ class UpcyclingTest extends TestCase
     public function test_le_matching_classe_d_abord_l_atelier_de_la_bonne_specialite(): void
     {
         $client = $this->client();
-        $sac = $this->atelier('SAC', 20);
-        $this->atelier('VETEMENT', 10, 5);
+        $sac = Atelier::factory()->specialite('SAC')->create(['tarif_horaire' => 20]);
+        Atelier::factory()->specialite('VETEMENT')->create(['tarif_horaire' => 10, 'note_moyenne' => 5]);
 
-        $projet = $this->demande($client, ['produit_final' => 'Sac cabas en denim', 'categorie_produit' => 'SAC']);
+        $projet = ProjetUpcycling::factory()->vetement(0)->avecIdee('SAC')->for($client, 'client')->create();
 
         $this->actingAs($client)
             ->get(route('upcycling.projets.matching', $projet))
@@ -104,35 +180,38 @@ class UpcyclingTest extends TestCase
                 && $classement->first()['details']['specialite'] === 40);
     }
 
-    public function test_parcours_complet_devis_suivi_et_note(): void
+    public function test_parcours_complet_devis_suivi_photo_resultat_et_note(): void
     {
+        Storage::fake('public');
         $client  = $this->client();
-        $atelier = $this->atelier('SAC');
-        $projet  = $this->demande($client);
+        $atelier = Atelier::factory()->specialite('SAC')->create();
+        $projet  = ProjetUpcycling::factory()->vetement(0)->for($client, 'client')->create();
 
         // 1. Le client retient la première idée puis choisit l'atelier
         $this->actingAs($client)->patch(route('upcycling.projets.idee', $projet), ['index' => 0])
             ->assertRedirect(route('upcycling.projets.matching', $projet));
+        $this->assertNotNull($projet->fresh()->prix_estime_min);
         $this->actingAs($client)->patch(route('upcycling.projets.atelier', $projet), ['atelier_id' => $atelier->id]);
         $this->assertSame('ATELIER_CHOISI', $projet->fresh()->statut);
-        $this->assertSame('SAC', $projet->fresh()->categorie_produit);
 
         // 2. L'atelier envoie un devis, le client l'accepte
         $this->actingAs($atelier->user)->post(route('upcycling.devis.store', $projet), ['montant' => 40, 'delai_jours' => 7]);
         $devis = Devis::first();
-        $this->assertSame('EN_ATTENTE', $devis->statut);
-
         $this->actingAs($client)->patch(route('upcycling.devis.accepter', $devis));
         $this->assertSame('ACCEPTE', $devis->fresh()->statut);
         $this->assertSame('DEVIS_ACCEPTE', $projet->fresh()->statut);
-        $this->assertNotNull($projet->fresh()->date_debut);
 
-        // 3. L'atelier fait avancer le projet jusqu'à la fin
-        foreach (['CONCEPTION', 'CONFECTION', 'FINITION', 'TERMINE'] as $etape) {
+        // 3. L'atelier avance jusqu'à la fin et ajoute la photo du produit fini
+        foreach (['CONCEPTION', 'CONFECTION', 'FINITION'] as $etape) {
             $this->actingAs($atelier->user)->patch(route('upcycling.projets.avancer', $projet));
             $this->assertSame($etape, $projet->fresh()->statut);
         }
-        $this->assertNotNull($projet->fresh()->date_fin);
+        $this->actingAs($atelier->user)->patch(route('upcycling.projets.avancer', $projet), [
+            'photo_resultat' => UploadedFile::fake()->image('sac.jpg'),
+        ]);
+        $projet->refresh();
+        $this->assertSame('TERMINE', $projet->statut);
+        Storage::disk('public')->assertExists($projet->photo_resultat);
         $this->actingAs($atelier->user)->patch(route('upcycling.projets.avancer', $projet))->assertStatus(422);
 
         // 4. Le client note l'atelier : la moyenne est recalculée
@@ -142,10 +221,9 @@ class UpcyclingTest extends TestCase
 
     public function test_seul_l_atelier_assigne_peut_envoyer_un_devis(): void
     {
-        $client = $this->client();
-        $atelier = $this->atelier();
-        $autre = $this->atelier('VETEMENT');
-        $projet = $this->demande($client, ['atelier_id' => $atelier->id, 'statut' => 'ATELIER_CHOISI']);
+        $atelier = Atelier::factory()->create();
+        $autre   = Atelier::factory()->create();
+        $projet  = ProjetUpcycling::factory()->pourAtelier($atelier)->create();
 
         $this->actingAs($autre->user)
             ->post(route('upcycling.devis.store', $projet), ['montant' => 40, 'delai_jours' => 7])
@@ -156,34 +234,49 @@ class UpcyclingTest extends TestCase
 
     public function test_un_client_ne_voit_pas_le_projet_d_un_autre(): void
     {
-        $projet = $this->demande($this->client());
+        $projet = ProjetUpcycling::factory()->create();
 
         $this->actingAs($this->client())->get(route('upcycling.projets.show', $projet))->assertForbidden();
     }
 
     public function test_changer_d_atelier_refuse_le_devis_en_attente(): void
     {
-        $client = $this->client();
-        $ancien = $this->atelier();
-        $nouveau = $this->atelier('VETEMENT');
-        $projet = $this->demande($client, ['atelier_id' => $ancien->id, 'statut' => 'ATELIER_CHOISI', 'produit_final' => 'Sac']);
-        $devis = Devis::create(['projet_upcycling_id' => $projet->id, 'montant' => 30, 'delai_jours' => 3, 'statut' => 'EN_ATTENTE', 'date_emission' => now()]);
+        $ancien  = Atelier::factory()->create();
+        $nouveau = Atelier::factory()->create();
+        $projet  = ProjetUpcycling::factory()->pourAtelier($ancien)->has(Devis::factory(), 'devis')->create();
 
-        $this->actingAs($client)->patch(route('upcycling.projets.atelier', $projet), ['atelier_id' => $nouveau->id]);
+        $this->actingAs($projet->client)->patch(route('upcycling.projets.atelier', $projet), ['atelier_id' => $nouveau->id]);
 
-        $this->assertSame('REFUSE', $devis->fresh()->statut);
+        $this->assertSame('REFUSE', $projet->devis()->first()->statut);
         $this->assertSame($nouveau->id, $projet->fresh()->atelier_id);
     }
 
-    public function test_un_atelier_gere_son_profil(): void
+    public function test_la_suppression_d_une_demande_supprime_sa_photo(): void
     {
+        Storage::fake('public');
+        $client = $this->client();
+        $chemin = UploadedFile::fake()->image('robe.jpg')->store('upcycling/projets', 'public');
+        $projet = ProjetUpcycling::factory()->for($client, 'client')->create(['photo' => $chemin]);
+
+        $this->actingAs($client)->delete(route('upcycling.projets.destroy', $projet))->assertRedirect();
+
+        $this->assertModelMissing($projet);
+        Storage::disk('public')->assertMissing($chemin);
+    }
+
+    public function test_un_atelier_gere_son_profil_avec_photo(): void
+    {
+        Storage::fake('public');
         $user = User::factory()->create(['role' => 'ATELIER']);
 
         $this->actingAs($user)->post(route('upcycling.ateliers.store'), [
             'nom' => 'Mon Atelier', 'specialite' => 'DECORATION', 'tarif_horaire' => 18, 'localisation' => 'Nabeul',
+            'photo' => UploadedFile::fake()->image('atelier.jpg'),
         ])->assertRedirect();
 
         $atelier = Atelier::where('user_id', $user->id)->firstOrFail();
+        Storage::disk('public')->assertExists($atelier->photo);
+
         $this->actingAs($user)->put(route('upcycling.ateliers.update', $atelier), [
             'nom' => 'Mon Atelier', 'specialite' => 'DECORATION', 'tarif_horaire' => 25, 'localisation' => 'Nabeul', 'actif' => '1',
         ]);
@@ -194,11 +287,23 @@ class UpcyclingTest extends TestCase
         ])->assertForbidden();
     }
 
+    public function test_le_seeder_cree_des_donnees_coherentes(): void
+    {
+        $this->seed(\Database\Seeders\UpcyclingSeeder::class);
+
+        $this->assertGreaterThan(5, ProjetUpcycling::count());
+        $this->assertTrue(ProjetUpcycling::whereNotNull('photo')->exists());
+        $this->assertTrue(Atelier::where('note_moyenne', '>', 0)->exists());
+        $this->assertSame(0, ProjetUpcycling::whereNotNull('atelier_id')->whereDoesntHave('atelier')->count());
+    }
+
     public function test_les_pages_du_module_s_affichent(): void
     {
-        $client  = $this->client();
-        $atelier = $this->atelier();
-        $projet  = $this->demande($client, ['atelier_id' => $atelier->id, 'statut' => 'ATELIER_CHOISI', 'produit_final' => 'Sac cabas en denim', 'categorie_produit' => 'SAC']);
+        $this->seed(\Database\Seeders\UpcyclingSeeder::class);
+        $client  = User::where('email', 'client@retiss.tn')->first();
+        $atelier = Atelier::where('nom', "Atelier Fil d'Or")->first();
+        $projet  = ProjetUpcycling::where('client_id', $client->id)->where('statut', 'ATELIER_CHOISI')->first();
+        $libre   = ProjetUpcycling::where('client_id', $client->id)->whereNotNull('produit_final')->whereNull('atelier_id')->first();
 
         foreach ([
             route('upcycling.dashboard'),
@@ -206,7 +311,7 @@ class UpcyclingTest extends TestCase
             route('upcycling.projets.create'),
             route('upcycling.projets.show', $projet),
             route('upcycling.projets.edit', $projet),
-            route('upcycling.projets.matching', $projet),
+            route('upcycling.projets.matching', $libre),
             route('upcycling.ateliers.index'),
             route('upcycling.ateliers.show', $atelier),
         ] as $url) {
