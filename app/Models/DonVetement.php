@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class DonVetement extends Model
@@ -57,15 +58,27 @@ class DonVetement extends Model
         return $this->hasOne(LotTextile::class);
     }
 
+    /** Un don peut être vendu comme un ou plusieurs articles (M2) */
+    public function articles(): HasMany
+    {
+        return $this->hasMany(Article::class);
+    }
+
+    /*
+    |------------------------------------------------------------------
+    | Helpers
+    |------------------------------------------------------------------
+    */
+
     public function getStatutBadgeAttribute(): array
     {
         return match ($this->statut) {
-            'DEPOSE' => ['label' => 'Déposé', 'class' => 'bg-blue-100 text-blue-700'],
-            'EN_TRI' => ['label' => 'En tri', 'class' => 'bg-amber-100 text-amber-700'],
-            'VENDU' => ['label' => 'Vendu', 'class' => 'bg-emerald-100 text-emerald-700'],
+            'DEPOSE'    => ['label' => 'Déposé',    'class' => 'bg-blue-100 text-blue-700'],
+            'EN_TRI'    => ['label' => 'En tri',    'class' => 'bg-amber-100 text-amber-700'],
+            'VENDU'     => ['label' => 'Vendu',     'class' => 'bg-emerald-100 text-emerald-700'],
             'UPCYCLING' => ['label' => 'Upcycling', 'class' => 'bg-purple-100 text-purple-700'],
-            'RECYCLE' => ['label' => 'Recyclé', 'class' => 'bg-slate-100 text-slate-700'],
-            default => ['label' => $this->statut, 'class' => 'bg-gray-100 text-gray-700'],
+            'RECYCLE'   => ['label' => 'Recyclé',   'class' => 'bg-slate-100 text-slate-700'],
+            default     => ['label' => $this->statut, 'class' => 'bg-gray-100 text-gray-700'],
         };
     }
 }

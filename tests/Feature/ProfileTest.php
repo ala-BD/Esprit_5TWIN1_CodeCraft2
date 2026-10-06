@@ -96,4 +96,56 @@ class ProfileTest extends TestCase
 
         $this->assertNotNull($user->fresh());
     }
+
+    public function test_user_can_update_their_role(): void
+    {
+        $user = User::factory()->create([
+            'role' => User::ROLE_DONATEUR,
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->patch('/profile/role', [
+                'role' => User::ROLE_CLIENT,
+            ]);
+
+        $response
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'role-updated')
+            ->assertRedirect('/profile');
+
+        $this->assertSame(User::ROLE_CLIENT, $user->fresh()->role);
+    }
+
+    public function test_user_cannot_self_assign_admin_role(): void
+    {
+        $user = User::factory()->create([
+            'role' => User::ROLE_CLIENT,
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->patch('/profile/role', [
+                'role' => User::ROLE_ADMIN,
+            ]);
+
+        $response->assertSessionHasErrors('role');
+        $this->assertSame(User::ROLE_CLIENT, $user->fresh()->role);
+    }
+
+    public function test_user_cannot_set_invalid_role(): void
+    {
+        $user = User::factory()->create([
+            'role' => User::ROLE_CLIENT,
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->patch('/profile/role', [
+                'role' => 'INVALID_ROLE',
+            ]);
+
+        $response->assertSessionHasErrors('role');
+        $this->assertSame(User::ROLE_CLIENT, $user->fresh()->role);
+    }
 }
