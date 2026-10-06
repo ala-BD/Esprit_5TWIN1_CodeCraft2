@@ -17,13 +17,21 @@ class ProjetUpcycling extends Model
         'don_vetement_id',
         'type_vetement',
         'matiere',
+        'couleur',
         'etat',
         'description',
+        'photo',
+        'photo_resultat',
         'budget_max',
         'produit_final',
         'categorie_produit',
+        'prix_estime_min',
+        'prix_estime_max',
+        'co2_evite_kg',
+        'eau_economisee_l',
         'idee_generee_ia',
         'source_ia',
+        'analyse_ia',
         'statut',
         'date_debut',
         'date_fin',
@@ -34,13 +42,21 @@ class ProjetUpcycling extends Model
     protected function casts(): array
     {
         return [
-            'budget_max'      => 'float',
-            'idee_generee_ia' => 'array',
-            'date_debut'      => 'date',
-            'date_fin'        => 'date',
-            'note_client'     => 'integer',
+            'budget_max'       => 'float',
+            'prix_estime_min'  => 'float',
+            'prix_estime_max'  => 'float',
+            'co2_evite_kg'     => 'float',
+            'eau_economisee_l' => 'integer',
+            'idee_generee_ia'  => 'array',
+            'analyse_ia'       => 'array',
+            'date_debut'       => 'date',
+            'date_fin'         => 'date',
+            'note_client'      => 'integer',
         ];
     }
+
+    /** Dossier de stockage des photos (disque "public") */
+    const DOSSIER_PHOTOS = 'upcycling/projets';
 
     /*
     |------------------------------------------------------------------
@@ -113,6 +129,45 @@ class ProjetUpcycling extends Model
     | Helpers
     |------------------------------------------------------------------
     */
+
+    /** URL de la photo du vêtement (avant) */
+    public function getPhotoUrlAttribute(): ?string
+    {
+        return self::urlPhoto($this->photo);
+    }
+
+    /** URL de la photo du produit fini (après) */
+    public function getPhotoResultatUrlAttribute(): ?string
+    {
+        return self::urlPhoto($this->photo_resultat);
+    }
+
+    /**
+     * Les photos de démonstration sont dans public/images (versionnées avec Git),
+     * les photos envoyées par les utilisateurs sur le disque "public" (storage).
+     */
+    public static function urlPhoto(?string $chemin): ?string
+    {
+        if (!$chemin) return null;
+
+        return str_starts_with($chemin, 'images/')
+            ? asset($chemin)
+            : \Illuminate\Support\Facades\Storage::disk('public')->url($chemin);
+    }
+
+    /** Supprime un fichier envoyé par un utilisateur (jamais les photos de démo) */
+    public static function supprimerPhoto(?string $chemin): void
+    {
+        if ($chemin && !str_starts_with($chemin, 'images/')) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($chemin);
+        }
+    }
+
+    /** Idée retenue par le client (détail complet issu de l'IA) */
+    public function getIdeeRetenueAttribute(): ?array
+    {
+        return collect($this->idee_generee_ia ?? [])->firstWhere('titre', $this->produit_final);
+    }
 
     public function getStatutBadgeAttribute(): array
     {

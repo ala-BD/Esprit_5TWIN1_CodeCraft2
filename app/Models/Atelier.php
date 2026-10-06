@@ -17,6 +17,7 @@ class Atelier extends Model
         'specialite',
         'description',
         'portfolio_url',
+        'photo',
         'tarif_horaire',
         'localisation',
         'note_moyenne',
@@ -76,6 +77,26 @@ class Atelier extends Model
     | Helpers
     |------------------------------------------------------------------
     */
+
+    /** Photo de couverture de l'atelier */
+    public function getPhotoUrlAttribute(): ?string
+    {
+        return ProjetUpcycling::urlPhoto($this->photo);
+    }
+
+    /** Couverture : photo de l'atelier, sinon sa dernière réalisation */
+    public function getCouvertureUrlAttribute(): ?string
+    {
+        if ($this->photo) return $this->photo_url;
+
+        $realisations = $this->relationLoaded('projetUpcyclings')
+            ? $this->projetUpcyclings
+            : $this->projetUpcyclings()->latest('date_fin')->get();
+
+        $derniere = $realisations->where('statut', ProjetUpcycling::STATUT_TERMINE)->first();
+
+        return $derniere?->photo_resultat_url ?? $derniere?->photo_url;
+    }
 
     public function getSpecialiteLabelAttribute(): string
     {
