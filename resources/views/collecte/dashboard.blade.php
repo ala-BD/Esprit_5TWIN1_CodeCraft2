@@ -9,10 +9,23 @@
             <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary">Module M1</p>
             <h1 class="mt-2 text-3xl font-bold text-slate-900">Points de collecte</h1>
         </div>
-        <a href="{{ route('collecte.points.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark transition">
-            <i class="fa-solid fa-plus"></i>
-            Nouveau point
-        </a>
+        <div class="flex flex-wrap gap-3">
+            @if(Auth::user()->role === 'DONATEUR')
+                <a href="{{ route('collecte.dons.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark transition">
+                    <i class="fa-solid fa-plus"></i> Déclarer un don
+                </a>
+                <a href="{{ route('collecte.dons.index') }}" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    Mes dons
+                </a>
+            @elseif(in_array(Auth::user()->role, ['COLLECTEUR', 'ADMIN'], true))
+                <a href="{{ route('collecte.points.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark transition">
+                    <i class="fa-solid fa-plus"></i> Nouveau point
+                </a>
+                <a href="{{ route('collecte.dons.index') }}" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    <i class="fa-solid fa-box-open"></i> Dons reçus
+                </a>
+            @endif
+        </div>
     </div>
 
     <div class="grid gap-5 md:grid-cols-4">
@@ -57,7 +70,7 @@
                             <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $badge['class'] }}">
                                 {{ $badge['label'] }}
                             </span>
-                            <a href="{{ route('collecte.points.show', $point) }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                            <a href="{{ route('collecte.points.show', ['point' => $point->id]) }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
                                 Détails
                             </a>
                         </div>

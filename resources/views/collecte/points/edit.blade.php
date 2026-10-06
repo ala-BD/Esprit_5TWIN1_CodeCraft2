@@ -9,7 +9,7 @@
         <h1 class="mt-2 text-3xl font-bold text-slate-900">Modifier le point</h1>
     </div>
 
-    <form action="{{ route('collecte.points.update', $pointCollecte) }}" method="POST" class="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <form action="{{ route('collecte.points.update', ['point' => $pointCollecte->id]) }}" method="POST" class="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         @csrf
         @method('PUT')
 
@@ -74,7 +74,7 @@
         </div>
 
         <div class="flex items-center justify-end gap-3">
-            <a href="{{ route('collecte.points.show', $pointCollecte) }}" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Annuler</a>
+            <a href="{{ route('collecte.points.show', ['point' => $pointCollecte->id]) }}" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Annuler</a>
             <button type="submit" class="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark transition">Enregistrer</button>
         </div>
     </form>

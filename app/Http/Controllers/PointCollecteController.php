@@ -62,32 +62,32 @@ class PointCollecteController extends Controller
         $point = PointCollecte::create($validated);
 
         return redirect()
-            ->route('collecte.points.show', $point)
+            ->route('collecte.points.show', ['point' => $point->id])
             ->with('success', 'Point de collecte créé avec succès.');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(PointCollecte $pointCollecte): View
+    public function show(PointCollecte $point): View
     {
-        $pointCollecte->load('gestionnaire');
+        $point->load('gestionnaire');
 
-        return view('collecte.points.show', compact('pointCollecte'));
+        return view('collecte.points.show', ['pointCollecte' => $point]);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(PointCollecte $pointCollecte): View
+    public function edit(PointCollecte $point): View
     {
-        return view('collecte.points.edit', compact('pointCollecte'));
+        return view('collecte.points.edit', ['pointCollecte' => $point]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, PointCollecte $pointCollecte): RedirectResponse
+    public function update(Request $request, PointCollecte $point): RedirectResponse
     {
         $validated = $request->validate([
             'nom' => ['required', 'string', 'max:255'],
@@ -101,19 +101,19 @@ class PointCollecteController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $pointCollecte->update($validated);
+        $point->update($validated);
 
         return redirect()
-            ->route('collecte.points.show', $pointCollecte)
+            ->route('collecte.points.show', ['point' => $point->id])
             ->with('success', 'Point de collecte mis à jour.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(PointCollecte $pointCollecte): RedirectResponse
+    public function destroy(PointCollecte $point): RedirectResponse
     {
-        $pointCollecte->delete();
+        $point->delete();
 
         return redirect()
             ->route('collecte.points.index')

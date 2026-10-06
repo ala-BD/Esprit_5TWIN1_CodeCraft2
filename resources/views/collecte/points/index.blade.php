@@ -41,8 +41,8 @@
                     </td>
                     <td class="px-6 py-4">
                         <div class="flex justify-end gap-2">
-                            <a href="{{ route('collecte.points.show', $point) }}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">Voir</a>
-                            <a href="{{ route('collecte.points.edit', $point) }}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">Modifier</a>
+                            <a href="{{ route('collecte.points.show', ['point' => $point->id]) }}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">Voir</a>
+                            <a href="{{ route('collecte.points.edit', ['point' => $point->id]) }}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">Modifier</a>
                         </div>
                     </td>
                 </tr>

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PointCollecte extends Model
 {
@@ -36,6 +37,11 @@ class PointCollecte extends Model
     public function gestionnaire(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function donsVetements(): HasMany
+    {
+        return $this->hasMany(DonVetement::class);
     }
 
     public function getStatutBadgeAttribute(): array

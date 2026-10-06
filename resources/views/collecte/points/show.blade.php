@@ -10,8 +10,8 @@
             <h1 class="mt-2 text-3xl font-bold text-slate-900">{{ $pointCollecte->nom }}</h1>
         </div>
         <div class="flex gap-3">
-            <a href="{{ route('collecte.points.edit', $pointCollecte) }}" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Modifier</a>
-            <form action="{{ route('collecte.points.destroy', $pointCollecte) }}" method="POST" onsubmit="return confirm('Supprimer ce point ?')">
+            <a href="{{ route('collecte.points.edit', ['point' => $pointCollecte->id]) }}" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Modifier</a>
+            <form action="{{ route('collecte.points.destroy', ['point' => $pointCollecte->id]) }}" method="POST" onsubmit="return confirm('Supprimer ce point ?')">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700">Supprimer</button>
