@@ -28,10 +28,11 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
-    // IA M3 Upcycling — sans clé, un générateur local prend le relais
-    'anthropic' => [
-        'key'   => env('ANTHROPIC_API_KEY'),
-        'model' => env('ANTHROPIC_MODEL', 'claude-opus-5'),
+    // IA M3 Upcycling (Google Gemini) — sans clé, un générateur local prend le relais
+    'gemini' => [
+        'key'     => env('GEMINI_API_KEY'),
+        'model'   => env('GEMINI_MODEL', 'gemini-3.5-flash'),
+        'timeout' => env('GEMINI_TIMEOUT', 45),
     ],
 
     'slack' => [

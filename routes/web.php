@@ -89,7 +89,9 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('projets', ProjetUpcyclingController::class)
             ->parameters(['projets' => 'projet']);
 
-        // IA : idées d'upcycling
+        // IA : analyse de photo (AJAX) et idées d'upcycling
+        Route::post('analyse-photo', [ProjetUpcyclingController::class, 'analyserPhoto'])
+            ->name('analyse-photo');
         Route::post('projets/{projet}/idees', [ProjetUpcyclingController::class, 'regenererIdees'])
             ->name('projets.idees');
         Route::patch('projets/{projet}/idee', [ProjetUpcyclingController::class, 'choisirIdee'])

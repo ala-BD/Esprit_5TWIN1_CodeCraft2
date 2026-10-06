@@ -4,18 +4,23 @@ namespace App\Http\Controllers\Upcycling;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Upcycling\Concerns\AccesUpcycling;
+use App\Http\Requests\Upcycling\ProjetUpcyclingRequest;
 use App\Models\Atelier;
 use App\Models\Devis;
 use App\Models\DonVetement;
 use App\Models\ProjetUpcycling;
 use App\Services\Upcycling\IdeeUpcyclingService;
 use App\Services\Upcycling\MatchingAtelierService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Throwable;
 
 class ProjetUpcyclingController extends Controller
 {
@@ -36,7 +41,7 @@ class ProjetUpcyclingController extends Controller
         if ($this->estAtelier()) {
             $atelier = $this->atelierConnecte();
             if (!$atelier) {
-                return view('upcycling.dashboard', ['atelier' => null, 'stats' => [], 'projets' => collect()]);
+                return view('upcycling.dashboard', ['atelier' => null, 'stats' => [], 'projets' => collect(), 'impact' => null]);
             }
 
             $base = ProjetUpcycling::where('atelier_id', $atelier->id);
@@ -50,24 +55,31 @@ class ProjetUpcyclingController extends Controller
                 'chiffre_affaires' => Devis::whereIn('projet_upcycling_id', (clone $base)->where('statut', ProjetUpcycling::STATUT_TERMINE)->select('id'))
                                     ->where('statut', Devis::STATUT_ACCEPTE)->sum('montant'),
             ];
-            $projets = (clone $base)->with('client')->latest('updated_at')->take(5)->get();
+        } else {
+            $atelier = null;
+            $base = Auth::user()->isAdmin()
+                ? ProjetUpcycling::query()
+                : ProjetUpcycling::where('client_id', Auth::id());
 
-            return view('upcycling.dashboard', compact('atelier', 'stats', 'projets'));
+            $stats = [
+                'total'      => (clone $base)->count(),
+                'en_attente' => (clone $base)->whereIn('statut', [ProjetUpcycling::STATUT_DEMANDE, ProjetUpcycling::STATUT_ATELIER_CHOISI])->count(),
+                'en_cours'   => (clone $base)->whereIn('statut', ProjetUpcycling::STATUTS_EN_COURS)->count(),
+                'termines'   => (clone $base)->where('statut', ProjetUpcycling::STATUT_TERMINE)->count(),
+            ];
         }
 
-        $base = Auth::user()->isAdmin()
-            ? ProjetUpcycling::query()
-            : ProjetUpcycling::where('client_id', Auth::id());
-
-        $stats = [
-            'total'      => (clone $base)->count(),
-            'en_attente' => (clone $base)->whereIn('statut', [ProjetUpcycling::STATUT_DEMANDE, ProjetUpcycling::STATUT_ATELIER_CHOISI])->count(),
-            'en_cours'   => (clone $base)->whereIn('statut', ProjetUpcycling::STATUTS_EN_COURS)->count(),
-            'termines'   => (clone $base)->where('statut', ProjetUpcycling::STATUT_TERMINE)->count(),
+        // Impact écologique des projets terminés
+        $termines = (clone $base)->where('statut', ProjetUpcycling::STATUT_TERMINE);
+        $impact = [
+            'co2' => (clone $termines)->sum('co2_evite_kg'),
+            'eau' => (clone $termines)->sum('eau_economisee_l'),
+            'nb'  => (clone $termines)->count(),
         ];
-        $projets = (clone $base)->with('atelier')->latest('updated_at')->take(5)->get();
 
-        return view('upcycling.dashboard', ['atelier' => null] + compact('stats', 'projets'));
+        $projets = (clone $base)->with(['atelier', 'client'])->latest('updated_at')->take(6)->get();
+
+        return view('upcycling.dashboard', compact('atelier', 'stats', 'projets', 'impact'));
     }
 
     /*
@@ -80,8 +92,7 @@ class ProjetUpcyclingController extends Controller
         $query = ProjetUpcycling::with(['atelier', 'client']);
 
         if ($this->estAtelier()) {
-            $atelier = $this->atelierConnecte();
-            $query->where('atelier_id', $atelier?->id ?? 0);
+            $query->where('atelier_id', $this->atelierConnecte()?->id ?? 0);
         } elseif (!Auth::user()->isAdmin()) {
             $query->where('client_id', Auth::id());
         }
@@ -93,7 +104,7 @@ class ProjetUpcyclingController extends Controller
                     ->orWhere('produit_final', 'like', '%' . $request->q . '%');
             }))
             ->latest()
-            ->paginate(10)
+            ->paginate(9)
             ->withQueryString();
 
         return view('upcycling.projets.index', compact('projets'));
@@ -108,7 +119,46 @@ class ProjetUpcyclingController extends Controller
     {
         abort_unless($this->estClient(), 403, 'Réservé aux clients.');
 
-        return view('upcycling.projets.create', ['dons' => $this->donsDisponibles()]);
+        return view('upcycling.projets.create', [
+            'dons'       => ProjetUpcyclingRequest::donsDisponibles(),
+            'iaActivee'  => $this->ideeService->estConfigure(),
+        ]);
+    }
+
+    /*
+    |------------------------------------------------------------------
+    | POST /upcycling/analyse-photo — L'IA reconnaît le vêtement (AJAX)
+    |------------------------------------------------------------------
+    */
+    public function analyserPhoto(Request $request): JsonResponse
+    {
+        abort_unless($this->estClient(), 403);
+
+        $request->validate([
+            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ], [
+            'photo.required' => 'Ajoutez une photo du vêtement.',
+            'photo.image'    => 'Le fichier doit être une image.',
+            'photo.mimes'    => 'Formats acceptés : JPG, PNG ou WEBP.',
+            'photo.max'      => 'La photo ne doit pas dépasser 5 Mo.',
+        ]);
+
+        if (!$this->ideeService->estConfigure()) {
+            return response()->json(['message' => "L'analyse IA n'est pas configurée (clé GEMINI_API_KEY manquante)."], 503);
+        }
+
+        try {
+            $analyse = $this->ideeService->analyserPhoto($request->file('photo')->getRealPath());
+        } catch (Throwable $e) {
+            Log::warning('Upcycling IA : analyse photo échouée.', ['erreur' => $e->getMessage()]);
+            return response()->json(['message' => "L'IA n'a pas pu analyser la photo. Réessayez ou remplissez le formulaire."], 502);
+        }
+
+        if (!$analyse['est_vetement']) {
+            return response()->json(['message' => "L'IA ne reconnaît pas de vêtement sur cette photo."], 422);
+        }
+
+        return response()->json(['analyse' => $analyse]);
     }
 
     /*
@@ -116,19 +166,23 @@ class ProjetUpcyclingController extends Controller
     | POST /upcycling/projets — Enregistrer + générer les idées IA
     |------------------------------------------------------------------
     */
-    public function store(Request $request): RedirectResponse
+    public function store(ProjetUpcyclingRequest $request): RedirectResponse
     {
         abort_unless($this->estClient(), 403, 'Réservé aux clients.');
 
-        $data = $this->valider($request, true);
+        $data = $request->safe()->except('photo');
+        if ($request->hasFile('photo')) {
+            $data['photo'] = $request->file('photo')->store(ProjetUpcycling::DOSSIER_PHOTOS, 'public');
+        }
 
-        $ia = $this->ideeService->generer($data['type_vetement'], $data['matiere'], $data['etat'], $data['description']);
+        $ia = $this->ideeService->generer($data, $this->cheminPhoto($data['photo'] ?? null));
 
         $projet = DB::transaction(function () use ($data, $ia) {
-            $projet = ProjetUpcycling::create($data + [
+            $projet = ProjetUpcycling::create($data + $this->ideeService->impact($data['type_vetement']) + [
                 'client_id'       => Auth::id(),
                 'idee_generee_ia' => $ia['idees'],
                 'source_ia'       => $ia['source'],
+                'analyse_ia'      => ['defauts' => $ia['defauts']],
                 'statut'          => ProjetUpcycling::STATUT_DEMANDE,
             ]);
 
@@ -141,7 +195,7 @@ class ProjetUpcyclingController extends Controller
 
         return redirect()
             ->route('upcycling.projets.show', $projet)
-            ->with('success', "Demande enregistrée. L'IA vous propose " . count($ia['idees']) . " idées : choisissez celle qui vous plaît.");
+            ->with('success', "Demande enregistrée. L'IA vous propose " . count($ia['idees']) . ' idées : choisissez celle qui vous plaît.');
     }
 
     /*
@@ -156,9 +210,9 @@ class ProjetUpcyclingController extends Controller
         $projet->load(['atelier', 'client', 'donVetement', 'devis']);
 
         return view('upcycling.projets.show', [
-            'projet'          => $projet,
-            'estProprietaire' => $this->estProprietaire($projet),
-            'estAtelierProjet'=> $this->estAtelierDuProjet($projet),
+            'projet'           => $projet,
+            'estProprietaire'  => $this->estProprietaire($projet),
+            'estAtelierProjet' => $this->estAtelierDuProjet($projet),
         ]);
     }
 
@@ -184,26 +238,36 @@ class ProjetUpcyclingController extends Controller
     | PUT /upcycling/projets/{projet}
     |------------------------------------------------------------------
     */
-    public function update(Request $request, ProjetUpcycling $projet): RedirectResponse
+    public function update(ProjetUpcyclingRequest $request, ProjetUpcycling $projet): RedirectResponse
     {
         $this->autoriserClient($projet);
         abort_unless($projet->estModifiable(), 422, 'Ce projet ne peut plus être modifié.');
 
-        $data = $this->valider($request, false);
-        $message = 'Demande mise à jour.';
+        $data = $request->safe()->except('photo');
+        $nouvellePhoto = $request->hasFile('photo');
+
+        if ($nouvellePhoto) {
+            ProjetUpcycling::supprimerPhoto($projet->photo);
+            $data['photo'] = $request->file('photo')->store(ProjetUpcycling::DOSSIER_PHOTOS, 'public');
+        }
 
         // Le vêtement a changé : les idées précédentes ne sont plus pertinentes
-        $vetementModifie = $data['type_vetement'] !== $projet->type_vetement
+        $vetementModifie = $nouvellePhoto
+            || $data['type_vetement'] !== $projet->type_vetement
             || $data['matiere'] !== $projet->matiere
             || $data['etat'] !== $projet->etat;
 
+        $message = 'Demande mise à jour.';
         if ($vetementModifie) {
-            $ia = $this->ideeService->generer($data['type_vetement'], $data['matiere'], $data['etat'], $data['description']);
-            $data += [
+            $ia = $this->ideeService->generer($data, $this->cheminPhoto($data['photo'] ?? $projet->photo));
+            $data += $this->ideeService->impact($data['type_vetement']) + [
                 'idee_generee_ia'   => $ia['idees'],
                 'source_ia'         => $ia['source'],
+                'analyse_ia'        => ['defauts' => $ia['defauts']],
                 'produit_final'     => null,
                 'categorie_produit' => null,
+                'prix_estime_min'   => null,
+                'prix_estime_max'   => null,
             ];
             $message .= " Le vêtement a changé : l'IA a généré de nouvelles idées.";
         }
@@ -228,6 +292,8 @@ class ProjetUpcyclingController extends Controller
         );
 
         $this->libererDon($projet);
+        ProjetUpcycling::supprimerPhoto($projet->photo);
+        ProjetUpcycling::supprimerPhoto($projet->photo_resultat);
         $projet->delete();
 
         return redirect()->route('upcycling.projets.index')->with('success', 'Demande supprimée.');
@@ -235,21 +301,34 @@ class ProjetUpcyclingController extends Controller
 
     /*
     |------------------------------------------------------------------
-    | POST /upcycling/projets/{projet}/idees — Relancer l'IA
+    | POST /upcycling/projets/{projet}/idees — Relancer l'IA (+ consigne)
     |------------------------------------------------------------------
     */
-    public function regenererIdees(ProjetUpcycling $projet): RedirectResponse
+    public function regenererIdees(Request $request, ProjetUpcycling $projet): RedirectResponse
     {
         $this->autoriserClient($projet);
         abort_unless($projet->estModifiable(), 422);
 
-        $ia = $this->ideeService->generer($projet->type_vetement, $projet->matiere, $projet->etat, $projet->description);
+        $request->validate([
+            'consigne' => ['nullable', 'string', 'max:200'],
+        ], [
+            'consigne.max' => 'La consigne ne doit pas dépasser 200 caractères.',
+        ]);
+
+        $ia = $this->ideeService->generer($projet->only(['type_vetement', 'matiere', 'etat', 'couleur', 'description', 'budget_max']),
+            $this->cheminPhoto($projet->photo),
+            $request->consigne
+        );
+
         $projet->update([
             'idee_generee_ia' => $ia['idees'],
             'source_ia'       => $ia['source'],
+            'analyse_ia'      => ['defauts' => $ia['defauts']],
         ]);
 
-        return back()->with('success', "Nouvelles idées générées par l'IA.");
+        return back()->with('success', $request->filled('consigne')
+            ? "Nouvelles idées générées selon votre demande : « {$request->consigne} »."
+            : "Nouvelles idées générées par l'IA.");
     }
 
     /*
@@ -263,17 +342,21 @@ class ProjetUpcyclingController extends Controller
         abort_unless($projet->estModifiable(), 422);
 
         $idees = $projet->idee_generee_ia ?? [];
+        abort_if(count($idees) === 0, 422, 'Aucune idée à choisir.');
+
         $request->validate([
-            'index' => ['required', 'integer', 'min:0', 'max:' . max(0, count($idees) - 1)],
+            'index' => ['required', 'integer', 'min:0', 'max:' . (count($idees) - 1)],
         ]);
 
         $idee = $idees[$request->integer('index')];
         $projet->update([
             'produit_final'     => $idee['titre'],
             'categorie_produit' => $idee['categorie'],
+            'prix_estime_min'   => $idee['prix_min'] ?? null,
+            'prix_estime_max'   => $idee['prix_max'] ?? null,
         ]);
 
-        $suite = $projet->atelier_id ? '' : ' Trouvez maintenant l\'atelier idéal.';
+        $suite = $projet->atelier_id ? '' : " Trouvez maintenant l'atelier idéal.";
         return redirect()
             ->route($projet->atelier_id ? 'upcycling.projets.show' : 'upcycling.projets.matching', $projet)
             ->with('success', "Idée « {$idee['titre']} » retenue." . $suite);
@@ -339,17 +422,31 @@ class ProjetUpcyclingController extends Controller
     | PATCH /upcycling/projets/{projet}/avancer — Étape suivante (atelier)
     |------------------------------------------------------------------
     */
-    public function avancer(ProjetUpcycling $projet): RedirectResponse
+    public function avancer(Request $request, ProjetUpcycling $projet): RedirectResponse
     {
         $this->autoriserAtelier($projet);
 
         $suivante = $projet->etape_suivante;
         abort_if($suivante === null, 422, 'Aucune étape suivante pour ce projet.');
 
-        $projet->update([
-            'statut'   => $suivante,
-            'date_fin' => $suivante === ProjetUpcycling::STATUT_TERMINE ? now() : $projet->date_fin,
+        $request->validate([
+            'photo_resultat' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ], [
+            'photo_resultat.image' => 'Le fichier doit être une image.',
+            'photo_resultat.mimes' => 'Formats acceptés : JPG, PNG ou WEBP.',
+            'photo_resultat.max'   => 'La photo ne doit pas dépasser 5 Mo.',
         ]);
+
+        $data = ['statut' => $suivante];
+        if ($suivante === ProjetUpcycling::STATUT_TERMINE) {
+            $data['date_fin'] = now();
+            if ($request->hasFile('photo_resultat')) {
+                ProjetUpcycling::supprimerPhoto($projet->photo_resultat);
+                $data['photo_resultat'] = $request->file('photo_resultat')->store(ProjetUpcycling::DOSSIER_PHOTOS, 'public');
+            }
+        }
+
+        $projet->update($data);
 
         $label = ProjetUpcycling::ETAPES[$suivante]['label'];
         return back()->with('success', "Projet passé à l'étape « {$label} ».");
@@ -408,43 +505,14 @@ class ProjetUpcyclingController extends Controller
     |------------------------------------------------------------------
     */
 
-    private function valider(Request $request, bool $creation): array
+    /** Chemin absolu d'une photo (démo dans public/, envois dans storage) */
+    private function cheminPhoto(?string $photo): ?string
     {
-        $regles = [
-            'type_vetement' => ['required', 'string', 'max:100'],
-            'matiere'       => ['required', 'string', 'max:100'],
-            'etat'          => ['required', Rule::in(array_keys(ProjetUpcycling::ETATS))],
-            'description'   => ['required', 'string', 'min:10', 'max:1000'],
-            'budget_max'    => ['nullable', 'numeric', 'min:1', 'max:10000'],
-        ];
+        if (!$photo) return null;
 
-        if ($creation) {
-            $regles['don_vetement_id'] = [
-                'nullable',
-                Rule::in($this->donsDisponibles()->pluck('id')->all()),
-            ];
-        }
-
-        return $request->validate($regles, [
-            'type_vetement.required' => 'Le type de vêtement est obligatoire.',
-            'matiere.required'       => 'La matière est obligatoire.',
-            'etat.required'          => "L'état du vêtement est obligatoire.",
-            'etat.in'                => 'État invalide.',
-            'description.required'   => 'Décrivez votre vêtement et vos envies.',
-            'description.min'        => 'La description doit contenir au moins 10 caractères.',
-            'budget_max.numeric'     => 'Le budget doit être un nombre.',
-            'budget_max.min'         => 'Le budget minimum est 1 DT.',
-            'don_vetement_id.in'     => "Ce don n'est plus disponible pour l'upcycling.",
-        ]);
-    }
-
-    /** Dons déposés / en tri qui ne sont pas déjà rattachés à un projet */
-    private function donsDisponibles()
-    {
-        return DonVetement::whereIn('statut', ['DEPOSE', 'EN_TRI'])
-            ->whereNotIn('id', ProjetUpcycling::whereNotNull('don_vetement_id')->select('don_vetement_id'))
-            ->latest()
-            ->get();
+        return str_starts_with($photo, 'images/')
+            ? public_path($photo)
+            : Storage::disk('public')->path($photo);
     }
 
     /** Rend le don au circuit de tri quand le projet est abandonné */
