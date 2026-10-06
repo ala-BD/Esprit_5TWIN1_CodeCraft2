@@ -48,14 +48,16 @@
                     <p class="text-white/30 text-xs uppercase tracking-wider font-semibold">Traçabilité</p>
                 </div>
 
-                <a href="#"
-                   class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200">
+                <a href="{{ route('recyclage.passeports.index') }}"
+                   class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
+                          {{ request()->routeIs('recyclage.passeports.*') ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white' }}">
                     <i class="fas fa-qrcode w-4 text-center"></i>
                     Passeports émis
                 </a>
 
-                <a href="#"
-                   class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200">
+                <a href="{{ route('recyclage.statistiques') }}"
+                   class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
+                          {{ request()->routeIs('recyclage.statistiques') ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white' }}">
                     <i class="fas fa-chart-bar w-4 text-center"></i>
                     Statistiques
                 </a>

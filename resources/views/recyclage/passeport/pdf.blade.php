@@ -123,7 +123,12 @@
             <div class="col">
                 <p class="section-title">Code QR de traçabilité</p>
                 <div class="qr-box">
-                    <img src="data:image/png;base64,{{ base64_encode(QrCode::format('png')->size(150)->generate(url('/passeport/' . $passeport->qr_code))) }}" width="150" height="150">
+                    @php
+                        // Générer le QR code en SVG (ne nécessite pas Imagick)
+                        $qrUrl  = url('/passeport/' . $passeport->qr_code);
+                        $qrSvg  = base64_encode(QrCode::format('svg')->size(150)->margin(1)->generate($qrUrl));
+                    @endphp
+                    <img src="data:image/svg+xml;base64,{{ $qrSvg }}" width="150" height="150">
                     <div class="qr-code-label">{{ $passeport->qr_code }}</div>
                     <div class="qr-hint">Scannez pour vérifier l'authenticité en ligne</div>
                 </div>

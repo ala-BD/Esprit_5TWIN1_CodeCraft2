@@ -16,6 +16,33 @@ class PasseportNumeriqueController extends Controller
 {
     /*
     |------------------------------------------------------------------
+    | GET /recyclage/passeports — Liste de tous les passeports émis
+    |------------------------------------------------------------------
+    */
+    public function index(): View
+    {
+        $recycleur = Recycleur::where('user_id', Auth::id())->firstOrFail();
+
+        $passeports = PasseportNumerique::whereHas('lotTextile', function ($q) use ($recycleur) {
+                $q->where('recycleur_id', $recycleur->id);
+            })
+            ->with('lotTextile')
+            ->orderByDesc('date_emission')
+            ->paginate(10);
+
+        $totalCo2 = PasseportNumerique::whereHas('lotTextile', function ($q) use ($recycleur) {
+            $q->where('recycleur_id', $recycleur->id);
+        })->sum('co2_evite_kg');
+
+        $totalEau = PasseportNumerique::whereHas('lotTextile', function ($q) use ($recycleur) {
+            $q->where('recycleur_id', $recycleur->id);
+        })->sum('eau_economisee_l');
+
+        return view('recyclage.passeport.index', compact('passeports', 'totalCo2', 'totalEau', 'recycleur'));
+    }
+
+    /*
+    |------------------------------------------------------------------
     | GET /recyclage/lots/{lot}/passeport — Afficher le passeport
     |------------------------------------------------------------------
     */

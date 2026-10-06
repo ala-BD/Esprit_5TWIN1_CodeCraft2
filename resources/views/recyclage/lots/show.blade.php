@@ -74,6 +74,18 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3">
             <h3 class="font-semibold text-gray-900 text-sm">Actions disponibles</h3>
 
+            @if($lot->statut !== 'CERTIFIE')
+            <a href="{{ route('recyclage.lots.edit', $lot) }}"
+               class="flex items-center gap-3 w-full bg-amber-50 hover:bg-amber-100 text-amber-700
+                      font-semibold px-4 py-3 rounded-xl transition-all duration-200 text-sm">
+                <i class="fas fa-edit text-lg"></i>
+                <div>
+                    <p>Modifier ce lot</p>
+                    <p class="text-amber-500 font-normal text-xs">Composition, origine, statut</p>
+                </div>
+            </a>
+            @endif
+
             @if($lot->statut === 'TRAITE' && !$lot->passeportNumerique)
                 <a href="{{ route('recyclage.passeport.show', $lot) }}"
                    class="flex items-center gap-3 w-full bg-purple-50 hover:bg-purple-100 text-purple-700

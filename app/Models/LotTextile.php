@@ -109,13 +109,60 @@ class LotTextile extends Model
         return (int) round(($terminees / 6) * 100); // 6 étapes max
     }
 
-    /** Simule la recommandation IA selon la composition */
+    /**
+     * Recommandation IA de la filière selon la composition et le poids.
+     *
+     * Règles métier :
+     *  1. Fibres synthétiques (polyester, nylon, acrylique, élasthanne)
+     *       → toujours RECYCLAGE_FIBRE (non recyclable autrement)
+     *  2. Fibres mélangées (synthétique + naturel)
+     *       → RECYCLAGE_FIBRE (le mélange empêche la revente/upcycling)
+     *  3. Fibres nobles pures (laine, lin, soie, cachemire) et lot <= 100 kg
+     *       → UPCYCLING (transformation artisanale possible)
+     *  4. Fibres nobles en grand lot (> 100 kg)
+     *       → RECYCLAGE_FIBRE (trop volumineux pour upcycling)
+     *  5. Coton pur et lot <= 50 kg
+     *       → REVENTE (peut être revendu directement)
+     *  6. Coton pur et lot > 50 kg
+     *       → RECYCLAGE_FIBRE (trop lourd pour revente)
+     *  7. Composition inconnue ou grand lot
+     *       → RECYCLAGE_ENERGIE (dernier recours)
+     */
     public static function recommanderFiliereIA(string $composition, float $poidsKg): string
     {
-        $composition = strtolower($composition);
-        if (str_contains($composition, 'coton') && $poidsKg < 10)  return 'REVENTE';
-        if (str_contains($composition, 'lin')   || str_contains($composition, 'laine')) return 'UPCYCLING';
-        if (str_contains($composition, 'polyester') || $poidsKg > 50) return 'RECYCLAGE_FIBRE';
-        return 'RECYCLAGE_ENERGIE';
+        $c = strtolower($composition);
+
+        // Détection des types de fibres
+        $aSynthetique = str_contains($c, 'polyester')
+                     || str_contains($c, 'nylon')
+                     || str_contains($c, 'acrylique')
+                     || str_contains($c, 'élasthanne')
+                     || str_contains($c, 'elasthanne')
+                     || str_contains($c, 'viscose');
+
+        $aFibreNoble  = str_contains($c, 'laine')
+                     || str_contains($c, 'lin')
+                     || str_contains($c, 'soie')
+                     || str_contains($c, 'cachemire');
+
+        $aCoton       = str_contains($c, 'coton');
+
+        // Règle 1 & 2 : présence de synthétique → recyclage fibre
+        if ($aSynthetique) {
+            return 'RECYCLAGE_FIBRE';
+        }
+
+        // Règle 3 & 4 : fibre noble pure (sans synthétique)
+        if ($aFibreNoble) {
+            return $poidsKg <= 100 ? 'UPCYCLING' : 'RECYCLAGE_FIBRE';
+        }
+
+        // Règle 5 & 6 : coton pur
+        if ($aCoton) {
+            return $poidsKg <= 50 ? 'REVENTE' : 'RECYCLAGE_FIBRE';
+        }
+
+        // Règle 7 : composition inconnue ou grand lot
+        return $poidsKg > 50 ? 'RECYCLAGE_FIBRE' : 'RECYCLAGE_ENERGIE';
     }
 }

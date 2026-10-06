@@ -142,12 +142,28 @@
 
                         {{-- Progression --}}
                         <td class="px-6 py-4">
+                            @php
+                                $prog = $lot->progression;
+                                if ($prog === 0) {
+                                    $barColor  = 'bg-gray-300';
+                                    $textColor = 'text-gray-400';
+                                } elseif ($prog < 50) {
+                                    $barColor  = 'bg-yellow-400';
+                                    $textColor = 'text-yellow-600';
+                                } elseif ($prog < 100) {
+                                    $barColor  = 'bg-blue-400';
+                                    $textColor = 'text-blue-600';
+                                } else {
+                                    $barColor  = 'bg-green-500';
+                                    $textColor = 'text-green-600';
+                                }
+                            @endphp
                             <div class="flex items-center gap-2">
-                                <div class="flex-1 bg-gray-200 rounded-full h-1.5 w-20">
-                                    <div class="bg-primary-DEFAULT h-1.5 rounded-full transition-all"
-                                         style="width: {{ $lot->progression }}%"></div>
+                                <div class="flex-1 bg-gray-100 rounded-full h-2 w-24 overflow-hidden">
+                                    <div class="{{ $barColor }} h-2 rounded-full transition-all duration-500"
+                                         style="width: {{ $prog }}%"></div>
                                 </div>
-                                <span class="text-xs text-gray-500">{{ $lot->progression }}%</span>
+                                <span class="text-xs font-semibold {{ $textColor }}">{{ $prog }}%</span>
                             </div>
                         </td>
 
@@ -159,6 +175,13 @@
                                    title="Voir">
                                     <i class="fas fa-eye text-xs"></i>
                                 </a>
+                                @if($lot->statut !== 'CERTIFIE')
+                                <a href="{{ route('recyclage.lots.edit', $lot) }}"
+                                   class="w-8 h-8 rounded-lg bg-amber-50 hover:bg-amber-500 hover:text-white flex items-center justify-center text-amber-600 transition-all duration-200"
+                                   title="Modifier">
+                                    <i class="fas fa-edit text-xs"></i>
+                                </a>
+                                @endif
                                 @if($lot->statut === 'TRAITE' && !$lot->passeportNumerique)
                                 <a href="{{ route('recyclage.passeport.show', $lot) }}"
                                    class="w-8 h-8 rounded-lg bg-purple-100 hover:bg-purple-500 hover:text-white flex items-center justify-center text-purple-600 transition-all duration-200"

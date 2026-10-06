@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Recyclage\LotTextileController;
 use App\Http\Controllers\Recyclage\EtapeTraitementController;
 use App\Http\Controllers\Recyclage\PasseportNumeriqueController;
+use App\Http\Controllers\Recyclage\StatistiqueController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -58,6 +59,9 @@ Route::middleware(['auth'])->group(function () {
             ->name('etapes.terminer');
 
         // Passeport numérique
+        Route::get('passeports', [PasseportNumeriqueController::class, 'index'])
+            ->name('passeports.index');
+
         Route::get('lots/{lot}/passeport', [PasseportNumeriqueController::class, 'show'])
             ->name('passeport.show');
 
@@ -66,6 +70,10 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('lots/{lot}/passeport/pdf', [PasseportNumeriqueController::class, 'telechargerPdf'])
             ->name('passeport.pdf');
+
+        // Statistiques
+        Route::get('statistiques', [StatistiqueController::class, 'index'])
+            ->name('statistiques');
     });
 
     /*
