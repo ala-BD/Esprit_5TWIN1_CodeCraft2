@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\PointCollecteController;
+use App\Http\Controllers\DonVetementController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Recyclage\LotTextileController;
 use App\Http\Controllers\Recyclage\EtapeTraitementController;
@@ -36,6 +38,24 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', function () {
         return view('dashboard');
     })->name('dashboard');
+
+    /*
+    |----------------------------------------------------------------------
+    | Module M1 — Collecte / Points de collecte
+    |----------------------------------------------------------------------
+    */
+    Route::get('/collecte', [PointCollecteController::class, 'dashboard'])
+        ->name('collecte.dashboard');
+
+    Route::prefix('collecte')->name('collecte.')->group(function () {
+        Route::resource('points', PointCollecteController::class);
+
+        Route::get('dons', [DonVetementController::class, 'index'])->name('dons.index');
+        Route::get('dons/create', [DonVetementController::class, 'create'])->name('dons.create');
+        Route::post('dons', [DonVetementController::class, 'store'])->name('dons.store');
+        Route::get('dons/{don}', [DonVetementController::class, 'show'])->name('dons.show');
+        Route::patch('dons/{don}/statut', [DonVetementController::class, 'updateStatut'])->name('dons.statut');
+    });
 
     /*
     |----------------------------------------------------------------------

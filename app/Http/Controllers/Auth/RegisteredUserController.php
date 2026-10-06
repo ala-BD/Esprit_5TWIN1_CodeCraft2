@@ -32,26 +32,25 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
             'name'      => ['required', 'string', 'max:255'],
-            'prenom'    => ['required', 'string', 'max:255'],
+            'prenom'    => ['nullable', 'string', 'max:255'],
             'email'     => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'telephone' => ['nullable', 'string', 'max:20'],
-            'role'      => ['required', 'in:DONATEUR,CLIENT,COLLECTEUR,ATELIER,RECYCLEUR'],
+            'role'      => ['nullable', 'in:DONATEUR,CLIENT,COLLECTEUR,ATELIER,RECYCLEUR,ADMIN'],
             'password'  => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
         $user = User::create([
             'name'      => $request->name,
-            'prenom'    => $request->prenom,
+            'prenom'    => $request->prenom ?? '',
             'email'     => $request->email,
             'telephone' => $request->telephone,
-            'role'      => $request->role,
+            'role'      => $request->role ?? User::ROLE_DONATEUR,
             'password'  => Hash::make($request->password),
         ]);
 
         event(new Registered($user));
+        Auth::login($user);
 
-        // Redirection vers login avec message de succès
-        return redirect()->route('login')
-            ->with('status', 'Compte créé avec succès ! Connectez-vous pour accéder à votre espace.');
+        return redirect()->route('dashboard');
     }
 }

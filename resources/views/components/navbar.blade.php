@@ -151,6 +151,16 @@
                         </a>
                     @endif
 
+                    <a href="{{ route('collecte.dashboard') }}"
+                       class="nav-link {{ request()->routeIs('collecte.*') ? 'font-semibold' : '' }}">
+                        <i class="fas fa-map-marker-alt mr-1.5"></i> Collecte
+                    </a>
+                    @if(Auth::user()->role === 'DONATEUR')
+                        <a href="{{ route('collecte.dons.index') }}" class="nav-link {{ request()->routeIs('collecte.dons.*') ? 'font-semibold' : '' }}">
+                            <i class="fas fa-box-open mr-1.5"></i> Mes dons
+                        </a>
+                    @endif
+
                     {{-- Logout --}}
                     <form method="POST" action="{{ route('logout') }}" class="inline">
                         @csrf
@@ -208,6 +218,15 @@
 
             <div class="pt-4 mt-2 space-y-2" style="border-top: 1px solid #e2e8f0">
                 @auth
+                    @if(Auth::user()->role === 'DONATEUR')
+                        <a href="{{ route('collecte.dons.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50">
+                            <i class="fas fa-box-open w-4 text-center" style="color:#0d9488"></i> Mes dons
+                        </a>
+                    @endif
+                    <a href="{{ route('collecte.dashboard') }}"
+                       class="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50">
+                        <i class="fas fa-map-marker-alt text-xs"></i> Points de collecte
+                    </a>
                     @if(Auth::user()->role === 'RECYCLEUR')
                         <a href="{{ route('recyclage.dashboard') }}"
                            class="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white text-sm font-bold"
