@@ -4,41 +4,219 @@
 
 @section('styles')
 <style>
-    /* ===== Sidebar Filters ===== */
+    /* ===================================================
+       PREMIUM FILTER SIDEBAR
+    =================================================== */
     .filter-sidebar {
-        background: #fff; border-radius: 1.25rem; border: 1px solid #e2e8f0;
-        box-shadow: 0 4px 24px rgba(15,23,42,0.06); position: sticky; top: 88px;
+        background: #fff;
+        border-radius: 1.5rem;
+        border: 1px solid rgba(226,232,240,0.8);
+        box-shadow: 0 8px 32px rgba(15,23,42,0.08), 0 2px 8px rgba(13,148,136,0.04);
+        position: sticky; top: 88px;
+        overflow: hidden;
+        max-height: calc(100vh - 104px);
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #e2e8f0 transparent;
     }
-    .filter-section { border-bottom: 1px solid #f1f5f9; padding: 0.85rem 1.1rem; }
-    .filter-section:last-child { border-bottom: none; }
-    .filter-section-title {
-        font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
-        text-transform: uppercase; color: #94a3b8; margin-bottom: 0.6rem;
+    .filter-sidebar::-webkit-scrollbar { width: 4px; }
+    .filter-sidebar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+
+    /* Sidebar header glassmorphism */
+    .sidebar-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1a2744 50%, #0d9488 100%);
+        padding: 1rem 1.1rem;
+        position: relative;
+        overflow: hidden;
     }
-    .filter-chip {
-        display: inline-flex; align-items: center; padding: 0.28rem 0.7rem;
-        border-radius: 9999px; font-size: 0.7rem; font-weight: 600;
+    .sidebar-header::before {
+        content: '';
+        position: absolute; inset: 0;
+        background-image: radial-gradient(ellipse at 80% 50%, rgba(13,148,136,0.3) 0%, transparent 60%);
+        pointer-events: none;
+    }
+    .sidebar-header-grid {
+        position: absolute; inset: 0;
+        background-image:
+            linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+        background-size: 20px 20px; pointer-events: none;
+    }
+
+    /* Accordion sections */
+    .fs { border-bottom: 1px solid #f1f5f9; }
+    .fs:last-child { border-bottom: none; }
+    .fs-trigger {
+        width: 100%; display: flex; align-items: center; justify-content: space-between;
+        padding: 0.8rem 1.1rem; background: none; border: none; cursor: pointer;
+        transition: background 0.15s;
+    }
+    .fs-trigger:hover { background: #fafbfc; }
+    .fs-title {
+        display: flex; align-items: center; gap: 0.55rem;
+        font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+        text-transform: uppercase; color: #475569;
+    }
+    .fs-title-icon {
+        width: 22px; height: 22px; border-radius: 6px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.6rem; flex-shrink: 0;
+    }
+    .fs-chevron { color: #cbd5e1; font-size: 0.6rem; transition: transform 0.25s ease; }
+    .fs-trigger[aria-expanded="true"] .fs-chevron { transform: rotate(180deg); }
+    .fs-body { padding: 0 1.1rem 0.9rem; display: none; }
+    .fs-trigger[aria-expanded="true"] + .fs-body { display: block; }
+    .fs-badge {
+        font-size: 0.6rem; font-weight: 700; padding: 0.1rem 0.4rem;
+        border-radius: 9999px; background: #0d9488; color: #fff;
+        line-height: 1.4;
+    }
+
+    /* Toggle switches */
+    .toggle-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0.45rem 0; cursor: pointer;
+    }
+    .toggle-label { font-size: 0.78rem; color: #374151; font-weight: 500; }
+    .toggle-label small { display: block; font-size: 0.65rem; color: #9ca3af; font-weight: 400; }
+    .toggle-switch {
+        position: relative; width: 34px; height: 18px; flex-shrink: 0;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-track {
+        position: absolute; inset: 0; border-radius: 9999px;
+        background: #e2e8f0; transition: background 0.2s;
+        cursor: pointer;
+    }
+    .toggle-track::after {
+        content: ''; position: absolute; width: 12px; height: 12px;
+        border-radius: 50%; background: #fff; top: 3px; left: 3px;
+        transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle-switch input:checked + .toggle-track { background: #0d9488; }
+    .toggle-switch input:checked + .toggle-track::after { transform: translateX(16px); }
+
+    /* Size grid */
+    .size-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem; }
+    .size-box {
+        display: flex; align-items: center; justify-content: center;
+        padding: 0.4rem 0.2rem; border-radius: 0.5rem;
+        font-size: 0.72rem; font-weight: 700;
         border: 1.5px solid #e2e8f0; background: #f8fafc; color: #475569;
-        cursor: pointer; transition: all 0.15s; margin: 0.18rem 0.12rem 0.18rem 0;
-        text-decoration: none; white-space: nowrap;
+        text-decoration: none; transition: all 0.15s;
     }
-    .filter-chip:hover  { border-color: #0d9488; background: #f0fdf9; color: #0d9488; }
-    .filter-chip.active { background: #0d9488; border-color: #0d9488; color: #fff; box-shadow: 0 2px 8px rgba(13,148,136,0.3); }
-    /* Sort bar */
-    .sort-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; background: #fff; border-radius: 1rem; border: 1px solid #e2e8f0; padding: 0.55rem 1rem; margin-bottom: 1.1rem; }
-    .sort-btn { padding: 0.3rem 0.8rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; border: 1.5px solid #e2e8f0; background: transparent; color: #64748b; cursor: pointer; transition: all 0.15s; text-decoration: none; }
-    .sort-btn.active { background: #0f172a; border-color: #0f172a; color: #fff; }
-    .sort-btn:hover:not(.active) { background: #f1f5f9; color: #0f172a; }
-    /* Active chips */
-    .active-chip { display: inline-flex; align-items: center; gap: 0.3rem; background: #e0f2fe; border: 1.5px solid #bae6fd; color: #0369a1; border-radius: 9999px; padding: 0.22rem 0.6rem; font-size: 0.68rem; font-weight: 700; }
-    .active-chip a { text-decoration: none; color: inherit; }
-    /* Price inputs */
-    .price-range-inputs { display: flex; gap: 0.4rem; align-items: center; }
-    .price-input { flex: 1; padding: 0.4rem 0.55rem; border: 1.5px solid #e2e8f0; border-radius: 0.5rem; font-size: 0.75rem; outline: none; transition: border-color 0.15s; }
-    .price-input:focus { border-color: #0d9488; }
-    /* Autocomplete */
+    .size-box:hover  { border-color: #0d9488; background: #f0fdf9; color: #0d9488; }
+    .size-box.active { background: linear-gradient(135deg,#0d9488,#059669); border-color: transparent; color: #fff; box-shadow: 0 2px 8px rgba(13,148,136,0.35); }
+
+    /* Color swatches */
+    .color-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .color-swatch {
+        display: flex; align-items: center; gap: 0.4rem;
+        padding: 0.28rem 0.6rem 0.28rem 0.4rem;
+        border-radius: 9999px; border: 1.5px solid #e2e8f0;
+        background: #f8fafc; text-decoration: none;
+        font-size: 0.68rem; font-weight: 600; color: #475569;
+        transition: all 0.15s; cursor: pointer;
+    }
+    .color-swatch:hover  { border-color: #94a3b8; background: #f1f5f9; color: #1e293b; }
+    .color-swatch.active { border-color: transparent; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+    .color-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; border: 1.5px solid rgba(0,0,0,0.12); }
+
+    /* Category rows */
+    .cat-row {
+        display: flex; align-items: center; gap: 0.6rem;
+        padding: 0.4rem 0.5rem; border-radius: 0.625rem;
+        font-size: 0.75rem; font-weight: 600; color: #475569;
+        text-decoration: none; transition: all 0.15s; margin-bottom: 0.1rem;
+    }
+    .cat-row:hover  { background: #f0fdf9; color: #0d9488; }
+    .cat-row.active { background: linear-gradient(90deg,#f0fdf9,#ccfbf1); color: #0d9488; font-weight: 700; }
+    .cat-row.active .cat-dot { background: #0d9488; }
+    .cat-dot { width: 6px; height: 6px; border-radius: 50%; background: #cbd5e1; flex-shrink: 0; transition: background 0.15s; }
+    .cat-icon { width: 20px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; flex-shrink: 0; }
+
+    /* Etat rows */
+    .etat-row {
+        display: flex; align-items: center; gap: 0.55rem; padding: 0.38rem 0.5rem;
+        border-radius: 0.625rem; text-decoration: none; transition: all 0.15s;
+        font-size: 0.74rem; font-weight: 600; color: #475569; margin-bottom: 0.1rem;
+    }
+    .etat-row:hover  { background: #f8fafc; color: #0f172a; }
+    .etat-row.active { background: #fef9c3; color: #854d0e; }
+    .etat-star { font-size: 0.55rem; }
+
+    /* Vendeur pills */
+    .vendeur-pill {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        padding: 0.35rem 0.75rem; border-radius: 9999px;
+        font-size: 0.7rem; font-weight: 600; border: 1.5px solid #e2e8f0;
+        background: #f8fafc; color: #475569; text-decoration: none; transition: all 0.15s;
+        margin: 0.15rem 0.1rem 0 0;
+    }
+    .vendeur-pill:hover  { border-color: #6366f1; background: #eef2ff; color: #4338ca; }
+    .vendeur-pill.active { background: linear-gradient(135deg,#4f46e5,#7c3aed); border-color: transparent; color: #fff; box-shadow: 0 2px 8px rgba(79,70,229,0.35); }
+
+    /* Price range */
+    .price-range-inputs { display: flex; gap: 0.45rem; align-items: center; }
+    .price-input {
+        flex: 1; padding: 0.45rem 0.6rem; border: 1.5px solid #e2e8f0;
+        border-radius: 0.625rem; font-size: 0.75rem; outline: none;
+        transition: all 0.15s; background: #f8fafc; color: #1e293b; font-weight: 500;
+    }
+    .price-input:focus { border-color: #0d9488; background: #fff; box-shadow: 0 0 0 3px rgba(13,148,136,0.1); }
+    .price-apply-btn {
+        width: 100%; margin-top: 0.55rem; padding: 0.5rem;
+        border-radius: 0.75rem; border: none; cursor: pointer; font-size: 0.72rem;
+        font-weight: 700; letter-spacing: 0.04em;
+        background: linear-gradient(135deg, #0d9488, #059669);
+        color: #fff; transition: all 0.2s;
+        box-shadow: 0 2px 8px rgba(13,148,136,0.25);
+    }
+    .price-apply-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(13,148,136,0.35); }
+
+    /* ===== SORT BAR ===== */
+    .sort-bar {
+        display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+        background: linear-gradient(135deg,#fff 0%,#f8fafc 100%);
+        border-radius: 1.1rem; border: 1px solid #e8edf3;
+        padding: 0.6rem 1rem; margin-bottom: 1.1rem;
+        box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+    }
+    .sort-btn {
+        padding: 0.32rem 0.85rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600;
+        border: 1.5px solid transparent; background: transparent; color: #64748b;
+        cursor: pointer; transition: all 0.18s; text-decoration: none;
+        display: inline-flex; align-items: center; gap: 0.35rem;
+    }
+    .sort-btn:hover:not(.active) { background: #f1f5f9; color: #0f172a; border-color: #e2e8f0; }
+    .sort-btn.active {
+        background: linear-gradient(135deg,#0f172a,#1e3a5f); border-color: transparent;
+        color: #fff; box-shadow: 0 2px 8px rgba(15,23,42,0.2);
+    }
+
+    /* Active filter chips */
+    .active-chip {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        background: linear-gradient(135deg,#e0f2fe,#dbeafe);
+        border: 1.5px solid #bae6fd; color: #0369a1;
+        border-radius: 9999px; padding: 0.25rem 0.7rem;
+        font-size: 0.68rem; font-weight: 700;
+        animation: chipIn 0.2s ease;
+    }
+    @keyframes chipIn { from { opacity:0; transform: scale(0.8); } to { opacity:1; transform: scale(1); } }
+    .active-chip a { text-decoration: none; color: inherit; margin-left: 0.1rem; }
+    .active-chip a:hover { color: #dc2626; }
+
+    /* Search bar */
+    .search-bar-wrap {
+        background: #fff; border-radius: 1.25rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 12px rgba(15,23,42,0.05);
+        padding: 0.875rem 1rem; margin-bottom: 1rem;
+    }
     #suggest-list { position: absolute; top: 100%; left: 0; right: 0; z-index: 100; background: #fff; border: 1px solid #e2e8f0; border-radius: 0.875rem; box-shadow: 0 8px 24px rgba(15,23,42,0.12); overflow: hidden; margin-top: 4px; }
-    .suggest-item { padding: 0.55rem 1rem; font-size: 0.8rem; color: #334155; cursor: pointer; transition: background 0.1s; }
+    .suggest-item { padding: 0.55rem 1rem; font-size: 0.8rem; color: #334155; cursor: pointer; transition: background 0.1s; display: flex; align-items: center; gap: 0.5rem; }
+    .suggest-item::before { content: '\f002'; font-family: 'Font Awesome 6 Free'; font-weight: 900; font-size: 0.65rem; color: #94a3b8; }
     .suggest-item:hover { background: #f0fdf9; color: #0d9488; }
     .marketplace-page {
         min-height: 100vh;
@@ -243,131 +421,314 @@
 
         <div class="flex gap-7 items-start">
 
-        {{-- ===== SIDEBAR FILTERS ===== --}}
-        <aside class="hidden lg:block w-60 flex-shrink-0">
+        {{-- ===== SIDEBAR FILTERS (PREMIUM) ===== --}}
+        <aside class="hidden lg:block w-64 flex-shrink-0">
             <form method="GET" action="{{ route('articles.index') }}" id="filter-form" class="filter-sidebar">
 
-                {{-- Header --}}
-                <div class="filter-section flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center text-xs"><i class="fas fa-sliders-h"></i></div>
-                        <span class="font-bold text-sm text-slate-800">Filtres</span>
+                {{-- Glassmorphism Header --}}
+                <div class="sidebar-header relative z-10">
+                    <div class="sidebar-header-grid"></div>
+                    <div class="relative z-10 flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center text-white text-sm border border-white/20">
+                                <i class="fas fa-sliders-h"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-bold text-sm leading-tight">Filtres</div>
+                                <div class="text-white/50 text-[10px] font-medium">
+                                    @if($activeFilters > 0) {{ $activeFilters }} filtre(s) actif(s) @else Tous les articles @endif
+                                </div>
+                            </div>
+                        </div>
                         @if($activeFilters > 0)
-                            <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-teal-600 text-white text-[10px] font-bold">{{ $activeFilters }}</span>
+                            <a href="{{ route('articles.index') }}"
+                               class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/90 hover:bg-red-500 text-white text-[10px] font-bold transition-all"
+                               style="text-decoration:none">
+                                <i class="fas fa-times"></i> Effacer tout
+                            </a>
                         @endif
                     </div>
+
+                    {{-- Active filter progress bar --}}
                     @if($activeFilters > 0)
-                        <a href="{{ route('articles.index') }}" class="text-xs text-red-500 hover:text-red-700 font-semibold" style="text-decoration:none">
-                            <i class="fas fa-times mr-1"></i>Effacer
-                        </a>
+                        <div class="relative mt-3 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-emerald-400 to-teal-300 rounded-full transition-all"
+                                 style="width: {{ min(100, $activeFilters * 9) }}%"></div>
+                        </div>
                     @endif
                 </div>
 
-                {{-- Mes articles / En stock / Gratuits --}}
-                <div class="filter-section">
-                    <div class="filter-section-title">Affichage</div>
-                    <label class="flex items-center gap-2 cursor-pointer mb-1.5">
-                        <input type="checkbox" name="mine" value="1" {{ request()->boolean('mine') || request()->get('filter') === 'mine' ? 'checked' : '' }}
-                               class="w-4 h-4 rounded text-teal-600 border-slate-300" onchange="this.form.submit()">
-                        <span class="text-xs text-slate-700 font-medium">Mes articles uniquement</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer mb-1.5">
-                        <input type="checkbox" name="en_stock" value="1" {{ request()->boolean('en_stock') ? 'checked' : '' }}
-                               class="w-4 h-4 rounded text-teal-600 border-slate-300" onchange="this.form.submit()">
-                        <span class="text-xs text-slate-700 font-medium">En stock seulement</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="gratuits" value="1" {{ request()->boolean('gratuits') ? 'checked' : '' }}
-                               class="w-4 h-4 rounded text-teal-600 border-slate-300" onchange="this.form.submit()">
-                        <span class="text-xs text-slate-700 font-medium">Dons gratuits (0 DT)</span>
-                    </label>
+                {{-- Quick Toggles --}}
+                <div class="fs">
+                    <button type="button" class="fs-trigger" aria-expanded="true" onclick="toggleSection(this)">
+                        <span class="fs-title">
+                            <span class="fs-title-icon bg-violet-50 text-violet-600"><i class="fas fa-bolt"></i></span>
+                            Accès rapide
+                        </span>
+                        <i class="fas fa-chevron-down fs-chevron"></i>
+                    </button>
+                    <div class="fs-body">
+                        <label class="toggle-row" for="toggle-mine">
+                            <div class="toggle-label">
+                                <i class="fas fa-user text-slate-400 text-[10px] mr-1"></i> Mes articles
+                                <small>Publiés par moi</small>
+                            </div>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="toggle-mine" name="mine" value="1"
+                                       {{ request()->boolean('mine') || request()->get('filter') === 'mine' ? 'checked' : '' }}
+                                       onchange="this.form.submit()">
+                                <span class="toggle-track"></span>
+                            </div>
+                        </label>
+                        <label class="toggle-row" for="toggle-stock">
+                            <div class="toggle-label">
+                                <i class="fas fa-boxes text-slate-400 text-[10px] mr-1"></i> En stock
+                                <small>Disponibles uniquement</small>
+                            </div>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="toggle-stock" name="en_stock" value="1"
+                                       {{ request()->boolean('en_stock') ? 'checked' : '' }}
+                                       onchange="this.form.submit()">
+                                <span class="toggle-track"></span>
+                            </div>
+                        </label>
+                        <label class="toggle-row" for="toggle-gratuits">
+                            <div class="toggle-label">
+                                <i class="fas fa-gift text-slate-400 text-[10px] mr-1"></i> Dons gratuits
+                                <small>Prix = 0 DT</small>
+                            </div>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="toggle-gratuits" name="gratuits" value="1"
+                                       {{ request()->boolean('gratuits') ? 'checked' : '' }}
+                                       onchange="this.form.submit()">
+                                <span class="toggle-track"></span>
+                            </div>
+                        </label>
+                    </div>
                 </div>
 
                 {{-- Prix --}}
-                <div class="filter-section">
-                    <div class="filter-section-title">Prix (DT)</div>
-                    <div class="price-range-inputs">
-                        <input type="number" name="prix_min" value="{{ request('prix_min') }}" placeholder="Min" min="0" class="price-input">
-                        <span class="text-slate-400 text-xs font-bold">—</span>
-                        <input type="number" name="prix_max" value="{{ request('prix_max') }}" placeholder="Max" min="0" class="price-input">
+                <div class="fs">
+                    <button type="button" class="fs-trigger" aria-expanded="{{ request()->filled('prix_min') || request()->filled('prix_max') ? 'true' : 'false' }}" onclick="toggleSection(this)">
+                        <span class="fs-title">
+                            <span class="fs-title-icon bg-amber-50 text-amber-600"><i class="fas fa-coins"></i></span>
+                            Prix
+                            @if(request()->filled('prix_min') || request()->filled('prix_max'))
+                                <span class="fs-badge">actif</span>
+                            @endif
+                        </span>
+                        <i class="fas fa-chevron-down fs-chevron"></i>
+                    </button>
+                    <div class="fs-body">
+                        <div class="price-range-inputs mb-1">
+                            <input type="number" name="prix_min" value="{{ request('prix_min') }}" placeholder="0" min="0" class="price-input">
+                            <span class="text-slate-300 font-bold text-sm">→</span>
+                            <input type="number" name="prix_max" value="{{ request('prix_max') }}" placeholder="∞" min="0" class="price-input">
+                        </div>
+                        <div class="text-[10px] text-slate-400 mb-1.5">Montant en dinars tunisiens (DT)</div>
+                        <button type="submit" class="price-apply-btn"><i class="fas fa-check mr-1"></i> Appliquer le prix</button>
                     </div>
-                    <button type="submit" class="mt-2 w-full py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors">Appliquer</button>
                 </div>
 
                 {{-- Catégorie --}}
-                <div class="filter-section">
-                    <div class="filter-section-title">Catégorie</div>
-                    <div class="flex flex-wrap">
+                @php
+                $catIcons = ['Vetements Homme'=>['bg'=>'bg-blue-50','text'=>'text-blue-500','icon'=>'fa-male'],'Vetements Femme'=>['bg'=>'bg-pink-50','text'=>'text-pink-500','icon'=>'fa-female'],'Vetements Enfant'=>['bg'=>'bg-yellow-50','text'=>'text-yellow-500','icon'=>'fa-baby'],'Accessoires & Sacs'=>['bg'=>'bg-purple-50','text'=>'text-purple-500','icon'=>'fa-shopping-bag'],'Linge de maison'=>['bg'=>'bg-indigo-50','text'=>'text-indigo-500','icon'=>'fa-bed'],'Textile Upcycle'=>['bg'=>'bg-emerald-50','text'=>'text-emerald-500','icon'=>'fa-recycle'],'Chaussures'=>['bg'=>'bg-orange-50','text'=>'text-orange-500','icon'=>'fa-shoe-prints'],'Autre'=>['bg'=>'bg-slate-50','text'=>'text-slate-500','icon'=>'fa-ellipsis-h']];
+                @endphp
+                <div class="fs">
+                    <button type="button" class="fs-trigger" aria-expanded="true" onclick="toggleSection(this)">
+                        <span class="fs-title">
+                            <span class="fs-title-icon bg-teal-50 text-teal-600"><i class="fas fa-tag"></i></span>
+                            Catégorie
+                            @if(request()->filled('categorie'))
+                                <span class="fs-badge">1</span>
+                            @endif
+                        </span>
+                        <i class="fas fa-chevron-down fs-chevron"></i>
+                    </button>
+                    <div class="fs-body">
                         @foreach($categories as $cat)
+                            @php $ci = $catIcons[$cat] ?? ['bg'=>'bg-slate-50','text'=>'text-slate-400','icon'=>'fa-circle']; @endphp
                             <a href="{{ route('articles.index', array_merge(request()->except(['categorie','page']), ['categorie' => request('categorie') === $cat ? '' : $cat])) }}"
-                               class="filter-chip {{ request('categorie') === $cat ? 'active' : '' }}">{{ $cat }}</a>
+                               class="cat-row {{ request('categorie') === $cat ? 'active' : '' }}">
+                                <span class="cat-dot"></span>
+                                <span class="cat-icon {{ $ci['bg'] }} {{ $ci['text'] }}"><i class="fas {{ $ci['icon'] }}"></i></span>
+                                <span>{{ $cat }}</span>
+                            </a>
                         @endforeach
                     </div>
                 </div>
 
                 {{-- Taille --}}
-                <div class="filter-section">
-                    <div class="filter-section-title">Taille</div>
-                    <div class="flex flex-wrap">
-                        @foreach($tailles as $t)
-                            <a href="{{ route('articles.index', array_merge(request()->except(['taille','page']), ['taille' => request('taille') === $t ? '' : $t])) }}"
-                               class="filter-chip {{ request('taille') === $t ? 'active' : '' }}">{{ $t }}</a>
-                        @endforeach
+                <div class="fs">
+                    <button type="button" class="fs-trigger" aria-expanded="{{ request()->filled('taille') ? 'true' : 'false' }}" onclick="toggleSection(this)">
+                        <span class="fs-title">
+                            <span class="fs-title-icon bg-sky-50 text-sky-600"><i class="fas fa-ruler"></i></span>
+                            Taille
+                            @if(request()->filled('taille'))
+                                <span class="fs-badge">{{ request('taille') }}</span>
+                            @endif
+                        </span>
+                        <i class="fas fa-chevron-down fs-chevron"></i>
+                    </button>
+                    <div class="fs-body">
+                        <div class="size-grid">
+                            @foreach($tailles as $t)
+                                <a href="{{ route('articles.index', array_merge(request()->except(['taille','page']), ['taille' => request('taille') === $t ? '' : $t])) }}"
+                                   class="size-box {{ request('taille') === $t ? 'active' : '' }}">{{ $t }}</a>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
 
                 {{-- Matière --}}
-                <div class="filter-section">
-                    <div class="filter-section-title">Matière</div>
-                    <div class="flex flex-wrap">
+                <div class="fs">
+                    <button type="button" class="fs-trigger" aria-expanded="{{ request()->filled('matiere') ? 'true' : 'false' }}" onclick="toggleSection(this)">
+                        <span class="fs-title">
+                            <span class="fs-title-icon bg-lime-50 text-lime-700"><i class="fas fa-leaf"></i></span>
+                            Matière
+                            @if(request()->filled('matiere'))
+                                <span class="fs-badge">1</span>
+                            @endif
+                        </span>
+                        <i class="fas fa-chevron-down fs-chevron"></i>
+                    </button>
+                    <div class="fs-body">
+                        <div class="flex flex-wrap gap-1">
                         @foreach($matieres as $m)
                             <a href="{{ route('articles.index', array_merge(request()->except(['matiere','page']), ['matiere' => request('matiere') === $m ? '' : $m])) }}"
-                               class="filter-chip {{ request('matiere') === $m ? 'active' : '' }}">{{ $m }}</a>
+                               class="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-600 border transition-all
+                                      {{ request('matiere') === $m ? 'bg-lime-600 border-lime-600 text-white shadow-sm' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-lime-400 hover:bg-lime-50 hover:text-lime-700' }}"
+                               style="font-weight:600; text-decoration:none">
+                                {{ $m }}
+                            </a>
                         @endforeach
+                        </div>
                     </div>
                 </div>
 
                 {{-- État --}}
-                <div class="filter-section">
-                    <div class="filter-section-title">État</div>
-                    <div class="flex flex-wrap">
+                <div class="fs">
+                    <button type="button" class="fs-trigger" aria-expanded="{{ request()->filled('etat') ? 'true' : 'false' }}" onclick="toggleSection(this)">
+                        <span class="fs-title">
+                            <span class="fs-title-icon bg-yellow-50 text-yellow-600"><i class="fas fa-star"></i></span>
+                            État
+                            @if(request()->filled('etat'))
+                                <span class="fs-badge">1</span>
+                            @endif
+                        </span>
+                        <i class="fas fa-chevron-down fs-chevron"></i>
+                    </button>
+                    <div class="fs-body">
+                        @php
+                        $etatConfig = [
+                            'Neuf'          => ['stars'=>5, 'color'=>'text-emerald-600', 'bg'=>'bg-emerald-50'],
+                            'Tres bon etat' => ['stars'=>4, 'color'=>'text-teal-600',    'bg'=>'bg-teal-50'],
+                            'Bon etat'      => ['stars'=>3, 'color'=>'text-blue-600',    'bg'=>'bg-blue-50'],
+                            'Usage'         => ['stars'=>2, 'color'=>'text-slate-500',   'bg'=>'bg-slate-50'],
+                        ];
+                        @endphp
                         @foreach($etats as $e)
+                            @php $ec = $etatConfig[$e] ?? ['stars'=>1,'color'=>'text-slate-400','bg'=>'bg-slate-50']; @endphp
                             <a href="{{ route('articles.index', array_merge(request()->except(['etat','page']), ['etat' => request('etat') === $e ? '' : $e])) }}"
-                               class="filter-chip {{ request('etat') === $e ? 'active' : '' }}">{{ $e }}</a>
+                               class="etat-row {{ request('etat') === $e ? 'active' : '' }}">
+                                <span class="{{ $ec['color'] }}">
+                                    @for($s=0; $s < $ec['stars']; $s++) <i class="fas fa-star etat-star"></i> @endfor
+                                    @for($s=$ec['stars']; $s < 5; $s++) <i class="far fa-star etat-star text-slate-200"></i> @endfor
+                                </span>
+                                <span>{{ $e }}</span>
+                            </a>
                         @endforeach
                     </div>
                 </div>
 
-                {{-- Couleur --}}
-                <div class="filter-section">
-                    <div class="filter-section-title">Couleur</div>
-                    <div class="flex flex-wrap">
-                        @foreach($couleurs as $c)
-                            <a href="{{ route('articles.index', array_merge(request()->except(['couleur','page']), ['couleur' => request('couleur') === $c ? '' : $c])) }}"
-                               class="filter-chip {{ request('couleur') === $c ? 'active' : '' }}">{{ $c }}</a>
-                        @endforeach
+                {{-- Couleur (swatches) --}}
+                @php
+                $couleurMap = [
+                    'Noir'=>'#1e293b','Blanc'=>'#f8fafc','Gris'=>'#94a3b8','Bleu'=>'#3b82f6',
+                    'Rouge'=>'#ef4444','Vert'=>'#22c55e','Jaune'=>'#eab308','Orange'=>'#f97316',
+                    'Rose'=>'#ec4899','Violet'=>'#a855f7','Marron'=>'#92400e','Beige'=>'#d4b896',
+                    'Multicolore'=>'linear-gradient(135deg,#ef4444,#f97316,#eab308,#22c55e,#3b82f6,#a855f7)'
+                ];
+                @endphp
+                <div class="fs">
+                    <button type="button" class="fs-trigger" aria-expanded="{{ request()->filled('couleur') ? 'true' : 'false' }}" onclick="toggleSection(this)">
+                        <span class="fs-title">
+                            <span class="fs-title-icon bg-pink-50 text-pink-500"><i class="fas fa-palette"></i></span>
+                            Couleur
+                            @if(request()->filled('couleur'))
+                                <span class="fs-badge">{{ request('couleur') }}</span>
+                            @endif
+                        </span>
+                        <i class="fas fa-chevron-down fs-chevron"></i>
+                    </button>
+                    <div class="fs-body">
+                        <div class="color-grid">
+                            @foreach($couleurs as $c)
+                                @php $bg = $couleurMap[$c] ?? '#94a3b8'; $isActive = request('couleur') === $c; @endphp
+                                <a href="{{ route('articles.index', array_merge(request()->except(['couleur','page']), ['couleur' => $isActive ? '' : $c])) }}"
+                                   class="color-swatch {{ $isActive ? 'active' : '' }}"
+                                   style="{{ $isActive ? 'background:' . $bg . ';' : '' }}">
+                                    <span class="color-dot" style="background: {{ $bg }}"></span>
+                                    <span>{{ $c }}</span>
+                                    @if($isActive) <i class="fas fa-check text-[8px] ml-auto opacity-80"></i> @endif
+                                </a>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
 
                 {{-- Statut --}}
-                <div class="filter-section">
-                    <div class="filter-section-title">Statut</div>
-                    <div class="flex flex-wrap">
+                <div class="fs">
+                    <button type="button" class="fs-trigger" aria-expanded="{{ request()->filled('statut') ? 'true' : 'false' }}" onclick="toggleSection(this)">
+                        <span class="fs-title">
+                            <span class="fs-title-icon bg-slate-100 text-slate-500"><i class="fas fa-circle"></i></span>
+                            Statut
+                            @if(request()->filled('statut'))
+                                <span class="fs-badge">1</span>
+                            @endif
+                        </span>
+                        <i class="fas fa-chevron-down fs-chevron"></i>
+                    </button>
+                    <div class="fs-body">
+                        @php
+                        $statutConf = ['DISPONIBLE'=>['dot'=>'#10b981','bg'=>'bg-emerald-50','text'=>'text-emerald-700'],'RESERVE'=>['dot'=>'#f59e0b','bg'=>'bg-amber-50','text'=>'text-amber-700'],'VENDU'=>['dot'=>'#ef4444','bg'=>'bg-red-50','text'=>'text-red-700'],'ARCHIVE'=>['dot'=>'#94a3b8','bg'=>'bg-slate-100','text'=>'text-slate-500']];
+                        @endphp
                         @foreach($statuts as $st)
+                            @php $sc = $statutConf[$st] ?? ['dot'=>'#94a3b8','bg'=>'bg-slate-100','text'=>'text-slate-500']; @endphp
                             <a href="{{ route('articles.index', array_merge(request()->except(['statut','page']), ['statut' => request('statut') === $st ? '' : $st])) }}"
-                               class="filter-chip {{ request('statut') === $st ? 'active' : '' }}">{{ $st }}</a>
+                               class="cat-row {{ request('statut') === $st ? 'active' : '' }}">
+                                <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ $sc['dot'] }}"></span>
+                                <span class="text-[11px] px-2 py-0.5 rounded-full {{ $sc['bg'] }} {{ $sc['text'] }} font-bold">{{ $st }}</span>
+                            </a>
                         @endforeach
                     </div>
                 </div>
 
                 {{-- Vendeur --}}
-                <div class="filter-section">
-                    <div class="filter-section-title">Type de vendeur</div>
-                    <div class="flex flex-wrap">
+                <div class="fs">
+                    <button type="button" class="fs-trigger" aria-expanded="{{ request()->filled('vendeur_role') ? 'true' : 'false' }}" onclick="toggleSection(this)">
+                        <span class="fs-title">
+                            <span class="fs-title-icon bg-indigo-50 text-indigo-600"><i class="fas fa-store"></i></span>
+                            Type vendeur
+                            @if(request()->filled('vendeur_role'))
+                                <span class="fs-badge">1</span>
+                            @endif
+                        </span>
+                        <i class="fas fa-chevron-down fs-chevron"></i>
+                    </button>
+                    <div class="fs-body">
+                        @php
+                        $vendeurConf = ['Atelier'=>'fa-tools','Donateur'=>'fa-hand-holding-heart','Recycleur'=>'fa-recycle','Collecteur'=>'fa-truck-pickup'];
+                        @endphp
+                        <div class="flex flex-wrap">
                         @foreach(['Atelier','Donateur','Recycleur','Collecteur'] as $role)
                             <a href="{{ route('articles.index', array_merge(request()->except(['vendeur_role','page']), ['vendeur_role' => request('vendeur_role') === $role ? '' : $role])) }}"
-                               class="filter-chip {{ request('vendeur_role') === $role ? 'active' : '' }}">{{ $role }}</a>
+                               class="vendeur-pill {{ request('vendeur_role') === $role ? 'active' : '' }}">
+                                <i class="fas {{ $vendeurConf[$role] ?? 'fa-user' }} text-[9px]"></i>
+                                {{ $role }}
+                            </a>
                         @endforeach
+                        </div>
                     </div>
                 </div>
 
@@ -377,8 +738,8 @@
         {{-- ===== RIGHT COLUMN ===== --}}
         <div class="flex-1 min-w-0">
 
-            {{-- Search bar --}}
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-4">
+            {{-- Premium Search bar --}}
+            <div class="search-bar-wrap">
                 <form method="GET" action="{{ route('articles.index') }}" class="flex gap-3 items-center">
                     @foreach(request()->except(['q','page']) as $k => $v)
                         @if(!empty($v))
@@ -386,29 +747,52 @@
                         @endif
                     @endforeach
                     <div class="relative flex-1" id="search-wrapper">
-                        <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                        <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-teal-500 text-sm"></i>
                         <input type="text" id="search-input" name="q" value="{{ $currentQ }}"
-                               placeholder="Rechercher par titre, mot-clé, matière…" autocomplete="off"
-                               class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none transition-all">
+                               placeholder="Rechercher un article, une matière, un titre…" autocomplete="off"
+                               class="w-full pl-11 pr-10 py-3 rounded-xl border-2 border-slate-200 text-sm focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 outline-none transition-all bg-slate-50 focus:bg-white font-medium placeholder-slate-400">
+                        @if(request()->filled('q'))
+                            <a href="{{ route('articles.index', request()->except(['q','page'])) }}"
+                               class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" style="text-decoration:none">
+                                <i class="fas fa-times-circle"></i>
+                            </a>
+                        @endif
                         <div id="suggest-list" class="hidden"></div>
                     </div>
-                    <button type="submit" class="px-5 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm transition-colors flex items-center gap-2">
-                        <i class="fas fa-filter"></i> Filtrer
+                    <button type="submit"
+                            class="flex-shrink-0 px-5 py-3 rounded-xl font-bold text-sm text-white flex items-center gap-2 transition-all"
+                            style="background: linear-gradient(135deg,#0d9488,#059669); box-shadow: 0 4px 12px rgba(13,148,136,0.3);">
+                        <i class="fas fa-search"></i>
+                        <span>Rechercher</span>
                     </button>
                 </form>
             </div>
 
-            {{-- Sort bar --}}
+            {{-- Premium Sort bar --}}
             <div class="sort-bar">
-                <div class="flex items-center flex-wrap gap-2">
-                    <span class="text-xs font-semibold text-slate-500">Tri :</span>
-                    @foreach(['recent' => 'Plus récents', 'prix_asc' => 'Prix ↑', 'prix_desc' => 'Prix ↓'] as $key => $label)
+                <div class="flex items-center flex-wrap gap-1.5">
+                    <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Trier :</span>
+                    @php
+                    $sortOptions = [
+                        'recent'    => ['label'=>'Récents', 'icon'=>'fa-clock'],
+                        'prix_asc'  => ['label'=>'Prix croissant', 'icon'=>'fa-sort-amount-up'],
+                        'prix_desc' => ['label'=>'Prix décroissant', 'icon'=>'fa-sort-amount-down'],
+                    ];
+                    @endphp
+                    @foreach($sortOptions as $key => $opt)
                         <a href="{{ route('articles.index', array_merge(request()->except(['tri','page']), ['tri' => $key])) }}"
-                           class="sort-btn {{ $currentTri === $key ? 'active' : '' }}">{{ $label }}</a>
+                           class="sort-btn {{ $currentTri === $key ? 'active' : '' }}">
+                            <i class="fas {{ $opt['icon'] }} text-[9px]"></i>
+                            {{ $opt['label'] }}
+                        </a>
                     @endforeach
                 </div>
-                <div class="text-xs text-slate-500 flex-shrink-0">
-                    <span class="font-bold text-slate-800">{{ $articles->total() }}</span> résultat(s)
+                <div class="flex items-center gap-2">
+                    <div class="h-4 w-px bg-slate-200"></div>
+                    <div class="text-xs text-slate-400">
+                        <span class="font-extrabold text-slate-700 text-sm">{{ $articles->total() }}</span>
+                        <span class="ml-1">résultat{{ $articles->total() > 1 ? 's' : '' }}</span>
+                    </div>
                 </div>
             </div>
 
@@ -720,6 +1104,19 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+});
+
+// ===== Accordion Sections =====
+function toggleSection(btn) {
+    const expanded = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', !expanded);
+}
+
+// Auto-expand sections with active filters on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Smooth scroll to active filter chip if present
+    const chips = document.querySelector('.active-chip');
+    if (chips) chips.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 });
 </script>
 @endsection
