@@ -40,18 +40,23 @@ class ArticleRequest extends FormRequest
         $isDonateur = $this->user() && $this->user()->role === User::ROLE_DONATEUR;
 
         return [
-            'titre'           => ['required', 'string', 'max:255'],
-            'description'     => ['nullable', 'string', 'max:5000'],
-            'prix'            => $isDonateur
+            'titre'            => ['required', 'string', 'max:255'],
+            'description'      => ['nullable', 'string', 'max:5000'],
+            'prix'             => $isDonateur
                 ? ['nullable', 'numeric', 'min:0']
                 : ['required', 'numeric', 'gt:0'],
-            'stock'           => ['required', 'integer', 'min:0'],
-            'categorie'       => ['required', 'string', 'max:100'],
-            'statut'          => ['nullable', 'string', Rule::in(Article::STATUTS)],
-            'don_vetement_id' => ['nullable', 'integer', 'exists:don_vetements,id'],
-            'images'          => ['nullable', 'array'],
-            'images.*'        => ['image', 'mimes:jpeg,png,jpg,webp,gif', 'max:4096'],
-            'remove_images'   => ['nullable', 'array'],
+            'stock'            => ['required', 'integer', 'min:0'],
+            'categorie'        => ['required', 'string', 'max:100'],
+            'statut'           => ['nullable', 'string', Rule::in(Article::STATUTS)],
+            'taille'           => ['nullable', 'string', Rule::in(Article::TAILLES)],
+            'matiere'          => ['nullable', 'string', Rule::in(Article::MATIERES)],
+            'etat'             => ['nullable', 'string', Rule::in(Article::ETATS)],
+            'couleur'          => ['nullable', 'string', Rule::in(Article::COULEURS)],
+            'co2_economise_kg' => ['nullable', 'numeric', 'min:0'],
+            'don_vetement_id'  => ['nullable', 'integer', 'exists:don_vetements,id'],
+            'images'           => ['nullable', 'array'],
+            'images.*'         => ['image', 'mimes:jpeg,png,jpg,webp,gif', 'max:4096'],
+            'remove_images'    => ['nullable', 'array'],
         ];
     }
 

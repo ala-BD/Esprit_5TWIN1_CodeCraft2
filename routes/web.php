@@ -82,6 +82,8 @@ Route::middleware(['auth'])->group(function () {
     | Marketplace — Articles textiles
     |----------------------------------------------------------------------
     */
+    // Autocomplete doit être AVANT resource() pour ne pas être masqué
+    Route::get('articles/suggest', [ArticleController::class, 'suggest'])->name('articles.suggest');
     Route::resource('articles', ArticleController::class);
 
     /*
