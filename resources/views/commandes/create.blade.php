@@ -125,7 +125,11 @@
             </div>
         @endif
 
-        <form action="{{ route('commandes.store') }}" method="POST" id="checkout-form">
+        <form action="{{ route('commandes.store') }}" method="POST" id="checkout-form"
+              data-confirm="Voulez-vous confirmer cette commande ? Vos articles seront réservés et le stock mis à jour immédiatement."
+              data-confirm-title="Confirmation de commande"
+              data-confirm-button="Oui, confirmer ma commande"
+              data-confirm-danger="false">
             @csrf
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -208,17 +212,18 @@
 
                                     {{-- Quantity & Price --}}
                                     <div class="flex items-center justify-between sm:justify-end gap-6 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200">
-                                        {{-- Quantity input --}}
-                                        <div class="flex items-center gap-2">
-                                            <label class="text-xs text-slate-500 font-medium">Qté :</label>
-                                            <input type="number"
-                                                   name="articles[{{ $index }}][quantite]"
-                                                   min="1"
-                                                   max="{{ $article->stock }}"
-                                                   value="{{ $qty }}"
-                                                   class="w-16 py-1.5 px-2.5 text-center text-sm font-bold border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"
-                                                   onchange="document.getElementById('checkout-form').submit();"
-                                                   title="Modifier la quantité">
+                                        {{-- Quantity display & hidden input --}}
+                                        <div class="flex flex-col items-end gap-1">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs text-slate-500 font-medium">Quantité :</span>
+                                                <span class="px-2.5 py-1 bg-white border border-slate-200 text-slate-800 font-extrabold text-sm rounded-xl shadow-2xs">
+                                                    {{ $qty }}
+                                                </span>
+                                                <input type="hidden" name="articles[{{ $index }}][quantite]" value="{{ $qty }}">
+                                            </div>
+                                            <a href="{{ route('panier.index') }}" class="text-[10px] text-teal-600 hover:text-teal-700 hover:underline">
+                                                Modifier au panier
+                                            </a>
                                         </div>
 
                                         {{-- Price --}}

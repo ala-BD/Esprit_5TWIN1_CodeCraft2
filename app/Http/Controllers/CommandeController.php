@@ -237,15 +237,24 @@ class CommandeController extends Controller
                 // Decrement stock
                 $l['article']->decrement('stock', $l['quantite']);
 
-                // Mark as sold-out if stock hits 0
-                if ($l['article']->fresh()->stock === 0) {
-                    $l['article']->update(['statut' => Article::STATUT_VENDU]);
+                // Mark as sold-out if stock hits 0 or less
+                $freshArticle = $l['article']->fresh();
+                if ($freshArticle && $freshArticle->stock <= 0) {
+                    $freshArticle->update([
+                        'statut' => Article::STATUT_VENDU,
+                        'stock'  => 0,
+                    ]);
                 }
             }
 
             // Store commande id for redirect outside the closure
             $this->lastCommandeId = $commande->id;
         });
+
+        // Clear purchased items from user's cart
+        if ($user->panier) {
+            $user->panier->lignes()->whereIn('article_id', $articleIds)->delete();
+        }
 
         $createdCommande = Commande::find($this->lastCommandeId);
 
@@ -476,6 +485,18 @@ class CommandeController extends Controller
                 $article = Article::with('user')->find($id);
                 if ($article) {
                     $items[] = ['article' => $article, 'quantite' => max(1, (int) $qty)];
+                }
+            }
+        }
+
+        // Format 3: from active user cart
+        if (empty($items) && $request->user()?->panier) {
+            foreach ($request->user()->panier->lignes()->with('article.user')->get() as $ligne) {
+                if ($ligne->article && $ligne->article->isDisponible()) {
+                    $items[] = [
+                        'article'  => $ligne->article,
+                        'quantite' => min($ligne->quantite, $ligne->article->stock),
+                    ];
                 }
             }
         }

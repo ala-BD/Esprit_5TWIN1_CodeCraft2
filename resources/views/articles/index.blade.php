@@ -432,13 +432,18 @@
                             </a>
 
                             @if($article->isDisponible() && !$isOwner)
-                                <a href="{{ route('commandes.create', ['article_id' => $article->id]) }}"
-                                   class="py-2 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
-                                   title="Commander cet article"
-                                   style="text-decoration:none">
-                                    <i class="fas fa-shopping-bag"></i>
-                                    <span>Acheter</span>
-                                </a>
+                                <form method="POST" action="{{ route('panier.ajouter', $article) }}" class="inline add-to-cart-form">
+                                    @csrf
+                                    <input type="hidden" name="quantite" value="1">
+                                    <button type="submit"
+                                            class="py-2 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cart-btn"
+                                            title="Ajouter au panier"
+                                            data-article-id="{{ $article->id }}"
+                                            data-article-titre="{{ $article->titre }}">
+                                        <i class="fas fa-cart-plus"></i>
+                                        <span>Panier</span>
+                                    </button>
+                                </form>
                             @endif
 
                             {{-- Edit & Delete buttons: ONLY for owner or admin --}}
@@ -452,7 +457,9 @@
 
                                 <form method="POST"
                                       action="{{ route('articles.destroy', $article) }}"
-                                      onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet article ? Cette action est irréversible.');"
+                                      data-confirm="Êtes-vous sûr de vouloir supprimer l'article « {{ addslashes($article->titre) }} » ? Cette action est irréversible."
+                                      data-confirm-title="Supprimer cet article"
+                                      data-confirm-button="Oui, supprimer"
                                       class="inline">
                                     @csrf
                                     @method('DELETE')
@@ -507,4 +514,76 @@
 
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+    document.querySelectorAll('.add-to-cart-form').forEach(function(form) {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = form.querySelector('.cart-btn');
+            if (!btn || btn.disabled) return;
+
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ quantite: 1 }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    btn.innerHTML = '<i class="fas fa-check"></i><span>Ajouté !</span>';
+                    btn.classList.remove('bg-teal-600', 'hover:bg-teal-700');
+                    btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+
+                    // Mise à jour de tous les compteurs de badge panier (desktop + mobile)
+                    if (data.resume && typeof data.resume.nb_articles !== 'undefined') {
+                        document.querySelectorAll('.cart-badge-count').forEach(badge => {
+                            badge.textContent = data.resume.nb_articles > 99 ? '99+' : data.resume.nb_articles;
+                            badge.classList.remove('hidden');
+                            badge.style.display = data.resume.nb_articles > 0 ? 'flex' : 'none';
+                        });
+                    }
+
+                    setTimeout(() => {
+                        btn.innerHTML = originalHtml;
+                        btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+                        btn.classList.add('bg-teal-600', 'hover:bg-teal-700');
+                        btn.disabled = false;
+                    }, 1800);
+                } else {
+                    retissAlert({
+                        title: 'Attention',
+                        text: data.message || data.error || 'Erreur lors de l\'ajout au panier.',
+                        icon: 'warning'
+                    });
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                retissAlert({
+                    title: 'Erreur',
+                    text: 'Une erreur réseau est survenue lors de l\'ajout au panier.',
+                    icon: 'error'
+                });
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        });
+    });
+});
+</script>
 @endsection

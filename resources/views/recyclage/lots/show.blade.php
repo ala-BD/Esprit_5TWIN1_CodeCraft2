@@ -109,7 +109,9 @@
 
             @if($lot->statut !== 'CERTIFIE')
             <form method="POST" action="{{ route('recyclage.lots.destroy', $lot) }}"
-                  onsubmit="return confirm('Confirmer la suppression du lot {{ $lot->reference }} ?')">
+                  data-confirm="Êtes-vous sûr de vouloir supprimer le lot {{ $lot->reference }} ? Cette action est irréversible."
+                  data-confirm-title="Supprimer ce lot"
+                  data-confirm-button="Oui, supprimer">
                 @csrf @method('DELETE')
                 <button type="submit"
                         class="flex items-center gap-3 w-full bg-red-50 hover:bg-red-100 text-red-600

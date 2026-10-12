@@ -27,6 +27,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\DonVetement> $dons
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Article> $articles
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Commande> $commandes
+ * @property-read \App\Models\Panier|null $panier
  */
 class User extends Authenticatable
 {
@@ -180,5 +181,13 @@ class User extends Authenticatable
     public function commandes(): HasMany
     {
         return $this->hasMany(Commande::class);
+    }
+
+    /**
+     * Relation 1-1 : Le panier de l'utilisateur (créé à la demande).
+     */
+    public function panier(): HasOne
+    {
+        return $this->hasOne(Panier::class);
     }
 }

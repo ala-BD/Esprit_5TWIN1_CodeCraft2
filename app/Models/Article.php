@@ -119,6 +119,14 @@ class Article extends Model
         return $this->hasMany(LigneCommande::class);
     }
 
+    /**
+     * L'article peut être présent dans plusieurs lignes de panier.
+     */
+    public function panierLignes(): HasMany
+    {
+        return $this->hasMany(PanierLigne::class);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Helpers & Scopes

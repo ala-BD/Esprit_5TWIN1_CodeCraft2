@@ -343,7 +343,9 @@
                     @can('delete', $commande)
                         @if($commande->estAnnulable())
                             <form action="{{ route('commandes.destroy', $commande) }}" method="POST"
-                                  onsubmit="return confirm('Confirmer l\'annulation de la commande {{ $commande->numero }} ?')">
+                                  data-confirm="Êtes-vous sûr de vouloir annuler la commande {{ $commande->numero }} ? Les articles seront immédiatement remis en stock."
+                                  data-confirm-title="Annuler la commande"
+                                  data-confirm-button="Oui, annuler la commande">
                                 @csrf @method('DELETE')
                                 <button type="submit"
                                         class="flex items-center gap-3 w-full px-4 py-3 border border-red-200 hover:bg-red-50 text-red-600 rounded-2xl text-sm font-semibold transition-colors">

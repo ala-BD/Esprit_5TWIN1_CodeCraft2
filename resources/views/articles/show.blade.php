@@ -100,7 +100,9 @@
 
                         <form method="POST"
                               action="{{ route('articles.destroy', $article) }}"
-                              onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet article ? Cette action est irréversible.');"
+                              data-confirm="Êtes-vous sûr de vouloir supprimer l'article « {{ addslashes($article->titre) }} » ? Cette action est irréversible."
+                              data-confirm-title="Supprimer cet article"
+                              data-confirm-button="Oui, supprimer"
                               class="inline">
                             @csrf
                             @method('DELETE')
@@ -354,25 +356,44 @@
                                 <span>Se connecter pour commander</span>
                             </a>
                         @else
-                            {{-- Buy Form --}}
-                            <form action="{{ route('commandes.create') }}" method="GET" class="space-y-4 mb-4">
-                                <input type="hidden" name="article_id" value="{{ $article->id }}">
-
+                            {{-- Add to Cart Form --}}
+                            <form id="show-add-to-cart-form" action="{{ route('panier.ajouter', $article) }}" method="POST" class="space-y-4 mb-4">
+                                @csrf
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-600 mb-1.5">Quantité souhaitée</label>
-                                    <div class="flex items-center gap-3">
-                                        <input type="number" name="quantite" value="1" min="1" max="{{ $article->stock }}"
-                                               class="w-24 py-2.5 px-3 border border-slate-200 rounded-xl text-center font-bold text-sm outline-none focus:border-teal-500 bg-slate-50"
-                                               required>
-                                        <span class="text-xs text-slate-400">max: {{ $article->stock }}</span>
+                                    <div class="flex items-center gap-2">
+                                        <div class="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1">
+                                            <button type="button" id="qty-minus-btn"
+                                                    class="w-8 h-8 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 disabled:opacity-40 flex items-center justify-center transition shadow-xs text-xs">
+                                                <i class="fas fa-minus"></i>
+                                            </button>
+                                            <input type="number" id="quantite-input" name="quantite" value="1" min="1" max="{{ $article->stock }}"
+                                                   class="w-14 text-center font-bold text-sm bg-transparent border-none outline-none focus:ring-0"
+                                                   required>
+                                            <button type="button" id="qty-plus-btn"
+                                                    class="w-8 h-8 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 disabled:opacity-40 flex items-center justify-center transition shadow-xs text-xs">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                        <span class="text-xs text-slate-400">sur {{ $article->stock }} dispo</span>
                                     </div>
                                 </div>
 
-                                <button type="submit"
+                                {{-- Bouton Ajouter au Panier (Action Principale) --}}
+                                <button type="submit" id="add-to-cart-submit-btn"
                                         class="w-full py-3.5 px-5 rounded-2xl font-display font-bold text-sm text-white bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 shadow-lg shadow-teal-700/25 transition-all duration-200 flex items-center justify-center gap-2 transform hover:-translate-y-0.5">
-                                    <i class="fas fa-shopping-bag"></i>
-                                    <span>Commander cet article</span>
+                                    <i class="fas fa-cart-plus"></i>
+                                    <span>Ajouter au panier</span>
                                 </button>
+
+                                {{-- Bouton Acheter Immédiatement (Action Directe) --}}
+                                <a href="{{ route('commandes.create', ['article_id' => $article->id]) }}"
+                                   id="buy-now-link"
+                                   class="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors flex items-center justify-center gap-2"
+                                   style="text-decoration:none">
+                                    <i class="fas fa-bolt text-amber-500"></i>
+                                    <span>Commander directement</span>
+                                </a>
                             </form>
                         @endif
                     @else
@@ -460,5 +481,111 @@ function switchMainImage(url, thumbElement) {
     document.querySelectorAll('.gallery-thumb').forEach(el => el.classList.remove('active'));
     thumbElement.classList.add('active');
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const qtyInput = document.getElementById('quantite-input');
+    const minusBtn = document.getElementById('qty-minus-btn');
+    const plusBtn  = document.getElementById('qty-plus-btn');
+    const buyLink  = document.getElementById('buy-now-link');
+    const cartForm = document.getElementById('show-add-to-cart-form');
+    const maxStock = {{ (int) $article->stock }};
+
+    if (qtyInput && minusBtn && plusBtn) {
+        minusBtn.addEventListener('click', function() {
+            let val = parseInt(qtyInput.value) || 1;
+            if (val > 1) {
+                qtyInput.value = val - 1;
+                updateBuyNowHref(val - 1);
+            }
+        });
+
+        plusBtn.addEventListener('click', function() {
+            let val = parseInt(qtyInput.value) || 1;
+            if (val < maxStock) {
+                qtyInput.value = val + 1;
+                updateBuyNowHref(val + 1);
+            }
+        });
+
+        qtyInput.addEventListener('change', function() {
+            let val = parseInt(qtyInput.value) || 1;
+            if (val < 1) val = 1;
+            if (val > maxStock) val = maxStock;
+            qtyInput.value = val;
+            updateBuyNowHref(val);
+        });
+
+        function updateBuyNowHref(qty) {
+            if (buyLink) {
+                buyLink.href = "{{ route('commandes.create', ['article_id' => $article->id]) }}&quantite=" + qty;
+            }
+        }
+    }
+
+    if (cartForm) {
+        cartForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('add-to-cart-submit-btn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i><span>Ajout en cours...</span>';
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const quantite = parseInt(qtyInput?.value) || 1;
+
+            try {
+                const response = await fetch(cartForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ quantite: quantite }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    btn.innerHTML = '<i class="fas fa-check"></i><span>Ajouté au panier !</span>';
+                    btn.classList.remove('from-teal-600', 'to-teal-700');
+                    btn.classList.add('from-emerald-600', 'to-emerald-700');
+
+                    // Update all navbar cart badges
+                    if (data.resume && typeof data.resume.nb_articles !== 'undefined') {
+                        document.querySelectorAll('.cart-badge-count').forEach(badge => {
+                            badge.textContent = data.resume.nb_articles > 99 ? '99+' : data.resume.nb_articles;
+                            badge.classList.remove('hidden');
+                            badge.style.display = data.resume.nb_articles > 0 ? 'flex' : 'none';
+                        });
+                    }
+
+                    setTimeout(() => {
+                        btn.innerHTML = originalHtml;
+                        btn.classList.remove('from-emerald-600', 'to-emerald-700');
+                        btn.classList.add('from-teal-600', 'to-teal-700');
+                        btn.disabled = false;
+                    }, 2000);
+                } else {
+                    retissAlert({
+                        title: 'Attention',
+                        text: data.message || data.error || 'Erreur lors de l\'ajout au panier.',
+                        icon: 'warning'
+                    });
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                retissAlert({
+                    title: 'Erreur',
+                    text: 'Une erreur réseau est survenue lors de l\'ajout au panier.',
+                    icon: 'error'
+                });
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        });
+    }
+});
 </script>
 @endsection

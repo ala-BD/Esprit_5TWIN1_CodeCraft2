@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdresseController;
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\CommandeController;
+use App\Http\Controllers\PanierController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Recyclage\LotTextileController;
 use App\Http\Controllers\Recyclage\EtapeTraitementController;
@@ -97,6 +98,17 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('commandes/{commande}/statut',[CommandeController::class, 'updateStatut'])->name('commandes.statut');
 
     Route::resource('commandes', CommandeController::class)->except(['create', 'store']);
+
+    /*
+    |----------------------------------------------------------------------
+    | Panier — Ajout au panier & gestion
+    |----------------------------------------------------------------------
+    */
+    Route::get('panier',                            [PanierController::class, 'index'])   ->name('panier.index');
+    Route::post('panier/ajouter/{article}',          [PanierController::class, 'ajouter']) ->name('panier.ajouter');
+    Route::patch('panier/lignes/{ligne}',            [PanierController::class, 'modifier'])->name('panier.modifier');
+    Route::delete('panier/lignes/{ligne}',           [PanierController::class, 'retirer']) ->name('panier.retirer');
+    Route::delete('panier/vider',                   [PanierController::class, 'vider'])   ->name('panier.vider');
 });
 
 /*
