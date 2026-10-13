@@ -5,235 +5,522 @@
 @section('styles')
 <style>
     /* ===================================================
-       PREMIUM FILTER SIDEBAR
+       PREMIUM FILTER SIDEBAR — ENHANCED v2
     =================================================== */
+
+    /* ---- Sidebar container ---- */
     .filter-sidebar {
         background: #fff;
         border-radius: 1.5rem;
-        border: 1px solid rgba(226,232,240,0.8);
-        box-shadow: 0 8px 32px rgba(15,23,42,0.08), 0 2px 8px rgba(13,148,136,0.04);
+        border: 1px solid rgba(203,213,225,0.6);
+        box-shadow:
+            0 0 0 1px rgba(13,148,136,0.04),
+            0 8px 40px rgba(15,23,42,0.08),
+            0 2px 8px rgba(13,148,136,0.04);
         position: sticky; top: 88px;
         overflow: hidden;
         max-height: calc(100vh - 104px);
         overflow-y: auto;
         scrollbar-width: thin;
         scrollbar-color: #e2e8f0 transparent;
+        transition: box-shadow 0.3s ease;
     }
-    .filter-sidebar::-webkit-scrollbar { width: 4px; }
-    .filter-sidebar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+    .filter-sidebar:hover {
+        box-shadow:
+            0 0 0 1px rgba(13,148,136,0.08),
+            0 12px 48px rgba(15,23,42,0.10),
+            0 4px 12px rgba(13,148,136,0.08);
+    }
+    .filter-sidebar::-webkit-scrollbar { width: 3px; }
+    .filter-sidebar::-webkit-scrollbar-thumb { background: linear-gradient(#0d9488,#059669); border-radius: 4px; }
 
-    /* Sidebar header glassmorphism */
+    /* ---- Sidebar glam header ---- */
     .sidebar-header {
-        background: linear-gradient(135deg, #0f172a 0%, #1a2744 50%, #0d9488 100%);
-        padding: 1rem 1.1rem;
-        position: relative;
-        overflow: hidden;
+        background: linear-gradient(135deg, #0c1526 0%, #162035 40%, #0b7a72 80%, #0d9488 100%);
+        padding: 1.1rem 1.15rem 1rem;
+        position: relative; overflow: hidden;
     }
     .sidebar-header::before {
         content: '';
         position: absolute; inset: 0;
-        background-image: radial-gradient(ellipse at 80% 50%, rgba(13,148,136,0.3) 0%, transparent 60%);
+        background:
+            radial-gradient(ellipse at 85% 30%, rgba(13,148,136,0.45) 0%, transparent 55%),
+            radial-gradient(ellipse at 15% 80%, rgba(16,185,129,0.2) 0%, transparent 50%);
         pointer-events: none;
+    }
+    .sidebar-header::after {
+        content: '';
+        position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(13,148,136,0.6), transparent);
     }
     .sidebar-header-grid {
         position: absolute; inset: 0;
         background-image:
-            linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
-        background-size: 20px 20px; pointer-events: none;
+            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+        background-size: 18px 18px; pointer-events: none;
+    }
+    /* Animated orb decoration */
+    .sidebar-header .orb {
+        position: absolute; right: -10px; bottom: -10px;
+        width: 80px; height: 80px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(13,148,136,0.25) 0%, transparent 70%);
+        animation: orbFloat 4s ease-in-out infinite;
+    }
+    @keyframes orbFloat {
+        0%,100% { transform: translate(0,0) scale(1); }
+        50%      { transform: translate(-5px,-8px) scale(1.1); }
+    }
+    /* Count badge pulse */
+    .header-badge {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 20px; height: 20px; padding: 0 5px;
+        border-radius: 9999px;
+        background: linear-gradient(135deg,#10b981,#0d9488);
+        color: #fff; font-size: 10px; font-weight: 800;
+        box-shadow: 0 0 0 0 rgba(13,148,136,0.4);
+        animation: badgePulse 2s ease infinite;
+    }
+    @keyframes badgePulse {
+        0%   { box-shadow: 0 0 0 0 rgba(13,148,136,0.5); }
+        60%  { box-shadow: 0 0 0 6px rgba(13,148,136,0); }
+        100% { box-shadow: 0 0 0 0 rgba(13,148,136,0); }
     }
 
-    /* Accordion sections */
-    .fs { border-bottom: 1px solid #f1f5f9; }
+    /* ---- Accordion sections ---- */
+    .fs { border-bottom: 1px solid #f0f4f8; position: relative; }
     .fs:last-child { border-bottom: none; }
     .fs-trigger {
         width: 100%; display: flex; align-items: center; justify-content: space-between;
-        padding: 0.8rem 1.1rem; background: none; border: none; cursor: pointer;
-        transition: background 0.15s;
+        padding: 0.78rem 1.1rem; background: none; border: none; cursor: pointer;
+        transition: background 0.18s, padding-left 0.18s;
+        position: relative;
     }
-    .fs-trigger:hover { background: #fafbfc; }
+    .fs-trigger::before {
+        content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+        width: 3px; height: 0; border-radius: 0 3px 3px 0;
+        background: linear-gradient(#0d9488,#059669);
+        transition: height 0.2s ease;
+    }
+    .fs-trigger[aria-expanded="true"]::before { height: 60%; }
+    .fs-trigger[aria-expanded="true"] { background: linear-gradient(90deg,#f0fdf4,#fff); padding-left: 1.3rem; }
+    .fs-trigger:hover:not([aria-expanded="true"]) { background: #fafbfc; }
     .fs-title {
         display: flex; align-items: center; gap: 0.55rem;
-        font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+        font-size: 0.71rem; font-weight: 700; letter-spacing: 0.05em;
         text-transform: uppercase; color: #475569;
+        transition: color 0.18s;
     }
+    .fs-trigger[aria-expanded="true"] .fs-title { color: #0d9488; }
     .fs-title-icon {
-        width: 22px; height: 22px; border-radius: 6px;
+        width: 23px; height: 23px; border-radius: 7px;
         display: flex; align-items: center; justify-content: center;
         font-size: 0.6rem; flex-shrink: 0;
+        transition: transform 0.2s ease;
     }
-    .fs-chevron { color: #cbd5e1; font-size: 0.6rem; transition: transform 0.25s ease; }
-    .fs-trigger[aria-expanded="true"] .fs-chevron { transform: rotate(180deg); }
-    .fs-body { padding: 0 1.1rem 0.9rem; display: none; }
-    .fs-trigger[aria-expanded="true"] + .fs-body { display: block; }
+    .fs-trigger[aria-expanded="true"] .fs-title-icon { transform: scale(1.1); }
+    .fs-chevron { color: #cbd5e1; font-size: 0.6rem; transition: transform 0.28s cubic-bezier(0.4,0,0.2,1); }
+    .fs-trigger[aria-expanded="true"] .fs-chevron { transform: rotate(180deg); color: #0d9488; }
     .fs-badge {
-        font-size: 0.6rem; font-weight: 700; padding: 0.1rem 0.4rem;
-        border-radius: 9999px; background: #0d9488; color: #fff;
-        line-height: 1.4;
+        font-size: 0.6rem; font-weight: 800; padding: 0.1rem 0.45rem;
+        border-radius: 9999px;
+        background: linear-gradient(135deg,#0d9488,#059669);
+        color: #fff; line-height: 1.4;
+        box-shadow: 0 1px 4px rgba(13,148,136,0.3);
+    }
+    .fs-body {
+        padding: 0 1.1rem 0.9rem;
+        display: none;
+        animation: fadeSlideIn 0.2s ease;
+    }
+    .fs-trigger[aria-expanded="true"] + .fs-body { display: block; }
+    @keyframes fadeSlideIn {
+        from { opacity: 0; transform: translateY(-6px); }
+        to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* Toggle switches */
+    /* ---- Custom toggle switches ---- */
     .toggle-row {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 0.45rem 0; cursor: pointer;
+        padding: 0.5rem 0.5rem; border-radius: 0.75rem; cursor: pointer;
+        transition: background 0.15s; margin-bottom: 2px;
     }
-    .toggle-label { font-size: 0.78rem; color: #374151; font-weight: 500; }
-    .toggle-label small { display: block; font-size: 0.65rem; color: #9ca3af; font-weight: 400; }
-    .toggle-switch {
-        position: relative; width: 34px; height: 18px; flex-shrink: 0;
-    }
+    .toggle-row:hover { background: #f8fafc; }
+    .toggle-label { font-size: 0.78rem; color: #374151; font-weight: 500; line-height: 1.2; }
+    .toggle-label small { display: block; font-size: 0.64rem; color: #9ca3af; font-weight: 400; margin-top: 1px; }
+    .toggle-icon { font-size: 0.7rem; margin-right: 0.4rem; }
+    .toggle-switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
     .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
     .toggle-track {
         position: absolute; inset: 0; border-radius: 9999px;
-        background: #e2e8f0; transition: background 0.2s;
-        cursor: pointer;
+        background: #e2e8f0; transition: background 0.22s;
+        cursor: pointer; border: 1.5px solid transparent;
     }
     .toggle-track::after {
-        content: ''; position: absolute; width: 12px; height: 12px;
-        border-radius: 50%; background: #fff; top: 3px; left: 3px;
-        transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        content: ''; position: absolute; width: 13px; height: 13px;
+        border-radius: 50%; background: #fff; top: 2px; left: 2px;
+        transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.2);
     }
-    .toggle-switch input:checked + .toggle-track { background: #0d9488; }
-    .toggle-switch input:checked + .toggle-track::after { transform: translateX(16px); }
+    .toggle-switch input:checked + .toggle-track {
+        background: linear-gradient(135deg,#0d9488,#059669);
+        border-color: transparent;
+    }
+    .toggle-switch input:checked + .toggle-track::after { transform: translateX(17px); }
 
-    /* Size grid */
-    .size-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem; }
+    /* ---- Size grid ---- */
+    .size-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.32rem; }
     .size-box {
         display: flex; align-items: center; justify-content: center;
-        padding: 0.4rem 0.2rem; border-radius: 0.5rem;
-        font-size: 0.72rem; font-weight: 700;
-        border: 1.5px solid #e2e8f0; background: #f8fafc; color: #475569;
-        text-decoration: none; transition: all 0.15s;
+        padding: 0.42rem 0.2rem; border-radius: 0.55rem;
+        font-size: 0.71rem; font-weight: 800;
+        border: 1.5px solid #e8edf3; background: #f8fafc; color: #64748b;
+        text-decoration: none; transition: all 0.18s cubic-bezier(0.4,0,0.2,1);
+        position: relative; overflow: hidden;
     }
-    .size-box:hover  { border-color: #0d9488; background: #f0fdf9; color: #0d9488; }
-    .size-box.active { background: linear-gradient(135deg,#0d9488,#059669); border-color: transparent; color: #fff; box-shadow: 0 2px 8px rgba(13,148,136,0.35); }
+    .size-box::before {
+        content: ''; position: absolute; inset: 0;
+        background: linear-gradient(135deg,#0d9488,#059669);
+        opacity: 0; transition: opacity 0.18s;
+    }
+    .size-box:hover  { border-color: #0d9488; color: #0d9488; transform: scale(1.05); box-shadow: 0 2px 8px rgba(13,148,136,0.15); }
+    .size-box.active {
+        border-color: transparent; color: #fff;
+        box-shadow: 0 3px 10px rgba(13,148,136,0.4);
+        transform: scale(1.05);
+    }
+    .size-box.active::before { opacity: 1; }
+    .size-box span { position: relative; z-index: 1; }
 
-    /* Color swatches */
-    .color-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    /* ---- Color swatches ---- */
+    .color-grid { display: flex; flex-wrap: wrap; gap: 0.38rem; }
     .color-swatch {
-        display: flex; align-items: center; gap: 0.4rem;
-        padding: 0.28rem 0.6rem 0.28rem 0.4rem;
+        display: flex; align-items: center; gap: 0.38rem;
+        padding: 0.26rem 0.6rem 0.26rem 0.38rem;
         border-radius: 9999px; border: 1.5px solid #e2e8f0;
         background: #f8fafc; text-decoration: none;
-        font-size: 0.68rem; font-weight: 600; color: #475569;
-        transition: all 0.15s; cursor: pointer;
+        font-size: 0.67rem; font-weight: 600; color: #475569;
+        transition: all 0.18s; cursor: pointer; position: relative;
     }
-    .color-swatch:hover  { border-color: #94a3b8; background: #f1f5f9; color: #1e293b; }
-    .color-swatch.active { border-color: transparent; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
-    .color-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; border: 1.5px solid rgba(0,0,0,0.12); }
+    .color-swatch:hover {
+        border-color: #94a3b8; background: #f1f5f9;
+        color: #1e293b; transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(15,23,42,0.08);
+    }
+    .color-swatch.active {
+        border-color: transparent; color: #fff;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.22);
+        transform: translateY(-1px);
+    }
+    .color-dot {
+        width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+        border: 1.5px solid rgba(0,0,0,0.12);
+        box-shadow: inset 0 1px 2px rgba(255,255,255,0.3);
+    }
 
-    /* Category rows */
+    /* ---- Category rows ---- */
     .cat-row {
-        display: flex; align-items: center; gap: 0.6rem;
-        padding: 0.4rem 0.5rem; border-radius: 0.625rem;
+        display: flex; align-items: center; gap: 0.55rem;
+        padding: 0.42rem 0.55rem; border-radius: 0.7rem;
         font-size: 0.75rem; font-weight: 600; color: #475569;
-        text-decoration: none; transition: all 0.15s; margin-bottom: 0.1rem;
+        text-decoration: none; transition: all 0.18s; margin-bottom: 1px;
+        position: relative;
     }
-    .cat-row:hover  { background: #f0fdf9; color: #0d9488; }
-    .cat-row.active { background: linear-gradient(90deg,#f0fdf9,#ccfbf1); color: #0d9488; font-weight: 700; }
+    .cat-row::after {
+        content: '\f054'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+        font-size: 0.5rem; color: #cbd5e1; margin-left: auto;
+        transition: transform 0.18s, color 0.18s;
+    }
+    .cat-row:hover  { background: #f0fdf9; color: #0d9488; padding-left: 0.75rem; }
+    .cat-row:hover::after { transform: translateX(2px); color: #0d9488; }
+    .cat-row.active {
+        background: linear-gradient(90deg,#ecfdf5,#f0fdf9);
+        color: #059669; font-weight: 700;
+        border-left: 3px solid #0d9488;
+        padding-left: 0.45rem;
+    }
+    .cat-row.active::after { color: #0d9488; }
     .cat-row.active .cat-dot { background: #0d9488; }
-    .cat-dot { width: 6px; height: 6px; border-radius: 50%; background: #cbd5e1; flex-shrink: 0; transition: background 0.15s; }
-    .cat-icon { width: 20px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; flex-shrink: 0; }
+    .cat-dot { width: 5px; height: 5px; border-radius: 50%; background: #cbd5e1; flex-shrink: 0; transition: background 0.15s; }
+    .cat-icon {
+        width: 22px; height: 22px; border-radius: 6px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.6rem; flex-shrink: 0;
+        transition: transform 0.18s;
+    }
+    .cat-row:hover .cat-icon { transform: scale(1.1); }
 
-    /* Etat rows */
+    /* ---- État rows ---- */
     .etat-row {
-        display: flex; align-items: center; gap: 0.55rem; padding: 0.38rem 0.5rem;
-        border-radius: 0.625rem; text-decoration: none; transition: all 0.15s;
-        font-size: 0.74rem; font-weight: 600; color: #475569; margin-bottom: 0.1rem;
+        display: flex; align-items: center; gap: 0.55rem; padding: 0.42rem 0.55rem;
+        border-radius: 0.7rem; text-decoration: none; transition: all 0.18s;
+        font-size: 0.74rem; font-weight: 600; color: #475569; margin-bottom: 2px;
     }
-    .etat-row:hover  { background: #f8fafc; color: #0f172a; }
-    .etat-row.active { background: #fef9c3; color: #854d0e; }
-    .etat-star { font-size: 0.55rem; }
+    .etat-row:hover  { background: #fffbeb; color: #92400e; padding-left: 0.75rem; }
+    .etat-row.active {
+        background: linear-gradient(90deg,#fef9c3,#fffbeb);
+        color: #854d0e; border-left: 3px solid #f59e0b;
+        padding-left: 0.45rem;
+    }
+    .etat-star { font-size: 0.52rem; }
 
-    /* Vendeur pills */
+    /* ---- Vendeur pills ---- */
     .vendeur-pill {
-        display: inline-flex; align-items: center; gap: 0.4rem;
-        padding: 0.35rem 0.75rem; border-radius: 9999px;
-        font-size: 0.7rem; font-weight: 600; border: 1.5px solid #e2e8f0;
-        background: #f8fafc; color: #475569; text-decoration: none; transition: all 0.15s;
-        margin: 0.15rem 0.1rem 0 0;
+        display: inline-flex; align-items: center; gap: 0.38rem;
+        padding: 0.32rem 0.72rem; border-radius: 9999px;
+        font-size: 0.69rem; font-weight: 700; border: 1.5px solid #e2e8f0;
+        background: #f8fafc; color: #475569; text-decoration: none;
+        transition: all 0.18s; margin: 0.15rem 0.1rem 0 0;
     }
-    .vendeur-pill:hover  { border-color: #6366f1; background: #eef2ff; color: #4338ca; }
-    .vendeur-pill.active { background: linear-gradient(135deg,#4f46e5,#7c3aed); border-color: transparent; color: #fff; box-shadow: 0 2px 8px rgba(79,70,229,0.35); }
+    .vendeur-pill:hover {
+        border-color: #6366f1; background: #eef2ff; color: #4338ca;
+        transform: translateY(-2px); box-shadow: 0 4px 10px rgba(99,102,241,0.2);
+    }
+    .vendeur-pill.active {
+        background: linear-gradient(135deg,#4f46e5,#7c3aed);
+        border-color: transparent; color: #fff;
+        box-shadow: 0 4px 12px rgba(79,70,229,0.4);
+        transform: translateY(-1px);
+    }
 
-    /* Price range */
+    /* ---- Price range ---- */
     .price-range-inputs { display: flex; gap: 0.45rem; align-items: center; }
     .price-input {
         flex: 1; padding: 0.45rem 0.6rem; border: 1.5px solid #e2e8f0;
-        border-radius: 0.625rem; font-size: 0.75rem; outline: none;
-        transition: all 0.15s; background: #f8fafc; color: #1e293b; font-weight: 500;
+        border-radius: 0.7rem; font-size: 0.75rem; outline: none;
+        transition: all 0.2s; background: #f8fafc; color: #1e293b; font-weight: 600;
     }
-    .price-input:focus { border-color: #0d9488; background: #fff; box-shadow: 0 0 0 3px rgba(13,148,136,0.1); }
+    .price-input:focus {
+        border-color: #0d9488; background: #fff;
+        box-shadow: 0 0 0 3px rgba(13,148,136,0.12);
+    }
     .price-apply-btn {
-        width: 100%; margin-top: 0.55rem; padding: 0.5rem;
-        border-radius: 0.75rem; border: none; cursor: pointer; font-size: 0.72rem;
-        font-weight: 700; letter-spacing: 0.04em;
+        width: 100%; margin-top: 0.55rem; padding: 0.55rem;
+        border-radius: 0.85rem; border: none; cursor: pointer; font-size: 0.72rem;
+        font-weight: 800; letter-spacing: 0.05em;
         background: linear-gradient(135deg, #0d9488, #059669);
-        color: #fff; transition: all 0.2s;
-        box-shadow: 0 2px 8px rgba(13,148,136,0.25);
+        color: #fff; transition: all 0.22s;
+        box-shadow: 0 3px 10px rgba(13,148,136,0.3);
+        position: relative; overflow: hidden;
     }
-    .price-apply-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(13,148,136,0.35); }
+    .price-apply-btn::before {
+        content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+        background: linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);
+        transition: left 0.4s;
+    }
+    .price-apply-btn:hover::before { left: 100%; }
+    .price-apply-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(13,148,136,0.4); }
 
     /* ===== SORT BAR ===== */
     .sort-bar {
         display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-        background: linear-gradient(135deg,#fff 0%,#f8fafc 100%);
-        border-radius: 1.1rem; border: 1px solid #e8edf3;
-        padding: 0.6rem 1rem; margin-bottom: 1.1rem;
-        box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+        background: linear-gradient(135deg,#fff 0%,#fafcff 100%);
+        border-radius: 1.15rem; border: 1px solid #e5ebf2;
+        padding: 0.65rem 1.1rem; margin-bottom: 1.1rem;
+        box-shadow: 0 2px 12px rgba(15,23,42,0.05), 0 1px 2px rgba(15,23,42,0.04);
     }
     .sort-btn {
-        padding: 0.32rem 0.85rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600;
+        padding: 0.35rem 0.9rem; border-radius: 9999px; font-size: 0.69rem; font-weight: 700;
         border: 1.5px solid transparent; background: transparent; color: #64748b;
-        cursor: pointer; transition: all 0.18s; text-decoration: none;
-        display: inline-flex; align-items: center; gap: 0.35rem;
+        cursor: pointer; transition: all 0.2s cubic-bezier(0.4,0,0.2,1); text-decoration: none;
+        display: inline-flex; align-items: center; gap: 0.35rem; letter-spacing: 0.02em;
     }
     .sort-btn:hover:not(.active) { background: #f1f5f9; color: #0f172a; border-color: #e2e8f0; }
     .sort-btn.active {
-        background: linear-gradient(135deg,#0f172a,#1e3a5f); border-color: transparent;
-        color: #fff; box-shadow: 0 2px 8px rgba(15,23,42,0.2);
+        background: linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);
+        border-color: transparent; color: #fff;
+        box-shadow: 0 3px 10px rgba(15,23,42,0.25);
     }
 
     /* Active filter chips */
     .active-chip {
-        display: inline-flex; align-items: center; gap: 0.3rem;
-        background: linear-gradient(135deg,#e0f2fe,#dbeafe);
-        border: 1.5px solid #bae6fd; color: #0369a1;
-        border-radius: 9999px; padding: 0.25rem 0.7rem;
+        display: inline-flex; align-items: center; gap: 0.35rem;
+        background: linear-gradient(135deg,#dbeafe,#e0f2fe);
+        border: 1.5px solid #93c5fd; color: #1d4ed8;
+        border-radius: 9999px; padding: 0.28rem 0.75rem;
         font-size: 0.68rem; font-weight: 700;
-        animation: chipIn 0.2s ease;
+        animation: chipIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+        box-shadow: 0 1px 4px rgba(29,78,216,0.12);
     }
-    @keyframes chipIn { from { opacity:0; transform: scale(0.8); } to { opacity:1; transform: scale(1); } }
-    .active-chip a { text-decoration: none; color: inherit; margin-left: 0.1rem; }
-    .active-chip a:hover { color: #dc2626; }
+    @keyframes chipIn { from { opacity:0; transform: scale(0.7) translateY(4px); } to { opacity:1; transform: scale(1) translateY(0); } }
+    .active-chip a { text-decoration: none; color: inherit; margin-left: 1px; opacity: 0.7; transition: opacity 0.15s, color 0.15s; }
+    .active-chip a:hover { opacity: 1; color: #dc2626; }
 
     /* Search bar */
     .search-bar-wrap {
-        background: #fff; border-radius: 1.25rem;
+        background: #fff; border-radius: 1.3rem;
         border: 1px solid #e2e8f0;
-        box-shadow: 0 2px 12px rgba(15,23,42,0.05);
-        padding: 0.875rem 1rem; margin-bottom: 1rem;
+        box-shadow: 0 4px 20px rgba(15,23,42,0.06), 0 1px 3px rgba(15,23,42,0.04);
+        padding: 0.9rem 1.05rem; margin-bottom: 1rem;
     }
-    #suggest-list { position: absolute; top: 100%; left: 0; right: 0; z-index: 100; background: #fff; border: 1px solid #e2e8f0; border-radius: 0.875rem; box-shadow: 0 8px 24px rgba(15,23,42,0.12); overflow: hidden; margin-top: 4px; }
-    .suggest-item { padding: 0.55rem 1rem; font-size: 0.8rem; color: #334155; cursor: pointer; transition: background 0.1s; display: flex; align-items: center; gap: 0.5rem; }
-    .suggest-item::before { content: '\f002'; font-family: 'Font Awesome 6 Free'; font-weight: 900; font-size: 0.65rem; color: #94a3b8; }
-    .suggest-item:hover { background: #f0fdf9; color: #0d9488; }
+    #suggest-list {
+        position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 200;
+        background: #fff; border: 1px solid #e2e8f0;
+        border-radius: 1rem; box-shadow: 0 12px 32px rgba(15,23,42,0.14);
+        overflow: hidden;
+    }
+    .suggest-item {
+        padding: 0.6rem 1rem; font-size: 0.8rem; color: #334155;
+        cursor: pointer; transition: all 0.12s;
+        display: flex; align-items: center; gap: 0.6rem;
+        border-left: 3px solid transparent;
+    }
+    .suggest-item::before {
+        content: '\f002'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+        font-size: 0.6rem; color: #94a3b8; flex-shrink: 0;
+    }
+    .suggest-item:hover {
+        background: linear-gradient(90deg,#f0fdf9,#fff);
+        color: #0d9488; border-left-color: #0d9488;
+    }
+
+    /* ---- Responsive Drawer Wrapper ---- */
+    @media (max-width: 1023px) {
+        .filter-sidebar-wrapper {
+            position: fixed; inset: 0; z-index: 500;
+            background: rgba(15,23,42,0.65);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            display: none; align-items: flex-end; justify-content: center;
+            animation: overlayIn 0.22s ease;
+        }
+        .filter-sidebar-wrapper.mobile-open { display: flex; }
+        .filter-sidebar-wrapper .filter-sidebar {
+            width: 100%; max-width: 520px;
+            max-height: 88vh;
+            border-radius: 1.75rem 1.75rem 0 0;
+            position: relative; top: 0;
+            animation: drawerSlideUp 0.3s cubic-bezier(0.34,1.56,0.64,1);
+            box-shadow: 0 -12px 48px rgba(15,23,42,0.35);
+            border-bottom: none;
+        }
+        .mobile-drawer-handle {
+            width: 44px; height: 4px; border-radius: 9999px;
+            background: rgba(255,255,255,0.35);
+            margin: 0.6rem auto 0.4rem;
+        }
+    }
+    @media (min-width: 1024px) {
+        .filter-sidebar-wrapper {
+            display: block !important;
+            width: 16rem; /* 256px */
+            flex-shrink: 0;
+            position: static;
+            background: transparent;
+            backdrop-filter: none;
+        }
+        .mobile-drawer-handle { display: none; }
+    }
+    @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes drawerSlideUp {
+        from { transform: translateY(100%); opacity: 0; }
+        to   { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Mobile FAB */
+    .mobile-filter-fab {
+        display: none;
+        position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+        z-index: 450;
+        background: linear-gradient(135deg, #0c1526 0%, #0d9488 100%);
+        color: #fff; border: 1.5px solid rgba(255,255,255,0.25);
+        cursor: pointer;
+        padding: 0.75rem 1.4rem; border-radius: 9999px;
+        font-size: 0.82rem; font-weight: 700; letter-spacing: 0.03em;
+        box-shadow: 0 12px 32px rgba(13,148,136,0.45), 0 4px 12px rgba(0,0,0,0.25);
+        gap: 0.55rem; align-items: center;
+        animation: fabBounce 0.45s cubic-bezier(0.34,1.56,0.64,1);
+        transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes fabBounce {
+        from { transform: translateX(-50%) scale(0.6) translateY(30px); opacity:0; }
+        to   { transform: translateX(-50%) scale(1) translateY(0); opacity:1; }
+    }
+    .mobile-filter-fab:hover {
+        transform: translateX(-50%) translateY(-3px) scale(1.03);
+        box-shadow: 0 16px 40px rgba(13,148,136,0.55);
+    }
+    .mobile-filter-fab:active { transform: translateX(-50%) scale(0.97); }
+    @media (max-width: 1023px) {
+        .mobile-filter-fab { display: inline-flex; }
+    }
+
+    /* ---- Price presets ---- */
+    .price-preset-btn {
+        padding: 0.32rem 0.45rem;
+        font-size: 0.68rem; font-weight: 700;
+        border-radius: 0.55rem;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc; color: #475569;
+        cursor: pointer; transition: all 0.16s;
+        text-align: center;
+    }
+    .price-preset-btn:hover {
+        border-color: #0d9488; color: #0d9488; background: #f0fdf9;
+    }
+    .price-preset-btn.active {
+        border-color: #0d9488; background: #0d9488; color: #fff;
+        box-shadow: 0 2px 6px rgba(13,148,136,0.25);
+    }
+
+    /* ---- View Switcher ---- */
+    .view-btn {
+        padding: 0.35rem 0.55rem; border-radius: 0.5rem;
+        font-size: 0.72rem; border: none; background: transparent;
+        color: #64748b; cursor: pointer; transition: all 0.18s;
+        display: inline-flex; align-items: center; justify-content: center;
+    }
+    .view-btn:hover { color: #0f172a; background: #e2e8f0; }
+    .view-btn.active {
+        background: #fff; color: #0d9488;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+    }
+
+    /* Compact Grid layout */
+    #articles-grid.view-compact {
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+        gap: 0.85rem;
+    }
+    @media (min-width: 640px) {
+        #articles-grid.view-compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (min-width: 1024px) {
+        #articles-grid.view-compact { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (min-width: 1280px) {
+        #articles-grid.view-compact { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        #articles-grid.view-compact .card-banner { height: 140px; }
+    }
+
+    /* List view layout */
+    #articles-grid.view-list {
+        grid-template-columns: 1fr !important;
+        gap: 0.9rem;
+    }
+    #articles-grid.view-list .article-card {
+        flex-direction: row;
+        align-items: stretch;
+    }
+    #articles-grid.view-list .card-banner {
+        width: 230px; height: auto; min-height: 180px; flex-shrink: 0;
+    }
+    #articles-grid.view-list .card-banner img { height: 100%; }
+    @media (max-width: 639px) {
+        #articles-grid.view-list .article-card { flex-direction: column; }
+        #articles-grid.view-list .card-banner { width: 100%; height: 170px; }
+    }
+
+    /* ---- Marketplace page bg ---- */
     .marketplace-page {
         min-height: 100vh;
         background: linear-gradient(160deg, #f0fdf9 0%, #f8fafc 40%, #f0f4ff 100%);
         padding-top: 72px;
     }
-
     .marketplace-hero {
         background: linear-gradient(135deg, #111a30 0%, #1a2744 35%, #1B4332 70%, #0d9488 100%);
-        position: relative;
-        overflow: hidden;
-        padding: 3rem 0 5.5rem;
+        position: relative; overflow: hidden; padding: 3rem 0 5.5rem;
     }
     .marketplace-hero::before {
-        content: '';
-        position: absolute;
-        inset: 0;
+        content: ''; position: absolute; inset: 0;
         background-image:
             radial-gradient(ellipse at 80% 50%, rgba(13,148,136,0.25) 0%, transparent 60%),
             radial-gradient(ellipse at 20% 80%, rgba(74,222,128,0.1) 0%, transparent 50%);
@@ -244,87 +531,57 @@
         background-image:
             linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
             linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-        background-size: 40px 40px;
-        pointer-events: none;
+        background-size: 40px 40px; pointer-events: none;
     }
+    .marketplace-content { margin-top: -3.5rem; position: relative; z-index: 10; }
 
-    .marketplace-content {
-        margin-top: -3.5rem;
-        position: relative;
-        z-index: 10;
-    }
-
+    /* ---- Article cards ---- */
     .article-card {
-        background: #ffffff;
-        border-radius: 1.5rem;
+        background: #fff; border-radius: 1.5rem;
         border: 1px solid #e2e8f0;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
+        transition: all 0.32s cubic-bezier(0.4,0,0.2,1);
+        display: flex; flex-direction: column; overflow: hidden;
     }
     .article-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 16px 32px -8px rgba(13,148,136,0.15), 0 4px 12px rgba(15,23,42,0.06);
+        transform: translateY(-6px);
+        box-shadow: 0 20px 40px -10px rgba(13,148,136,0.18), 0 6px 16px rgba(15,23,42,0.08);
         border-color: #99f6e4;
     }
-
     .card-banner {
         height: 180px;
         background: linear-gradient(135deg, #0f172a, #1e293b 40%, #0d9488);
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
+        position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;
     }
     .card-banner img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transition: transform 0.4s ease;
+        width: 100%; height: 100%; object-fit: cover; transition: transform 0.42s ease;
     }
-    .article-card:hover .card-banner img {
-        transform: scale(1.06);
-    }
+    .article-card:hover .card-banner img { transform: scale(1.08); }
     .card-banner-pattern {
-        position: absolute;
-        inset: 0;
-        opacity: 0.15;
+        position: absolute; inset: 0; opacity: 0.12;
         background-image: radial-gradient(#fff 1.5px, transparent 1.5px);
-        background-size: 16px 16px;
+        background-size: 14px 14px;
     }
+    /* Card shimmer on hover */
+    .article-card::after {
+        content: ''; position: absolute; inset: 0; border-radius: 1.5rem;
+        background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.03) 50%, transparent 60%);
+        background-size: 200% 200%;
+        opacity: 0; transition: opacity 0.3s;
+        pointer-events: none;
+    }
+    .article-card:hover::after { opacity: 1; }
 
     .badge-statut-disponible { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
     .badge-statut-reserve    { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
     .badge-statut-vendu      { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
     .badge-statut-archive    { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-
     .tag-filter-btn {
-        padding: 0.45rem 1rem;
-        border-radius: 9999px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        transition: all 0.15s;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        border: 1px solid #e2e8f0;
-        background: #fff;
-        color: #475569;
+        padding: 0.45rem 1rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;
+        transition: all 0.15s; text-decoration: none; display: inline-flex; align-items: center;
+        gap: 0.4rem; border: 1px solid #e2e8f0; background: #fff; color: #475569;
     }
-    .tag-filter-btn:hover {
-        background: #f0fdf9;
-        border-color: #0d9488;
-        color: #0d9488;
-    }
-    .tag-filter-btn.active {
-        background: #0d9488;
-        border-color: #0d9488;
-        color: #ffffff;
-        box-shadow: 0 4px 12px rgba(13,148,136,0.25);
-    }
+    .tag-filter-btn:hover { background: #f0fdf9; border-color: #0d9488; color: #0d9488; }
+    .tag-filter-btn.active { background: #0d9488; border-color: #0d9488; color: #fff; box-shadow: 0 4px 12px rgba(13,148,136,0.25); }
 </style>
 @endsection
 
@@ -421,40 +678,49 @@
 
         <div class="flex gap-7 items-start">
 
-        {{-- ===== SIDEBAR FILTERS (PREMIUM) ===== --}}
-        <aside class="hidden lg:block w-64 flex-shrink-0">
+        {{-- ===== SIDEBAR FILTERS (PREMIUM & RESPONSIVE) ===== --}}
+        <aside id="filter-sidebar-wrapper" class="filter-sidebar-wrapper" onclick="if(event.target === this) closeMobileFilters()">
             <form method="GET" action="{{ route('articles.index') }}" id="filter-form" class="filter-sidebar">
+                <div class="mobile-drawer-handle"></div>
 
                 {{-- Glassmorphism Header --}}
                 <div class="sidebar-header relative z-10">
                     <div class="sidebar-header-grid"></div>
+                    <div class="orb"></div>
                     <div class="relative z-10 flex items-center justify-between">
                         <div class="flex items-center gap-2.5">
-                            <div class="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center text-white text-sm border border-white/20">
+                            <div class="w-9 h-9 rounded-xl bg-white/12 backdrop-blur-md flex items-center justify-center text-white text-sm border border-white/20 shadow-inner">
                                 <i class="fas fa-sliders-h"></i>
                             </div>
                             <div>
-                                <div class="text-white font-bold text-sm leading-tight">Filtres</div>
-                                <div class="text-white/50 text-[10px] font-medium">
-                                    @if($activeFilters > 0) {{ $activeFilters }} filtre(s) actif(s) @else Tous les articles @endif
+                                <div class="text-white font-bold text-sm leading-tight tracking-wide">Filtres</div>
+                                <div class="text-teal-300/80 text-[10px] font-medium mt-0.5">
+                                    @if($activeFilters > 0) <i class="fas fa-check-circle mr-1 text-emerald-400"></i>{{ $activeFilters }} actif(s) @else <i class="fas fa-globe mr-1 opacity-60"></i>Tous les articles @endif
                                 </div>
                             </div>
                         </div>
-                        @if($activeFilters > 0)
-                            <a href="{{ route('articles.index') }}"
-                               class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/90 hover:bg-red-500 text-white text-[10px] font-bold transition-all"
-                               style="text-decoration:none">
-                                <i class="fas fa-times"></i> Effacer tout
-                            </a>
-                        @endif
+                        <div class="flex items-center gap-1.5">
+                            @if($activeFilters > 0)
+                                <span class="header-badge">{{ $activeFilters }}</span>
+                                <a href="{{ route('articles.index') }}"
+                                   class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-500/80 hover:bg-red-500 text-white text-[10px] font-bold transition-all hover:scale-105"
+                                   style="text-decoration:none">
+                                    <i class="fas fa-times"></i> Reset
+                                </a>
+                            @endif
+                            <button type="button" onclick="closeMobileFilters()" class="lg:hidden text-white/70 hover:text-white p-1 rounded-lg ml-1" title="Fermer">
+                                <i class="fas fa-times text-sm"></i>
+                            </button>
+                        </div>
                     </div>
 
                     {{-- Active filter progress bar --}}
+                    <div class="relative mt-3 h-1 bg-white/15 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full transition-all duration-500"
+                             style="width: {{ $activeFilters > 0 ? min(100, $activeFilters * 9) : 0 }}%; background: linear-gradient(90deg,#10b981,#0d9488,#38bdf8);"></div>
+                    </div>
                     @if($activeFilters > 0)
-                        <div class="relative mt-3 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                            <div class="h-full bg-gradient-to-r from-emerald-400 to-teal-300 rounded-full transition-all"
-                                 style="width: {{ min(100, $activeFilters * 9) }}%"></div>
-                        </div>
+                        <div class="mt-1.5 text-[9px] text-white/40 font-medium">{{ min(100, $activeFilters * 9) }}% filtré</div>
                     @endif
                 </div>
 
@@ -470,8 +736,8 @@
                     <div class="fs-body">
                         <label class="toggle-row" for="toggle-mine">
                             <div class="toggle-label">
-                                <i class="fas fa-user text-slate-400 text-[10px] mr-1"></i> Mes articles
-                                <small>Publiés par moi</small>
+                                <span class="toggle-icon">&#x1F464;</span> Mes articles
+                                <small>Publiés par moi uniquement</small>
                             </div>
                             <div class="toggle-switch">
                                 <input type="checkbox" id="toggle-mine" name="mine" value="1"
@@ -482,8 +748,8 @@
                         </label>
                         <label class="toggle-row" for="toggle-stock">
                             <div class="toggle-label">
-                                <i class="fas fa-boxes text-slate-400 text-[10px] mr-1"></i> En stock
-                                <small>Disponibles uniquement</small>
+                                <span class="toggle-icon">&#x1F4E6;</span> En stock
+                                <small>Articles disponibles uniquement</small>
                             </div>
                             <div class="toggle-switch">
                                 <input type="checkbox" id="toggle-stock" name="en_stock" value="1"
@@ -494,7 +760,7 @@
                         </label>
                         <label class="toggle-row" for="toggle-gratuits">
                             <div class="toggle-label">
-                                <i class="fas fa-gift text-slate-400 text-[10px] mr-1"></i> Dons gratuits
+                                <span class="toggle-icon">&#x1F381;</span> Dons gratuits
                                 <small>Prix = 0 DT</small>
                             </div>
                             <div class="toggle-switch">
@@ -520,12 +786,32 @@
                         <i class="fas fa-chevron-down fs-chevron"></i>
                     </button>
                     <div class="fs-body">
-                        <div class="price-range-inputs mb-1">
-                            <input type="number" name="prix_min" value="{{ request('prix_min') }}" placeholder="0" min="0" class="price-input">
+                        <div class="price-range-inputs mb-2">
+                            <div class="relative flex-1">
+                                <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-extrabold text-slate-400">MIN</span>
+                                <input type="number" id="prix_min_input" name="prix_min" value="{{ request('prix_min') }}" placeholder="0" min="0" class="price-input pl-9">
+                            </div>
                             <span class="text-slate-300 font-bold text-sm">→</span>
-                            <input type="number" name="prix_max" value="{{ request('prix_max') }}" placeholder="∞" min="0" class="price-input">
+                            <div class="relative flex-1">
+                                <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-extrabold text-slate-400">MAX</span>
+                                <input type="number" id="prix_max_input" name="prix_max" value="{{ request('prix_max') }}" placeholder="∞" min="0" class="price-input pl-9">
+                            </div>
                         </div>
-                        <div class="text-[10px] text-slate-400 mb-1.5">Montant en dinars tunisiens (DT)</div>
+
+                        {{-- Quick Presets --}}
+                        <div class="grid grid-cols-2 gap-1 mb-2">
+                            <button type="button" onclick="setPricePreset(0, 20)" class="price-preset-btn {{ request('prix_min') === '0' && request('prix_max') === '20' ? 'active' : '' }}">&lt; 20 DT</button>
+                            <button type="button" onclick="setPricePreset(20, 50)" class="price-preset-btn {{ request('prix_min') === '20' && request('prix_max') === '50' ? 'active' : '' }}">20 - 50 DT</button>
+                            <button type="button" onclick="setPricePreset(50, 100)" class="price-preset-btn {{ request('prix_min') === '50' && request('prix_max') === '100' ? 'active' : '' }}">50 - 100 DT</button>
+                            <button type="button" onclick="setPricePreset(100, '')" class="price-preset-btn {{ request('prix_min') === '100' && empty(request('prix_max')) ? 'active' : '' }}">&gt; 100 DT</button>
+                        </div>
+
+                        <div class="text-[10px] text-slate-400 mb-1.5 flex items-center justify-between">
+                            <span>Montant en Dinars (DT)</span>
+                            @if(request()->filled('prix_min') || request()->filled('prix_max'))
+                                <a href="{{ route('articles.index', request()->except(['prix_min','prix_max','page'])) }}" class="text-red-500 hover:underline text-[10px]">Effacer</a>
+                            @endif
+                        </div>
                         <button type="submit" class="price-apply-btn"><i class="fas fa-check mr-1"></i> Appliquer le prix</button>
                     </div>
                 </div>
@@ -732,6 +1018,15 @@
                     </div>
                 </div>
 
+                {{-- Sticky footer on Mobile Drawer --}}
+                <div class="p-3 bg-white/95 backdrop-blur-md border-t border-slate-100 lg:hidden sticky bottom-0 z-20 shadow-lg">
+                    <button type="submit" class="w-full py-3 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-md shadow-teal-700/20"
+                            style="background: linear-gradient(135deg,#0d9488,#059669);">
+                        <i class="fas fa-check"></i>
+                        <span>Voir les résultats ({{ $articles->total() }})</span>
+                    </button>
+                </div>
+
             </form>
         </aside>
 
@@ -787,9 +1082,21 @@
                         </a>
                     @endforeach
                 </div>
-                <div class="flex items-center gap-2">
-                    <div class="h-4 w-px bg-slate-200"></div>
-                    <div class="text-xs text-slate-400">
+                <div class="flex items-center gap-3">
+                    {{-- View mode switcher --}}
+                    <div class="hidden sm:flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                        <button type="button" onclick="setViewMode('grid')" class="view-btn active" data-view="grid" title="Grille standard">
+                            <i class="fas fa-th-large"></i>
+                        </button>
+                        <button type="button" onclick="setViewMode('compact')" class="view-btn" data-view="compact" title="Grille compacte (4 colonnes)">
+                            <i class="fas fa-th"></i>
+                        </button>
+                        <button type="button" onclick="setViewMode('list')" class="view-btn" data-view="list" title="Vue liste">
+                            <i class="fas fa-list"></i>
+                        </button>
+                    </div>
+                    <div class="h-4 w-px bg-slate-200 hidden sm:block"></div>
+                    <div class="text-xs text-slate-400 whitespace-nowrap">
                         <span class="font-extrabold text-slate-700 text-sm">{{ $articles->total() }}</span>
                         <span class="ml-1">résultat{{ $articles->total() > 1 ? 's' : '' }}</span>
                     </div>
@@ -798,27 +1105,39 @@
 
             {{-- Active filter chips --}}
             @if($activeFilters > 0)
-                <div class="flex flex-wrap gap-2 mb-4">
+                <div class="flex flex-wrap items-center gap-2 mb-4 p-3 bg-white/70 backdrop-blur-sm rounded-2xl border border-slate-200/80 shadow-xs">
+                    <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mr-1">
+                        <i class="fas fa-filter text-teal-600 text-[10px]"></i> Filtres :
+                    </span>
                     @foreach(['q' => 'Recherche', 'categorie' => 'Catégorie', 'taille' => 'Taille', 'matiere' => 'Matière', 'etat' => 'État', 'couleur' => 'Couleur', 'statut' => 'Statut', 'prix_min' => 'Prix min', 'prix_max' => 'Prix max', 'vendeur_role' => 'Vendeur'] as $param => $label)
                         @if(request()->filled($param))
                             <span class="active-chip">
-                                {{ $label }}: <strong>{{ request($param) }}</strong>
-                                <a href="{{ route('articles.index', array_merge(request()->except([$param,'page']))) }}"><i class="fas fa-times-circle"></i></a>
+                                <span>{{ $label }}:</span>
+                                <strong>{{ request($param) }}</strong>
+                                <a href="{{ route('articles.index', array_merge(request()->except([$param,'page']))) }}" title="Supprimer ce filtre"><i class="fas fa-times-circle"></i></a>
                             </span>
                         @endif
                     @endforeach
+                    @if(request()->boolean('mine') || request()->get('filter') === 'mine')
+                        <span class="active-chip"><span>Mes articles</span> <a href="{{ route('articles.index', array_merge(request()->except(['mine','filter','page']))) }}"><i class="fas fa-times-circle"></i></a></span>
+                    @endif
                     @if(request()->boolean('en_stock'))
-                        <span class="active-chip">En stock <a href="{{ route('articles.index', array_merge(request()->except(['en_stock','page']))) }}"><i class="fas fa-times-circle"></i></a></span>
+                        <span class="active-chip"><span>En stock</span> <a href="{{ route('articles.index', array_merge(request()->except(['en_stock','page']))) }}"><i class="fas fa-times-circle"></i></a></span>
                     @endif
                     @if(request()->boolean('gratuits'))
-                        <span class="active-chip">Gratuits <a href="{{ route('articles.index', array_merge(request()->except(['gratuits','page']))) }}"><i class="fas fa-times-circle"></i></a></span>
+                        <span class="active-chip"><span>Gratuits (0 DT)</span> <a href="{{ route('articles.index', array_merge(request()->except(['gratuits','page']))) }}"><i class="fas fa-times-circle"></i></a></span>
+                    @endif
+                    @if($activeFilters >= 2)
+                        <a href="{{ route('articles.index') }}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 transition-colors ml-auto" style="text-decoration:none">
+                            <i class="fas fa-trash-alt text-[9px]"></i> Tout effacer
+                        </a>
                     @endif
                 </div>
             @endif
 
         {{-- ===== ARTICLES GRID ===== --}}
         @if($articles->count() > 0)
-            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5" id="articles-grid">
                 @foreach($articles as $article)
                     @php
                         $isOwner = Auth::id() === $article->user_id;
@@ -1028,13 +1347,86 @@
         </div>{{-- end flex row --}}
 
     </div>{{-- end max-w-7xl --}}
+
+    {{-- Floating Action Button on Mobile --}}
+    <button type="button" onclick="openMobileFilters()" class="mobile-filter-fab" title="Ouvrir les filtres">
+        <i class="fas fa-sliders-h text-sm"></i>
+        <span>Filtres</span>
+        @if($activeFilters > 0)
+            <span class="header-badge">{{ $activeFilters }}</span>
+        @endif
+    </button>
+
 </div>{{-- end marketplace-page --}}
 @endsection
 
 @section('scripts')
 <script>
+// ===== Mobile Drawer Toggle =====
+function openMobileFilters() {
+    const wrapper = document.getElementById('filter-sidebar-wrapper');
+    if (wrapper) {
+        wrapper.classList.add('mobile-open');
+        document.body.style.overflow = 'hidden';
+    }
+}
+function closeMobileFilters() {
+    const wrapper = document.getElementById('filter-sidebar-wrapper');
+    if (wrapper) {
+        wrapper.classList.remove('mobile-open');
+        document.body.style.overflow = '';
+    }
+}
+
+// ===== View Mode Switcher (Grid / Compact / List) =====
+function setViewMode(mode) {
+    const grid = document.getElementById('articles-grid');
+    if (!grid) return;
+    grid.classList.remove('view-compact', 'view-list');
+    if (mode === 'compact') grid.classList.add('view-compact');
+    if (mode === 'list') grid.classList.add('view-list');
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === mode);
+    });
+    try { localStorage.setItem('retiss_article_view', mode); } catch(e){}
+}
+
+// ===== Quick Price Presets =====
+function setPricePreset(min, max) {
+    const minInput = document.getElementById('prix_min_input');
+    const maxInput = document.getElementById('prix_max_input');
+    if (minInput) minInput.value = (min !== null && min !== '') ? min : '';
+    if (maxInput) maxInput.value = (max !== null && max !== '') ? max : '';
+    const form = document.getElementById('filter-form');
+    if (form) form.submit();
+}
+
+// ===== Accordion Sections =====
+function toggleSection(btn) {
+    const expanded = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', !expanded);
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+    // Restore saved view mode
+    try {
+        const savedView = localStorage.getItem('retiss_article_view');
+        if (savedView) setViewMode(savedView);
+    } catch(e){}
+
+    // Keyboard Shortcuts (Ctrl+K or '/' for search, Escape for drawer)
+    document.addEventListener('keydown', function(e) {
+        if ((e.key === '/' || (e.ctrlKey && e.key === 'k')) && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+            e.preventDefault();
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) { searchInput.focus(); searchInput.select(); }
+        }
+        if (e.key === 'Escape') {
+            closeMobileFilters();
+        }
+    });
 
     // ===== Autocomplete =====
     const searchInput = document.getElementById('search-input');
@@ -1104,16 +1496,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
-});
 
-// ===== Accordion Sections =====
-function toggleSection(btn) {
-    const expanded = btn.getAttribute('aria-expanded') === 'true';
-    btn.setAttribute('aria-expanded', !expanded);
-}
-
-// Auto-expand sections with active filters on page load
-document.addEventListener('DOMContentLoaded', function() {
     // Smooth scroll to active filter chip if present
     const chips = document.querySelector('.active-chip');
     if (chips) chips.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
