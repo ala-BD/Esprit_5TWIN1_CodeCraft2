@@ -100,30 +100,114 @@
             </div>
         @endif
 
-        {{-- FILTERS --}}
-        <form method="GET" action="{{ route('commandes.index') }}" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6 flex flex-wrap gap-3 items-end">
-            <div>
-                <label class="text-xs font-semibold text-slate-600 block mb-1">Statut</label>
-                <select name="statut" class="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white outline-none focus:border-teal-500">
-                    <option value="">Tous</option>
-                    @foreach($statuts as $s)
-                        <option value="{{ $s }}" {{ $currentStatut === $s ? 'selected' : '' }}>{{ str_replace('_', ' ', $s) }}</option>
-                    @endforeach
-                </select>
+        {{-- INTERACTIVE STATUS TABS --}}
+        <div class="flex items-center gap-2 overflow-x-auto pb-2 mb-4 scrollbar-none">
+            <a href="{{ route('commandes.index', request()->except(['statut', 'page'])) }}"
+               class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 {{ empty($currentStatut) ? 'bg-slate-900 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50' }}"
+               style="text-decoration:none">
+                <i class="fas fa-list-check"></i>
+                <span>Toutes</span>
+                <span class="px-1.5 py-0.5 rounded-full text-[10px] {{ empty($currentStatut) ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">{{ $totalOrdersCount }}</span>
+            </a>
+            @foreach($statuts as $s)
+                @php
+                    $isActive = $currentStatut === $s;
+                    $count = $countsByStatut[$s] ?? 0;
+                @endphp
+                <a href="{{ route('commandes.index', array_merge(request()->except(['statut', 'page']), ['statut' => $s])) }}"
+                   class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 {{ $isActive ? 'bg-teal-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50' }}"
+                   style="text-decoration:none">
+                    <span>{{ str_replace('_', ' ', $s) }}</span>
+                    <span class="px-1.5 py-0.5 rounded-full text-[10px] {{ $isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">{{ $count }}</span>
+                </a>
+            @endforeach
+        </div>
+
+        {{-- FILTERS CARD --}}
+        <form method="GET" action="{{ route('commandes.index') }}" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-5">
+            @if(!empty($currentStatut))
+                <input type="hidden" name="statut" value="{{ $currentStatut }}">
+            @endif
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                {{-- Search keyword --}}
+                <div class="sm:col-span-5">
+                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Recherche</label>
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input type="text" name="q" value="{{ $currentQ }}"
+                               placeholder="N° commande (TC-...), article..."
+                               class="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 bg-slate-50 focus:bg-white transition-all font-medium">
+                    </div>
+                </div>
+
+                {{-- Date Du --}}
+                <div class="sm:col-span-2">
+                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Du</label>
+                    <input type="date" name="from" value="{{ $currentFrom }}"
+                           class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-teal-500 bg-slate-50 focus:bg-white transition-all font-medium">
+                </div>
+
+                {{-- Date Au --}}
+                <div class="sm:col-span-2">
+                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Au</label>
+                    <input type="date" name="to" value="{{ $currentTo }}"
+                           class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-teal-500 bg-slate-50 focus:bg-white transition-all font-medium">
+                </div>
+
+                {{-- Actions --}}
+                <div class="sm:col-span-3 flex items-center gap-2">
+                    <button type="submit" class="flex-1 py-2 px-4 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-1.5">
+                        <i class="fas fa-filter text-xs"></i>
+                        <span>Filtrer</span>
+                    </button>
+                    @if($currentStatut || $currentQ || $currentFrom || $currentTo)
+                        <a href="{{ route('commandes.index') }}"
+                           class="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold transition-colors flex items-center gap-1"
+                           title="Réinitialiser tous les filtres"
+                           style="text-decoration:none">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    @endif
+                </div>
             </div>
-            <div>
-                <label class="text-xs font-semibold text-slate-600 block mb-1">Du</label>
-                <input type="date" name="from" value="{{ request('from') }}" class="text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-teal-500">
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-slate-600 block mb-1">Au</label>
-                <input type="date" name="to" value="{{ request('to') }}" class="text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-teal-500">
-            </div>
-            <button type="submit" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-semibold transition-colors">
-                <i class="fas fa-filter mr-1"></i> Filtrer
-            </button>
-            <a href="{{ route('commandes.index') }}" class="text-xs text-slate-500 hover:text-slate-700 font-medium" style="text-decoration:none">Réinitialiser</a>
         </form>
+
+        {{-- ACTIVE FILTER CHIPS --}}
+        @php
+            $hasActiveFilters = $currentStatut || $currentQ || $currentFrom || $currentTo;
+        @endphp
+        @if($hasActiveFilters)
+            <div class="flex flex-wrap items-center gap-2 mb-5 p-2.5 bg-white/80 rounded-xl border border-slate-200 text-xs">
+                <span class="font-bold text-slate-400 uppercase tracking-wider text-[10px] mr-1">Filtres actifs :</span>
+                @if($currentStatut)
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 border border-teal-200 text-teal-700 font-medium">
+                        Statut : <strong>{{ str_replace('_', ' ', $currentStatut) }}</strong>
+                        <a href="{{ route('commandes.index', request()->except(['statut', 'page'])) }}" class="text-teal-500 hover:text-red-500"><i class="fas fa-times-circle"></i></a>
+                    </span>
+                @endif
+                @if($currentQ)
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 font-medium">
+                        Recherche : <strong>{{ $currentQ }}</strong>
+                        <a href="{{ route('commandes.index', request()->except(['q', 'page'])) }}" class="text-blue-500 hover:text-red-500"><i class="fas fa-times-circle"></i></a>
+                    </span>
+                @endif
+                @if($currentFrom)
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-medium">
+                        Depuis : <strong>{{ $currentFrom }}</strong>
+                        <a href="{{ route('commandes.index', request()->except(['from', 'page'])) }}" class="text-slate-400 hover:text-red-500"><i class="fas fa-times-circle"></i></a>
+                    </span>
+                @endif
+                @if($currentTo)
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-medium">
+                        Jusqu'au : <strong>{{ $currentTo }}</strong>
+                        <a href="{{ route('commandes.index', request()->except(['to', 'page'])) }}" class="text-slate-400 hover:text-red-500"><i class="fas fa-times-circle"></i></a>
+                    </span>
+                @endif
+                <a href="{{ route('commandes.index') }}" class="ml-auto text-red-600 hover:text-red-700 font-bold text-[11px] inline-flex items-center gap-1">
+                    <i class="fas fa-trash-alt text-[10px]"></i> Tout effacer
+                </a>
+            </div>
+        @endif
 
         {{-- ORDERS LIST --}}
         @if($commandes->isEmpty())
@@ -131,11 +215,30 @@
                 <div class="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-400 text-3xl">
                     <i class="fas fa-box-open"></i>
                 </div>
-                <p class="text-slate-700 font-semibold text-lg mb-1">Aucune commande trouvée</p>
-                <p class="text-slate-400 text-sm mb-5">Vous n'avez pas encore passé de commande sur la marketplace.</p>
-                <a href="{{ route('articles.index') }}" class="inline-flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-semibold text-sm transition-colors" style="text-decoration:none">
-                    <i class="fas fa-store"></i> Découvrir la marketplace
-                </a>
+                <p class="text-slate-700 font-semibold text-lg mb-1">
+                    @if($hasActiveFilters)
+                        Aucune commande ne correspond à vos filtres
+                    @else
+                        Aucune commande trouvée
+                    @endif
+                </p>
+                <p class="text-slate-400 text-sm mb-5">
+                    @if($hasActiveFilters)
+                        Essayez d'élargir votre recherche ou de modifier les filtres appliqués.
+                    @else
+                        Vous n'avez pas encore passé de commande sur la marketplace.
+                    @endif
+                </p>
+                <div class="flex items-center justify-center gap-3">
+                    @if($hasActiveFilters)
+                        <a href="{{ route('commandes.index') }}" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-semibold text-sm transition-colors" style="text-decoration:none">
+                            <i class="fas fa-rotate-left mr-1"></i> Réinitialiser les filtres
+                        </a>
+                    @endif
+                    <a href="{{ route('articles.index') }}" class="inline-flex items-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-semibold text-sm transition-colors" style="text-decoration:none">
+                        <i class="fas fa-store"></i> Découvrir la marketplace
+                    </a>
+                </div>
             </div>
         @else
             <div class="space-y-4">

@@ -25,26 +25,87 @@ class CommandeController extends Controller
     {
         $this->authorize('viewAny', Commande::class);
 
-        $query = Commande::with(['lignes.article', 'adresse'])
+        $query = Commande::with(['lignes.article', 'adresse', 'user'])
             ->latest('date_commande');
 
+        // Access control:
+        // Admin sees all.
+        // Other users see orders they placed OR orders where their article was purchased (atelier / donateur).
         if (! $request->user()->isAdmin()) {
-            $query->where('user_id', $request->user()->id);
+            $userId = $request->user()->id;
+            $query->where(function ($q) use ($userId) {
+                $q->where('user_id', $userId)
+                  ->orWhereHas('lignes.article', function ($qa) use ($userId) {
+                      $qa->where('user_id', $userId);
+                  });
+            });
         }
 
+        // Filter: Statut
+        $currentStatut = null;
         if ($statut = $request->get('statut')) {
-            $query->where('statut', $statut);
+            $normalizedStatut = strtoupper(trim((string) $statut));
+            if (in_array($normalizedStatut, Commande::STATUTS, true)) {
+                $query->where('statut', $normalizedStatut);
+                $currentStatut = $normalizedStatut;
+            }
         }
 
-        if ($from = $request->get('from')) {
+        // Filter: Search keyword (order number, article title, client name)
+        $q = trim((string) $request->get('q', ''));
+        if ($q !== '') {
+            $query->where(function ($sub) use ($q) {
+                $sub->where('numero', 'like', "%{$q}%")
+                    ->orWhereHas('lignes.article', function ($qa) use ($q) {
+                        $qa->where('titre', 'like', "%{$q}%");
+                    })
+                    ->orWhereHas('user', function ($qu) use ($q) {
+                        $qu->where('name', 'like', "%{$q}%")
+                           ->orWhere('email', 'like', "%{$q}%");
+                    });
+            });
+        }
+
+        // Filter: Date from
+        $from = trim((string) $request->get('from', ''));
+        if ($from !== '') {
             $query->whereDate('date_commande', '>=', $from);
         }
 
-        if ($to = $request->get('to')) {
+        // Filter: Date to
+        $to = trim((string) $request->get('to', ''));
+        if ($to !== '') {
             $query->whereDate('date_commande', '<=', $to);
         }
 
+        // Filter: Tri / Sort
+        $sort = $request->get('tri', 'recent');
+        match ($sort) {
+            'ancien'     => $query->reorder('date_commande', 'asc'),
+            'total_asc'  => $query->reorder('montant_total', 'asc'),
+            'total_desc' => $query->reorder('montant_total', 'desc'),
+            default      => $query->reorder('date_commande', 'desc'),
+        };
+
         $commandes = $query->paginate(10)->withQueryString();
+
+        // Status counts for interactive tabs (calculated on the accessible orders of the user)
+        $baseQuery = Commande::query();
+        if (! $request->user()->isAdmin()) {
+            $userId = $request->user()->id;
+            $baseQuery->where(function ($q) use ($userId) {
+                $q->where('user_id', $userId)
+                  ->orWhereHas('lignes.article', function ($qa) use ($userId) {
+                      $qa->where('user_id', $userId);
+                  });
+            });
+        }
+        $totalOrdersCount = (clone $baseQuery)->count();
+        $countsByStatut   = (clone $baseQuery)
+            ->selectRaw('statut, count(*) as total')
+            ->groupBy('statut')
+            ->pluck('total', 'statut')
+            ->toArray();
 
         // Admin stats
         $stats = null;
@@ -66,10 +127,16 @@ class CommandeController extends Controller
         }
 
         return view('commandes.index', [
-            'commandes'     => $commandes,
-            'statuts'       => Commande::STATUTS,
-            'currentStatut' => $statut,
-            'stats'         => $stats,
+            'commandes'        => $commandes,
+            'statuts'          => Commande::STATUTS,
+            'currentStatut'    => $currentStatut,
+            'countsByStatut'   => $countsByStatut,
+            'totalOrdersCount' => $totalOrdersCount,
+            'stats'            => $stats,
+            'currentQ'         => $q,
+            'currentFrom'      => $from,
+            'currentTo'        => $to,
+            'currentTri'       => $sort,
         ]);
     }
 

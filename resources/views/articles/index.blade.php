@@ -34,57 +34,19 @@
     .filter-sidebar::-webkit-scrollbar { width: 3px; }
     .filter-sidebar::-webkit-scrollbar-thumb { background: linear-gradient(#0d9488,#059669); border-radius: 4px; }
 
-    /* ---- Sidebar glam header ---- */
+    /* ---- Sidebar clean header ---- */
     .sidebar-header {
-        background: linear-gradient(135deg, #0c1526 0%, #162035 40%, #0b7a72 80%, #0d9488 100%);
-        padding: 1.1rem 1.15rem 1rem;
-        position: relative; overflow: hidden;
+        background: #0f172a;
+        padding: 0.95rem 1.15rem;
+        border-bottom: 1px solid #1e293b;
+        position: relative;
     }
-    .sidebar-header::before {
-        content: '';
-        position: absolute; inset: 0;
-        background:
-            radial-gradient(ellipse at 85% 30%, rgba(13,148,136,0.45) 0%, transparent 55%),
-            radial-gradient(ellipse at 15% 80%, rgba(16,185,129,0.2) 0%, transparent 50%);
-        pointer-events: none;
-    }
-    .sidebar-header::after {
-        content: '';
-        position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(13,148,136,0.6), transparent);
-    }
-    .sidebar-header-grid {
-        position: absolute; inset: 0;
-        background-image:
-            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-        background-size: 18px 18px; pointer-events: none;
-    }
-    /* Animated orb decoration */
-    .sidebar-header .orb {
-        position: absolute; right: -10px; bottom: -10px;
-        width: 80px; height: 80px; border-radius: 50%;
-        background: radial-gradient(circle, rgba(13,148,136,0.25) 0%, transparent 70%);
-        animation: orbFloat 4s ease-in-out infinite;
-    }
-    @keyframes orbFloat {
-        0%,100% { transform: translate(0,0) scale(1); }
-        50%      { transform: translate(-5px,-8px) scale(1.1); }
-    }
-    /* Count badge pulse */
     .header-badge {
         display: inline-flex; align-items: center; justify-content: center;
-        min-width: 20px; height: 20px; padding: 0 5px;
+        min-width: 19px; height: 19px; padding: 0 5px;
         border-radius: 9999px;
-        background: linear-gradient(135deg,#10b981,#0d9488);
-        color: #fff; font-size: 10px; font-weight: 800;
-        box-shadow: 0 0 0 0 rgba(13,148,136,0.4);
-        animation: badgePulse 2s ease infinite;
-    }
-    @keyframes badgePulse {
-        0%   { box-shadow: 0 0 0 0 rgba(13,148,136,0.5); }
-        60%  { box-shadow: 0 0 0 6px rgba(13,148,136,0); }
-        100% { box-shadow: 0 0 0 0 rgba(13,148,136,0); }
+        background: #0d9488;
+        color: #fff; font-size: 10px; font-weight: 700;
     }
 
     /* ---- Accordion sections ---- */
@@ -683,45 +645,37 @@
             <form method="GET" action="{{ route('articles.index') }}" id="filter-form" class="filter-sidebar">
                 <div class="mobile-drawer-handle"></div>
 
-                {{-- Glassmorphism Header --}}
-                <div class="sidebar-header relative z-10">
-                    <div class="sidebar-header-grid"></div>
-                    <div class="orb"></div>
-                    <div class="relative z-10 flex items-center justify-between">
+                {{-- Clean & Structured Header --}}
+                <div class="sidebar-header">
+                    <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2.5">
-                            <div class="w-9 h-9 rounded-xl bg-white/12 backdrop-blur-md flex items-center justify-center text-white text-sm border border-white/20 shadow-inner">
+                            <div class="w-8 h-8 rounded-lg bg-teal-500/20 text-teal-300 flex items-center justify-center text-xs">
                                 <i class="fas fa-sliders-h"></i>
                             </div>
                             <div>
-                                <div class="text-white font-bold text-sm leading-tight tracking-wide">Filtres</div>
-                                <div class="text-teal-300/80 text-[10px] font-medium mt-0.5">
-                                    @if($activeFilters > 0) <i class="fas fa-check-circle mr-1 text-emerald-400"></i>{{ $activeFilters }} actif(s) @else <i class="fas fa-globe mr-1 opacity-60"></i>Tous les articles @endif
-                                </div>
+                                <h3 class="text-white font-bold text-sm leading-none">Filtres</h3>
+                                <p class="text-slate-400 text-[11px] mt-1">
+                                    @if($activeFilters > 0)
+                                        <span class="text-teal-400 font-semibold">{{ $activeFilters }} actif{{ $activeFilters > 1 ? 's' : '' }}</span>
+                                    @else
+                                        Tous les articles
+                                    @endif
+                                </p>
                             </div>
                         </div>
-                        <div class="flex items-center gap-1.5">
+                        <div class="flex items-center gap-2">
                             @if($activeFilters > 0)
-                                <span class="header-badge">{{ $activeFilters }}</span>
                                 <a href="{{ route('articles.index') }}"
-                                   class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-500/80 hover:bg-red-500 text-white text-[10px] font-bold transition-all hover:scale-105"
+                                   class="text-[11px] font-semibold text-red-400 hover:text-red-300 transition-colors"
                                    style="text-decoration:none">
-                                    <i class="fas fa-times"></i> Reset
+                                    Effacer
                                 </a>
                             @endif
-                            <button type="button" onclick="closeMobileFilters()" class="lg:hidden text-white/70 hover:text-white p-1 rounded-lg ml-1" title="Fermer">
+                            <button type="button" onclick="closeMobileFilters()" class="lg:hidden text-slate-400 hover:text-white p-1 rounded-lg" title="Fermer">
                                 <i class="fas fa-times text-sm"></i>
                             </button>
                         </div>
                     </div>
-
-                    {{-- Active filter progress bar --}}
-                    <div class="relative mt-3 h-1 bg-white/15 rounded-full overflow-hidden">
-                        <div class="h-full rounded-full transition-all duration-500"
-                             style="width: {{ $activeFilters > 0 ? min(100, $activeFilters * 9) : 0 }}%; background: linear-gradient(90deg,#10b981,#0d9488,#38bdf8);"></div>
-                    </div>
-                    @if($activeFilters > 0)
-                        <div class="mt-1.5 text-[9px] text-white/40 font-medium">{{ min(100, $activeFilters * 9) }}% filtré</div>
-                    @endif
                 </div>
 
                 {{-- Quick Toggles --}}
@@ -735,9 +689,12 @@
                     </button>
                     <div class="fs-body">
                         <label class="toggle-row" for="toggle-mine">
-                            <div class="toggle-label">
-                                <span class="toggle-icon">&#x1F464;</span> Mes articles
-                                <small>Publiés par moi uniquement</small>
+                            <div class="toggle-label flex items-center gap-2">
+                                <i class="fas fa-user-circle text-teal-600 text-sm"></i>
+                                <div>
+                                    Mes articles
+                                    <small>Publiés par moi uniquement</small>
+                                </div>
                             </div>
                             <div class="toggle-switch">
                                 <input type="checkbox" id="toggle-mine" name="mine" value="1"
@@ -747,9 +704,12 @@
                             </div>
                         </label>
                         <label class="toggle-row" for="toggle-stock">
-                            <div class="toggle-label">
-                                <span class="toggle-icon">&#x1F4E6;</span> En stock
-                                <small>Articles disponibles uniquement</small>
+                            <div class="toggle-label flex items-center gap-2">
+                                <i class="fas fa-boxes-stacked text-emerald-600 text-sm"></i>
+                                <div>
+                                    En stock
+                                    <small>Articles disponibles uniquement</small>
+                                </div>
                             </div>
                             <div class="toggle-switch">
                                 <input type="checkbox" id="toggle-stock" name="en_stock" value="1"
@@ -759,9 +719,12 @@
                             </div>
                         </label>
                         <label class="toggle-row" for="toggle-gratuits">
-                            <div class="toggle-label">
-                                <span class="toggle-icon">&#x1F381;</span> Dons gratuits
-                                <small>Prix = 0 DT</small>
+                            <div class="toggle-label flex items-center gap-2">
+                                <i class="fas fa-hand-holding-heart text-amber-500 text-sm"></i>
+                                <div>
+                                    Dons gratuits
+                                    <small>Prix = 0 DT</small>
+                                </div>
                             </div>
                             <div class="toggle-switch">
                                 <input type="checkbox" id="toggle-gratuits" name="gratuits" value="1"

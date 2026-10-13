@@ -21,7 +21,9 @@ class CommandePolicy
      */
     public function view(User $user, Commande $commande): bool
     {
-        return $commande->user_id === $user->id || $user->isAdmin();
+        return $commande->user_id === $user->id
+            || $user->isAdmin()
+            || $commande->lignes()->whereHas('article', fn($q) => $q->where('user_id', $user->id))->exists();
     }
 
     /**
