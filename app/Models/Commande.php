@@ -21,8 +21,12 @@ use Illuminate\Support\Str;
  * @property float $frais_livraison
  * @property float $montant_total
  * @property string $mode_paiement
- * @property \Carbon\Carbon|null $date_livraison_estimee
- * @property \Carbon\Carbon $date_commande
+ * @property string|null $stripe_session_id
+ * @property string|null $stripe_payment_intent
+ * @property string $statut_paiement
+ * @property Carbon|null $date_paiement
+ * @property Carbon|null $date_livraison_estimee
+ * @property Carbon $date_commande
  * @property array|null $historique_statuts
  * @property-read \App\Models\User $user
  * @property-read \App\Models\Adresse|null $adresse
@@ -35,14 +39,16 @@ class Commande extends Model
     // -------------------------------------------------------
     // Statuts
     // -------------------------------------------------------
-    const STATUT_EN_ATTENTE    = 'EN_ATTENTE';
-    const STATUT_CONFIRMEE     = 'CONFIRMEE';
-    const STATUT_EN_PREPARATION = 'EN_PREPARATION';
-    const STATUT_EXPEDIEE      = 'EXPEDIEE';
-    const STATUT_LIVREE        = 'LIVREE';
-    const STATUT_ANNULEE       = 'ANNULEE';
+    const STATUT_EN_ATTENTE_PAIEMENT = 'EN_ATTENTE_PAIEMENT';
+    const STATUT_EN_ATTENTE          = 'EN_ATTENTE';
+    const STATUT_CONFIRMEE           = 'CONFIRMEE';
+    const STATUT_EN_PREPARATION      = 'EN_PREPARATION';
+    const STATUT_EXPEDIEE            = 'EXPEDIEE';
+    const STATUT_LIVREE              = 'LIVREE';
+    const STATUT_ANNULEE             = 'ANNULEE';
 
     const STATUTS = [
+        self::STATUT_EN_ATTENTE_PAIEMENT,
         self::STATUT_EN_ATTENTE,
         self::STATUT_CONFIRMEE,
         self::STATUT_EN_PREPARATION,
@@ -53,23 +59,35 @@ class Commande extends Model
 
     // Statuts that allow order modification
     const STATUTS_MODIFIABLES = [
+        self::STATUT_EN_ATTENTE_PAIEMENT,
         self::STATUT_EN_ATTENTE,
     ];
 
     // Statuts that allow cancellation
     const STATUTS_ANNULABLES = [
+        self::STATUT_EN_ATTENTE_PAIEMENT,
         self::STATUT_EN_ATTENTE,
         self::STATUT_CONFIRMEE,
         self::STATUT_EN_PREPARATION,
     ];
 
     // -------------------------------------------------------
+    // Statuts de paiement (Stripe)
+    // -------------------------------------------------------
+    const STATUT_PAIEMENT_EN_ATTENTE = 'EN_ATTENTE';
+    const STATUT_PAIEMENT_PAYE       = 'PAYE';
+    const STATUT_PAIEMENT_ECHOUE     = 'ECHOUE';
+    const STATUT_PAIEMENT_REMBOURSE  = 'REMBOURSE';
+
+    // -------------------------------------------------------
     // Modes de paiement
     // -------------------------------------------------------
     const MODES_PAIEMENT = [
+        'STRIPE'          => 'Carte bancaire (Stripe)',
         'CARTE'           => 'Carte bancaire',
         'VIREMENT'        => 'Virement bancaire',
         'A_LA_LIVRAISON'  => 'Paiement à la livraison',
+        'GRATUIT'         => 'Don gratuit (aucun paiement)',
     ];
 
     // Frais de livraison standard (DT)
@@ -96,6 +114,10 @@ class Commande extends Model
         'frais_livraison',
         'montant_total',
         'mode_paiement',
+        'stripe_session_id',
+        'stripe_payment_intent',
+        'statut_paiement',
+        'date_paiement',
         'date_livraison_estimee',
         'date_commande',
         'historique_statuts',
@@ -110,6 +132,7 @@ class Commande extends Model
             'montant_total'          => 'decimal:2',
             'date_livraison_estimee' => 'date',
             'date_commande'          => 'datetime',
+            'date_paiement'          => 'datetime',
             'historique_statuts'     => 'array',
         ];
     }
@@ -145,10 +168,22 @@ class Commande extends Model
         return sprintf('TC-%d-%06d', $annee, $count);
     }
 
-    /** Whether the order can still be modified */
+    /** Whether the order can still be modified (only EN_ATTENTE_PAIEMENT or EN_ATTENTE) */
     public function estModifiable(): bool
     {
         return in_array($this->statut, self::STATUTS_MODIFIABLES);
+    }
+
+    /** Whether the order has been paid via Stripe */
+    public function estPaye(): bool
+    {
+        return $this->statut_paiement === self::STATUT_PAIEMENT_PAYE;
+    }
+
+    /** Whether the order is waiting for Stripe payment confirmation */
+    public function enAttenteDeStripe(): bool
+    {
+        return $this->statut === 'EN_ATTENTE_PAIEMENT';
     }
 
     /** Whether the order can be cancelled */
@@ -179,13 +214,14 @@ class Commande extends Model
     public function statutLabel(): string
     {
         return match ($this->statut) {
-            self::STATUT_EN_ATTENTE     => 'En attente',
-            self::STATUT_CONFIRMEE      => 'Confirmée',
-            self::STATUT_EN_PREPARATION => 'En préparation',
-            self::STATUT_EXPEDIEE       => 'Expédiée',
-            self::STATUT_LIVREE         => 'Livrée',
-            self::STATUT_ANNULEE        => 'Annulée',
-            default                     => $this->statut,
+            self::STATUT_EN_ATTENTE_PAIEMENT => 'En attente de paiement',
+            self::STATUT_EN_ATTENTE          => 'En attente',
+            self::STATUT_CONFIRMEE           => 'Confirmée',
+            self::STATUT_EN_PREPARATION      => 'En préparation',
+            self::STATUT_EXPEDIEE            => 'Expédiée',
+            self::STATUT_LIVREE              => 'Livrée',
+            self::STATUT_ANNULEE             => 'Annulée',
+            default                          => $this->statut,
         };
     }
 
@@ -193,14 +229,45 @@ class Commande extends Model
     public function statutColor(): string
     {
         return match ($this->statut) {
-            self::STATUT_EN_ATTENTE     => 'amber',
-            self::STATUT_CONFIRMEE      => 'blue',
-            self::STATUT_EN_PREPARATION => 'indigo',
-            self::STATUT_EXPEDIEE       => 'teal',
-            self::STATUT_LIVREE         => 'green',
-            self::STATUT_ANNULEE        => 'red',
-            default                     => 'slate',
+            self::STATUT_EN_ATTENTE_PAIEMENT => 'amber',
+            self::STATUT_EN_ATTENTE          => 'amber',
+            self::STATUT_CONFIRMEE           => 'blue',
+            self::STATUT_EN_PREPARATION      => 'indigo',
+            self::STATUT_EXPEDIEE            => 'teal',
+            self::STATUT_LIVREE              => 'green',
+            self::STATUT_ANNULEE             => 'red',
+            default                          => 'slate',
         };
+    }
+
+    /** Human-readable label for the payment status */
+    public function statutPaiementLabel(): string
+    {
+        return match ($this->statut_paiement) {
+            self::STATUT_PAIEMENT_PAYE       => 'Payé',
+            self::STATUT_PAIEMENT_EN_ATTENTE => 'En attente de paiement',
+            self::STATUT_PAIEMENT_ECHOUE     => 'Paiement échoué',
+            self::STATUT_PAIEMENT_REMBOURSE  => 'Remboursé',
+            default                          => $this->statut_paiement ?? 'Non payé',
+        };
+    }
+
+    /** CSS color class for the payment status */
+    public function statutPaiementColor(): string
+    {
+        return match ($this->statut_paiement) {
+            self::STATUT_PAIEMENT_PAYE       => 'green',
+            self::STATUT_PAIEMENT_EN_ATTENTE => 'amber',
+            self::STATUT_PAIEMENT_ECHOUE     => 'red',
+            self::STATUT_PAIEMENT_REMBOURSE  => 'purple',
+            default                          => 'slate',
+        };
+    }
+
+    /** Human-readable label for the payment method */
+    public function modePaiementLabel(): string
+    {
+        return self::MODES_PAIEMENT[$this->mode_paiement] ?? $this->mode_paiement;
     }
 
     /** Ecological impact stats */

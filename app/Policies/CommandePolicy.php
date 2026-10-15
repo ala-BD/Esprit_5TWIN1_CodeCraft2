@@ -63,4 +63,15 @@ class CommandePolicy
     {
         return $user->isAdmin();
     }
+
+    /**
+     * An owner can pay their own order via Stripe as long as it has not already been paid
+     * and is not cancelled.
+     */
+    public function payer(User $user, Commande $commande): bool
+    {
+        return $commande->user_id === $user->id
+            && ! $commande->estPaye()
+            && $commande->statut !== Commande::STATUT_ANNULEE;
+    }
 }

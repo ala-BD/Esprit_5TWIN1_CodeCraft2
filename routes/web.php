@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdresseController;
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\CommandeController;
+use App\Http\Controllers\PaiementController;
 use App\Http\Controllers\PanierController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Recyclage\LotTextileController;
@@ -27,6 +28,14 @@ Route::get('/', function () {
 */
 Route::get('/passeport/{qrCode}', [PasseportNumeriqueController::class, 'verifier'])
     ->name('passeport.verifier');
+
+/*
+|--------------------------------------------------------------------------
+| Stripe Webhook — public, no auth, no CSRF (excluded in bootstrap/app.php)
+|--------------------------------------------------------------------------
+*/
+Route::post('/stripe/webhook', [PaiementController::class, 'webhook'])
+    ->name('stripe.webhook');
 
 /*
 |--------------------------------------------------------------------------
@@ -111,6 +120,16 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('panier/lignes/{ligne}',            [PanierController::class, 'modifier'])->name('panier.modifier');
     Route::delete('panier/lignes/{ligne}',           [PanierController::class, 'retirer']) ->name('panier.retirer');
     Route::delete('panier/vider',                   [PanierController::class, 'vider'])   ->name('panier.vider');
+
+    /*
+    |----------------------------------------------------------------------
+    | Paiement Stripe
+    |----------------------------------------------------------------------
+    */
+    Route::post('paiement/checkout',               [PaiementController::class, 'checkout']) ->name('paiement.checkout');
+    Route::get('paiement/succes/{commande}',        [PaiementController::class, 'succes'])   ->name('paiement.succes');
+    Route::get('paiement/annule/{commande}',        [PaiementController::class, 'annule'])   ->name('paiement.annule');
+    Route::post('paiement/{commande}/rembourser',   [PaiementController::class, 'rembourser'])->name('paiement.rembourser');
 });
 
 /*

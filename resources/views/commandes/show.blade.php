@@ -92,6 +92,30 @@
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 content-wrap pb-16">
 
         {{-- FLASH --}}
+        @if(session('remboursement'))
+            <div class="mb-5 bg-gradient-to-r from-purple-50 via-emerald-50 to-teal-50 border-2 border-purple-300 rounded-3xl p-5 shadow-sm">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center text-xl flex-shrink-0 shadow-md">
+                        <i class="fas fa-hand-holding-dollar"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-base font-extrabold text-purple-900 flex items-center gap-2">
+                            <span>L'argent a été remboursé avec succès !</span>
+                            <span class="px-2.5 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                {{ is_array(session('remboursement')) ? session('remboursement')['montant'] : '' }} DT remboursés
+                            </span>
+                        </h3>
+                        <p class="text-sm text-slate-700 mt-1 leading-relaxed">
+                            {{ is_array(session('remboursement')) ? session('remboursement')['message'] : session('remboursement') }}
+                        </p>
+                        <div class="mt-2 text-xs font-semibold text-purple-800 flex items-center gap-1.5">
+                            <i class="fas fa-check-circle text-emerald-600"></i>
+                            <span>Remboursement Stripe confirmé · Le stock a été augmenté car le produit est rendu</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
         @if(session('success'))
             <div class="mb-5 flex items-start gap-3 bg-teal-50 border border-teal-200 rounded-2xl p-4 text-teal-800">
                 <i class="fas fa-circle-check mt-0.5 text-teal-600"></i>
@@ -300,13 +324,61 @@
                 </div>
 
                 {{-- PAYMENT --}}
-                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5">
-                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-                        <i class="fas fa-credit-card text-teal-600"></i> Mode de paiement
-                    </h3>
-                    <p class="text-sm text-slate-700">
-                        {{ \App\Models\Commande::MODES_PAIEMENT[$commande->mode_paiement] ?? $commande->mode_paiement }}
-                    </p>
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fas fa-credit-card text-teal-600"></i> Paiement
+                        </h3>
+                        @if($commande->statut_paiement)
+                            @php
+                                $payColorMap = [
+                                    'PAYE'       => 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                                    'EN_ATTENTE' => 'bg-amber-100 text-amber-800 border-amber-200',
+                                    'ECHOUE'     => 'bg-rose-100 text-rose-800 border-rose-200',
+                                    'REMBOURSE'  => 'bg-purple-100 text-purple-800 border-purple-200',
+                                ];
+                                $payBadgeClass = $payColorMap[$commande->statut_paiement] ?? 'bg-slate-100 text-slate-700 border-slate-200';
+                            @endphp
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border {{ $payBadgeClass }}">
+                                <i class="fas {{ $commande->statut_paiement === 'PAYE' ? 'fa-check-circle' : ($commande->statut_paiement === 'REMBOURSE' ? 'fa-rotate-left' : ($commande->statut_paiement === 'ECHOUE' ? 'fa-circle-xmark' : 'fa-clock')) }}"></i>
+                                <span>{{ $commande->statutPaiementLabel() }}</span>
+                            </span>
+                        @endif
+                    </div>
+
+                    <div class="space-y-1.5 text-xs text-slate-600">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Mode :</span>
+                            <span class="font-semibold text-slate-800">{{ \App\Models\Commande::MODES_PAIEMENT[$commande->mode_paiement] ?? $commande->mode_paiement }}</span>
+                        </div>
+                        @if($commande->date_paiement)
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Réglé le :</span>
+                                <span class="font-medium text-slate-700">{{ $commande->date_paiement->format('d/m/Y à H:i') }}</span>
+                            </div>
+                        @endif
+                        @if($commande->stripe_payment_intent && (auth()->user()->isAdmin() || $commande->user_id === auth()->id()))
+                            <div class="flex justify-between items-center pt-1 border-t border-slate-100 text-[11px]">
+                                <span class="text-slate-400">Réf. Stripe :</span>
+                                <span class="font-mono text-slate-500 text-[10px]">{{ Str::limit($commande->stripe_payment_intent, 18) }}</span>
+                            </div>
+                        @endif
+                    </div>
+
+                    {{-- Pay with Stripe button if pending payment --}}
+                    @if($commande->enAttenteDeStripe() && $commande->user_id === auth()->id() && ! $commande->estPaye())
+                        <div class="pt-2">
+                            <form method="POST" action="{{ route('paiement.checkout') }}">
+                                @csrf
+                                <input type="hidden" name="commande_id" value="{{ $commande->id }}">
+                                <button type="submit"
+                                        class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold text-xs shadow-md shadow-teal-700/20 transition-all">
+                                    <i class="fab fa-stripe text-base"></i>
+                                    <span>Payer en ligne maintenant (Stripe)</span>
+                                </button>
+                            </form>
+                        </div>
+                    @endif
                 </div>
 
                 {{-- ACTIONS --}}
@@ -339,11 +411,28 @@
                         @endif
                     @endcan
 
+                    {{-- Admin Stripe Refund Button --}}
+                    @can('updateStatut', $commande)
+                        @if($commande->estPaye() && $commande->stripe_payment_intent && $commande->statut_paiement !== \App\Models\Commande::STATUT_PAIEMENT_REMBOURSE && ! $commande->estExpediee())
+                            <form action="{{ route('paiement.rembourser', $commande) }}" method="POST"
+                                  data-confirm="Êtes-vous sûr de vouloir rembourser la commande {{ $commande->numero }} via Stripe ? L'argent ({{ number_format($commande->montant_total, 2) }} DT) sera intégralement remboursé au client et le stock sera augmenté car le produit est rendu."
+                                  data-confirm-title="Remboursement Stripe"
+                                  data-confirm-button="Confirmer le remboursement">
+                                @csrf
+                                <button type="submit"
+                                        class="flex items-center justify-center gap-2 w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl text-sm font-bold transition-all shadow-sm">
+                                    <i class="fab fa-stripe text-base"></i>
+                                    <span>Rembourser via Stripe</span>
+                                </button>
+                            </form>
+                        @endif
+                    @endcan
+
                     {{-- Cancel --}}
                     @can('delete', $commande)
                         @if($commande->estAnnulable())
                             <form action="{{ route('commandes.destroy', $commande) }}" method="POST"
-                                  data-confirm="Êtes-vous sûr de vouloir annuler la commande {{ $commande->numero }} ? Les articles seront immédiatement remis en stock."
+                                  data-confirm="Êtes-vous sûr de vouloir annuler la commande {{ $commande->numero }} ? {{ $commande->estPaye() ? 'L\'argent (' . number_format($commande->montant_total, 2) . ' DT) sera remboursé via Stripe et le stock sera augmenté car le produit est rendu.' : 'La commande sera annulée et le stock restauré.' }}"
                                   data-confirm-title="Annuler la commande"
                                   data-confirm-button="Oui, annuler la commande">
                                 @csrf @method('DELETE')
@@ -384,4 +473,32 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+@if(session('remboursement'))
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            icon: 'success',
+            title: "L'argent est remboursé !",
+            html: `<div class="text-left text-slate-700 text-sm space-y-2.5 mt-2">
+                     <p>Le montant de <strong class="text-emerald-600 text-base">{{ is_array(session('remboursement')) ? session('remboursement')['montant'] : '' }} DT</strong> a été remboursé avec succès sur votre compte bancaire via Stripe.</p>
+                     <div class="p-3 bg-purple-50 rounded-2xl border border-purple-200 text-xs text-purple-900">
+                       <i class="fas fa-box text-purple-600 mr-1"></i>
+                       <strong>Information Stock :</strong> Le stock du produit a été augmenté car le produit est rendu.
+                     </div>
+                   </div>`,
+            confirmButtonText: 'D\'accord, merci !',
+            confirmButtonColor: '#0d9488',
+            customClass: {
+                popup: 'rounded-3xl p-6 shadow-2xl',
+                confirmButton: 'px-6 py-2.5 rounded-xl font-bold text-white'
+            }
+        });
+    }
+});
+</script>
+@endif
 @endsection

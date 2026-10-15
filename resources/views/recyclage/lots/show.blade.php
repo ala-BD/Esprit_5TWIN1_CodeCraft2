@@ -211,12 +211,13 @@
 
         {{-- Formulaire ajout étape --}}
         @if($prochaineEtape && $lot->statut !== 'CERTIFIE')
+        @php /** @var string $prochaineEtape */ @endphp
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h3 class="font-semibold text-gray-900 mb-5 flex items-center gap-2">
                 <i class="fas fa-plus-circle text-primary-DEFAULT"></i>
                 Ajouter l'étape suivante :
                 <span class="text-primary-DEFAULT">
-                    {{ \App\Models\EtapeTraitement::LABELS[$prochaineEtape] }}
+                    {{ \App\Models\EtapeTraitement::LABELS[(string) $prochaineEtape] }}
                 </span>
             </h3>
 
@@ -272,7 +273,7 @@
                                font-bold py-3 rounded-xl hover:shadow-lg hover:scale-[1.01]
                                transition-all duration-200 flex items-center justify-center gap-2">
                     <i class="fas fa-plus"></i>
-                    Ajouter l'étape {{ \App\Models\EtapeTraitement::LABELS[$prochaineEtape] }}
+                    Ajouter l'étape {{ \App\Models\EtapeTraitement::LABELS[(string) $prochaineEtape] }}
                 </button>
             </form>
         </div>

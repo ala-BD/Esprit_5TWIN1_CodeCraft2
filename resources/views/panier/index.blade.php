@@ -525,15 +525,23 @@
                             </div>
                         </div>
 
-                        {{-- Bouton Passer la commande --}}
+                        {{-- Bouton Passer la commande via Stripe --}}
                         <div class="pt-2 space-y-3">
-                            <a href="{{ route('commandes.create') }}"
-                               class="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-extrabold text-base shadow-lg shadow-teal-700/25 transition-all duration-200 transform hover:-translate-y-0.5"
-                               style="text-decoration:none">
-                                <i class="fas fa-lock text-sm"></i>
-                                <span>Passer la commande</span>
-                                <i class="fas fa-arrow-right text-sm"></i>
-                            </a>
+                            {{-- Stripe Checkout form --}}
+                            <form method="POST" action="{{ route('paiement.checkout') }}" id="stripe-checkout-form">
+                                @csrf
+                                {{-- Optional: pass preferred address id if user has one --}}
+                                @if(auth()->user()->adresseParDefaut()->exists())
+                                    <input type="hidden" name="adresse_id" value="{{ auth()->user()->adresseParDefaut()->first()->id }}">
+                                @endif
+                                <button type="submit"
+                                        id="btn-checkout"
+                                        class="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-extrabold text-base shadow-lg shadow-teal-700/25 transition-all duration-200 transform hover:-translate-y-0.5">
+                                    <i class="fab fa-stripe text-xl"></i>
+                                    <span>Payer en ligne (Stripe)</span>
+                                    <i class="fas fa-lock text-sm"></i>
+                                </button>
+                            </form>
 
                             <a href="{{ route('articles.index') }}"
                                class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 text-xs font-semibold transition"
@@ -548,13 +556,14 @@
                             <div class="flex items-center justify-center gap-3 text-slate-400 text-lg">
                                 <i class="fab fa-cc-visa hover:text-slate-600 transition" title="Visa"></i>
                                 <i class="fab fa-cc-mastercard hover:text-slate-600 transition" title="Mastercard"></i>
-                                <i class="fas fa-money-bill-wave hover:text-slate-600 transition" title="Paiement à la livraison"></i>
-                                <i class="fas fa-university hover:text-slate-600 transition" title="Virement bancaire"></i>
+                                <i class="fab fa-cc-stripe hover:text-slate-600 transition text-indigo-400" title="Stripe Secure"></i>
+                                <i class="fas fa-lock hover:text-slate-600 transition" title="SSL sécurisé"></i>
                             </div>
                             <p class="text-[11px] text-slate-400 leading-relaxed">
-                                Données chiffrées SSL. Vos paiements et informations sont entièrement sécurisés.
+                                Paiement 100 % sécurisé via Stripe. Vos données de carte ne transitent jamais par nos serveurs.
                             </p>
                         </div>
+
 
                     </div>
                 </div>

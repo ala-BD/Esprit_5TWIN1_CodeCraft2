@@ -65,7 +65,31 @@
     {{-- MAIN --}}
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 content-wrap pb-16">
 
-        {{-- SUCCESS / ERROR FLASH --}}
+        {{-- FLASH --}}
+        @if(session('remboursement'))
+            <div class="mb-5 bg-gradient-to-r from-purple-50 via-emerald-50 to-teal-50 border-2 border-purple-300 rounded-3xl p-5 shadow-sm">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center text-xl flex-shrink-0 shadow-md">
+                        <i class="fas fa-hand-holding-dollar"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-base font-extrabold text-purple-900 flex items-center gap-2">
+                            <span>L'argent a été remboursé avec succès !</span>
+                            <span class="px-2.5 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold">
+                                {{ is_array(session('remboursement')) ? session('remboursement')['montant'] : '' }} DT remboursés
+                            </span>
+                        </h3>
+                        <p class="text-sm text-slate-700 mt-1 leading-relaxed">
+                            {{ is_array(session('remboursement')) ? session('remboursement')['message'] : session('remboursement') }}
+                        </p>
+                        <div class="mt-2 text-xs font-semibold text-purple-800 flex items-center gap-1.5">
+                            <i class="fas fa-check-circle text-emerald-600"></i>
+                            <span>Remboursement Stripe confirmé · Le stock a été augmenté car le produit est rendu</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
         @if(session('success'))
             <div class="mb-5 flex items-start gap-3 bg-teal-50 border border-teal-200 rounded-2xl p-4 text-teal-800">
                 <i class="fas fa-circle-check mt-0.5 text-teal-600"></i>
@@ -260,11 +284,26 @@
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             {{-- Left --}}
                             <div>
-                                <div class="flex items-center gap-3 mb-1">
+                                <div class="flex items-center flex-wrap gap-2 mb-1">
                                     <span class="font-bold text-slate-900 font-mono text-sm">{{ $commande->numero }}</span>
                                     <span class="statut-badge {{ $badgeClass }}">
                                         {{ $commande->statutLabel() }}
                                     </span>
+                                    @if($commande->statut_paiement)
+                                        @php
+                                            $payBadgeMap = [
+                                                'PAYE'       => 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                                                'EN_ATTENTE' => 'bg-amber-100 text-amber-800 border-amber-200',
+                                                'ECHOUE'     => 'bg-rose-100 text-rose-800 border-rose-200',
+                                                'REMBOURSE'  => 'bg-purple-100 text-purple-800 border-purple-200',
+                                            ];
+                                            $payBadgeClass = $payBadgeMap[$commande->statut_paiement] ?? 'bg-slate-100 text-slate-700 border-slate-200';
+                                        @endphp
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $payBadgeClass }}">
+                                            <i class="fas {{ $commande->statut_paiement === 'PAYE' ? 'fa-check' : ($commande->statut_paiement === 'REMBOURSE' ? 'fa-rotate-left' : ($commande->statut_paiement === 'ECHOUE' ? 'fa-circle-xmark' : 'fa-clock')) }}"></i>
+                                            <span>{{ $commande->statutPaiementLabel() }}</span>
+                                        </span>
+                                    @endif
                                 </div>
                                 <p class="text-xs text-slate-500">
                                     <i class="fas fa-calendar-day mr-1"></i>
@@ -274,13 +313,26 @@
                                     @endif
                                 </p>
                                 <p class="text-xs text-slate-400 mt-1">
-                                    {{ $commande->lignes->count() }} article(s) · {{ $commande->mode_paiement }}
+                                    {{ $commande->lignes->count() }} article(s) · {{ \App\Models\Commande::MODES_PAIEMENT[$commande->mode_paiement] ?? $commande->mode_paiement }}
                                 </p>
                             </div>
                             {{-- Right --}}
                             <div class="flex flex-col items-end gap-2">
                                 <div class="text-lg font-extrabold text-teal-700">{{ number_format($commande->montant_total, 2) }} DT</div>
-                                <div class="flex items-center gap-2">
+                                <div class="flex items-center flex-wrap justify-end gap-2">
+                                    {{-- Stripe Pay button if pending payment --}}
+                                    @if($commande->enAttenteDeStripe() && $commande->user_id === auth()->id() && ! $commande->estPaye())
+                                        <form method="POST" action="{{ route('paiement.checkout') }}" class="inline">
+                                            @csrf
+                                            <input type="hidden" name="commande_id" value="{{ $commande->id }}">
+                                            <button type="submit"
+                                                    class="text-xs px-3 py-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white rounded-lg font-bold transition-all shadow-sm flex items-center gap-1.5">
+                                                <i class="fab fa-stripe text-sm"></i>
+                                                <span>Payer</span>
+                                            </button>
+                                        </form>
+                                    @endif
+
                                     <a href="{{ route('commandes.show', $commande) }}"
                                        class="text-xs px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold transition-colors"
                                        style="text-decoration:none">
@@ -308,4 +360,32 @@
 
     </div>
 </div>
+@endsection
+
+@section('scripts')
+@if(session('remboursement'))
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            icon: 'success',
+            title: "L'argent est remboursé !",
+            html: `<div class="text-left text-slate-700 text-sm space-y-2.5 mt-2">
+                     <p>Le montant de <strong class="text-emerald-600 text-base">{{ is_array(session('remboursement')) ? session('remboursement')['montant'] : '' }} DT</strong> a été remboursé avec succès via Stripe sur votre compte bancaire.</p>
+                     <div class="p-3 bg-purple-50 rounded-2xl border border-purple-200 text-xs text-purple-900">
+                       <i class="fas fa-box text-purple-600 mr-1"></i>
+                       <strong>Information Stock :</strong> Le stock du produit a été augmenté car le produit est rendu.
+                     </div>
+                   </div>`,
+            confirmButtonText: 'D\'accord, merci !',
+            confirmButtonColor: '#0d9488',
+            customClass: {
+                popup: 'rounded-3xl p-6 shadow-2xl',
+                confirmButton: 'px-6 py-2.5 rounded-xl font-bold text-white'
+            }
+        });
+    }
+});
+</script>
+@endif
 @endsection

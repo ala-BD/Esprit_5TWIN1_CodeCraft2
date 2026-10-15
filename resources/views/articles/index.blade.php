@@ -698,7 +698,7 @@
                             </div>
                             <div class="toggle-switch">
                                 <input type="checkbox" id="toggle-mine" name="mine" value="1"
-                                       {{ request()->boolean('mine') || request()->get('filter') === 'mine' ? 'checked' : '' }}
+                                       {{ request()->boolean('mine') || request()->input('filter') === 'mine' ? 'checked' : '' }}
                                        onchange="this.form.submit()">
                                 <span class="toggle-track"></span>
                             </div>
@@ -1081,7 +1081,7 @@
                             </span>
                         @endif
                     @endforeach
-                    @if(request()->boolean('mine') || request()->get('filter') === 'mine')
+                    @if(request()->boolean('mine') || request()->input('filter') === 'mine')
                         <span class="active-chip"><span>Mes articles</span> <a href="{{ route('articles.index', array_merge(request()->except(['mine','filter','page']))) }}"><i class="fas fa-times-circle"></i></a></span>
                     @endif
                     @if(request()->boolean('en_stock'))
@@ -1104,7 +1104,7 @@
                 @foreach($articles as $article)
                     @php
                         $isOwner = Auth::id() === $article->user_id;
-                        $isAdmin = Auth::user()->isAdmin();
+                        $isAdmin = Auth::user()?->role === 'ADMIN';
                         $statutClass = match($article->statut) {
                             'DISPONIBLE' => 'badge-statut-disponible',
                             'RESERVE'    => 'badge-statut-reserve',

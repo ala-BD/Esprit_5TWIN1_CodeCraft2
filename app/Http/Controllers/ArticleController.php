@@ -26,7 +26,7 @@ class ArticleController extends Controller
         $query = Article::with(['user', 'donVetement'])->latest();
 
         // Filtre "Mes articles uniquement"
-        $filterMine = $request->boolean('mine') || $request->get('filter') === 'mine';
+        $filterMine = $request->boolean('mine') || $request->input('filter') === 'mine';
         if ($filterMine) {
             $query->where('user_id', $request->user()->id);
         }
@@ -50,7 +50,7 @@ class ArticleController extends Controller
             ->when($request->filled('vendeur_role'), fn($q) => $q->vendeurRole($request->vendeur_role));
 
         // Tri
-        $sort = $request->get('tri', 'recent');
+        $sort = $request->input('tri', 'recent');
         match ($sort) {
             'prix_asc'  => $query->reorder('prix', 'asc'),
             'prix_desc' => $query->reorder('prix', 'desc'),
@@ -92,9 +92,9 @@ class ArticleController extends Controller
             'stats'         => $stats,
             'filterMine'    => $filterMine,
             'activeFilters' => count($activeFilters),
-            'currentQ'      => $request->get('q', ''),
-            'currentCat'    => $request->get('categorie', ''),
-            'currentStat'   => $request->get('statut', ''),
+            'currentQ'      => $request->input('q', ''),
+            'currentCat'    => $request->input('categorie', ''),
+            'currentStat'   => $request->input('statut', ''),
             'currentTri'    => $sort,
         ]);
     }
@@ -104,7 +104,7 @@ class ArticleController extends Controller
      */
     public function suggest(Request $request): JsonResponse
     {
-        $q = trim((string) $request->get('q', ''));
+        $q = trim((string) $request->input('q', ''));
         if (strlen($q) < 2) {
             return response()->json([]);
         }

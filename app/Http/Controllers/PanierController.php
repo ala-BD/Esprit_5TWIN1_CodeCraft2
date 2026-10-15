@@ -134,6 +134,7 @@ class PanierController extends Controller
         $panier = Panier::firstOrCreate(['user_id' => $user->id]);
 
         // Vérifie si l'article est déjà dans le panier
+        /** @var PanierLigne|null $ligne */
         $ligne = $panier->lignes()->where('article_id', $article->id)->first();
 
         if ($ligne) {
