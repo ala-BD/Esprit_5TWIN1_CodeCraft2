@@ -86,6 +86,7 @@ class Article extends Model
     public function donVetement(): BelongsTo  { return $this->belongsTo(DonVetement::class, 'don_vetement_id'); }
     public function lignesCommande(): HasMany  { return $this->hasMany(LigneCommande::class); }
     public function panierLignes(): HasMany    { return $this->hasMany(PanierLigne::class); }
+    public function avis(): HasMany            { return $this->hasMany(Avis::class); }
 
     // Query Scopes
     public function scopeRecherche(Builder $q, string $terme): Builder
@@ -110,10 +111,68 @@ class Article extends Model
     }
     public function scopeEnStock(Builder $q): Builder   { return $q->where('statut', self::STATUT_DISPONIBLE)->where('stock', '>', 0); }
     public function scopeDisponible(Builder $q): Builder { return $q->where('statut', self::STATUT_DISPONIBLE)->where('stock', '>', 0); }
-    public function scopeNoteMin(Builder $q, float $noteMin): Builder { return $q; }
+    
+    /**
+     * Filtrer les articles ayant au moins une note moyenne donnée
+     */
+    public function scopeNoteMin(Builder $q, float $noteMin): Builder
+    {
+        $min = (float) $noteMin;
+        return $q->whereIn('articles.id', function ($sub) use ($min) {
+            $sub->select('article_id')
+                ->from('avis')
+                ->groupBy('article_id')
+                ->havingRaw("AVG(note_globale) >= {$min}");
+        });
+    }
+
+    /**
+     * Trier par note moyenne décroissante
+     */
+    public function scopeMieuxNotes(Builder $q): Builder
+    {
+        return $q->withAvg('avis', 'note_globale')
+                 ->orderByDesc('avis_avg_note_globale');
+    }
 
     // Helpers
     public function isDisponible(): bool { return $this->statut === self::STATUT_DISPONIBLE && $this->stock > 0; }
+
+    /**
+     * Note moyenne globale de l'article (1 décimale, ex: 4.8)
+     */
+    public function noteMoyenne(): float
+    {
+        if (isset($this->avis_avg_note_globale)) {
+            return round((float) $this->avis_avg_note_globale, 1);
+        }
+        $avg = $this->avis()->avg('note_globale');
+        return $avg !== null ? round((float) $avg, 1) : 0.0;
+    }
+
+    /**
+     * Nombre d'avis reçus
+     */
+    public function nbAvis(): int
+    {
+        if (isset($this->avis_count)) {
+            return (int) $this->avis_count;
+        }
+        return $this->avis()->count();
+    }
+
+    /**
+     * Détail des notes moyennes par critère
+     */
+    public function noteMoyenneParCritere(): array
+    {
+        return [
+            'livraison' => round((float) ($this->avis()->avg('note_livraison') ?? 0), 1),
+            'article'   => round((float) ($this->avis()->avg('note_article') ?? 0), 1),
+            'clarte'    => round((float) ($this->avis()->avg('note_clarte') ?? 0), 1),
+            'service'   => round((float) ($this->avis()->avg('note_service') ?? 0), 1),
+        ];
+    }
 
     public function getFirstImageUrl(): ?string
     {

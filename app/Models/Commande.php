@@ -156,6 +156,11 @@ class Commande extends Model
         return $this->hasMany(LigneCommande::class);
     }
 
+    public function avis(): HasMany
+    {
+        return $this->hasMany(Avis::class);
+    }
+
     // -------------------------------------------------------
     // Helpers
     // -------------------------------------------------------
@@ -196,6 +201,30 @@ class Commande extends Model
     public function estExpediee(): bool
     {
         return in_array($this->statut, [self::STATUT_EXPEDIEE, self::STATUT_LIVREE]);
+    }
+
+    /** Whether the order has been delivered */
+    public function estLivree(): bool
+    {
+        return $this->statut === self::STATUT_LIVREE;
+    }
+
+    /** Whether client can confirm delivery (when order is EXPEDIEE) */
+    public function peutConfirmerLivraison(): bool
+    {
+        return $this->statut === self::STATUT_EXPEDIEE;
+    }
+
+    /** Check if an article already has a review in this order */
+    public function hasAvisForArticle(int $articleId): bool
+    {
+        return $this->avis()->where('article_id', $articleId)->exists();
+    }
+
+    /** Get the review for an article in this order */
+    public function getAvisForArticle(int $articleId): ?Avis
+    {
+        return $this->avis()->where('article_id', $articleId)->first();
     }
 
     /** Push a new status event with timestamp into the timeline */

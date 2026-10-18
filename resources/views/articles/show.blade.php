@@ -80,8 +80,17 @@
 
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 border border-teal-400/30 text-teal-300 text-xs font-semibold mb-2">
-                        <span>{{ $article->categorie }}</span>
+                    <div class="flex items-center flex-wrap gap-2 mb-2">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 border border-teal-400/30 text-teal-300 text-xs font-semibold">
+                            <span>{{ $article->categorie }}</span>
+                        </div>
+                        @if($article->nbAvis() > 0)
+                            <a href="#section-avis" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 border border-amber-300/30 text-amber-300 text-xs font-bold hover:bg-amber-400/30 transition-colors" style="text-decoration:none">
+                                <i class="fas fa-star text-amber-300 text-[10px]"></i>
+                                <span>{{ number_format($article->noteMoyenne(), 1) }} / 5</span>
+                                <span class="text-white/60 font-normal">({{ $article->nbAvis() }} avis)</span>
+                            </a>
+                        @endif
                     </div>
                     <h1 class="font-display text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                         {{ $article->titre }}
@@ -444,6 +453,17 @@
                                 <span>{{ $article->user->telephone }}</span>
                             </div>
                         @endif
+
+                        @if($article->user->nbAvisRecus() > 0)
+                            <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                                <span class="text-slate-500 font-medium">Note vendeur :</span>
+                                <span class="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                                    <i class="fas fa-star text-amber-500 text-[10px]"></i>
+                                    <span>{{ number_format($article->user->noteMoyenne(), 1) }} / 5</span>
+                                    <span class="text-slate-400 font-normal">({{ $article->user->nbAvisRecus() }})</span>
+                                </span>
+                            </div>
+                        @endif
                     </div>
                 </div>
 
@@ -471,6 +491,373 @@
             </div>
 
         </div>
+
+        {{-- ========================================== --}}
+        {{-- ===== SECTION AVIS CLIENTS & ÉVALUATIONS ===== --}}
+        {{-- ========================================== --}}
+        <div id="section-avis" class="mt-12 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-10">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center text-xl shadow-xs">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-display text-xl sm:text-2xl font-bold text-slate-900">
+                            Avis clients vérifiés
+                        </h2>
+                        <p class="text-xs text-slate-500">
+                            Évaluations authentiques déposées par des acheteurs ayant reçu cet article
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <i class="fas fa-shield-alt text-emerald-600"></i>
+                        <span>Avis 100% vérifiés</span>
+                    </span>
+                </div>
+            </div>
+
+            @if($article->nbAvis() > 0)
+                {{-- Global Rating Breakdown Card --}}
+                <div class="my-8 p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/60 border border-slate-200">
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+                        {{-- Overall Score --}}
+                        <div class="md:col-span-4 text-center md:border-r md:border-slate-200 md:pr-8">
+                            <div class="font-display font-black text-5xl text-slate-900 tracking-tight mb-2">
+                                {{ number_format($article->noteMoyenne(), 1) }}
+                                <span class="text-xl font-bold text-slate-400">/ 5</span>
+                            </div>
+                            <div class="flex items-center justify-center gap-1 text-amber-400 text-lg mb-2">
+                                @php
+                                    $rating = $article->noteMoyenne();
+                                @endphp
+                                @for($i = 1; $i <= 5; $i++)
+                                    @if($rating >= $i)
+                                        <i class="fas fa-star"></i>
+                                    @elseif($rating >= $i - 0.5)
+                                        <i class="fas fa-star-half-alt"></i>
+                                    @else
+                                        <i class="far fa-star text-slate-300"></i>
+                                    @endif
+                                @endfor
+                            </div>
+                            <p class="text-xs text-slate-500 font-medium">
+                                Basé sur <strong>{{ $article->nbAvis() }}</strong> évaluation{{ $article->nbAvis() > 1 ? 's' : '' }}
+                            </p>
+                        </div>
+
+                        {{-- 4 Criteria Progress Bars --}}
+                        <div class="md:col-span-8 space-y-3.5">
+                            @php
+                                $critereConfigs = [
+                                    'note_livraison' => ['label' => 'Livraison & Expédition', 'icon' => 'fa-truck-fast', 'color' => 'bg-teal-500'],
+                                    'note_article'   => ['label' => 'Article & Conformité', 'icon' => 'fa-box-open', 'color' => 'bg-emerald-500'],
+                                    'note_clarte'    => ['label' => 'Clarté de la description', 'icon' => 'fa-file-lines', 'color' => 'bg-indigo-500'],
+                                    'note_service'   => ['label' => 'Service & Communication', 'icon' => 'fa-headset', 'color' => 'bg-amber-500'],
+                                ];
+                            @endphp
+
+                            @foreach($critereConfigs as $critereKey => $critConf)
+                                @php
+                                    $critScore = $article->noteMoyenneParCritere($critereKey);
+                                    $critPct = round(($critScore / 5) * 100);
+                                @endphp
+                                <div>
+                                    <div class="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1.5">
+                                        <span class="flex items-center gap-2">
+                                            <i class="fas {{ $critConf['icon'] }} text-slate-400 text-[11px] w-4"></i>
+                                            <span>{{ $critConf['label'] }}</span>
+                                        </span>
+                                        <span class="font-bold text-slate-900">{{ number_format($critScore, 1) }} / 5</span>
+                                    </div>
+                                    <div class="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                                        <div class="h-full rounded-full {{ $critConf['color'] }} transition-all duration-500" style="width: {{ $critPct }}%"></div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Sorting Bar --}}
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-100">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        {{ $avisList->count() }} avis affiché{{ $avisList->count() > 1 ? 's' : '' }}
+                    </span>
+
+                    <div class="flex items-center flex-wrap gap-2 text-xs">
+                        <span class="text-slate-400 mr-1 font-medium">Trier par :</span>
+                        @php
+                            $triOptions = [
+                                'utiles'    => ['label' => 'Plus utiles', 'icon' => 'fa-thumbs-up'],
+                                'recent'    => ['label' => 'Plus récents', 'icon' => 'fa-clock'],
+                                'note_desc' => ['label' => 'Meilleures notes', 'icon' => 'fa-arrow-trend-up'],
+                                'note_asc'  => ['label' => 'Moins bonnes notes', 'icon' => 'fa-arrow-trend-down'],
+                            ];
+                        @endphp
+                        @foreach($triOptions as $triKey => $triData)
+                            <a href="{{ route('articles.show', array_merge(request()->except(['avis_tri']), ['avis_tri' => $triKey])) }}#section-avis"
+                               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition-all {{ $currentAvisTri === $triKey ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-600' }}"
+                               style="text-decoration:none">
+                                <i class="fas {{ $triData['icon'] }} text-[10px]"></i>
+                                <span>{{ $triData['label'] }}</span>
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+
+                {{-- Reviews List --}}
+                <div class="space-y-6">
+                    @foreach($avisList as $avis)
+                        <div class="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all">
+                            {{-- Review Author & Date --}}
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-teal-100 text-teal-700 font-bold flex items-center justify-center text-xs flex-shrink-0">
+                                        {{ $avis->user->initials }}
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-bold text-slate-900 text-sm">
+                                                {{ $avis->user->full_name ?: $avis->user->name }}
+                                            </h4>
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Achat vérifié dans une commande livrée">
+                                                <i class="fas fa-check-circle text-emerald-600"></i>
+                                                <span>Achat vérifié</span>
+                                            </span>
+                                        </div>
+                                        <p class="text-[11px] text-slate-400">
+                                            Évalué {{ $avis->created_at->diffForHumans() }}
+                                            @if($avis->updated_at->gt($avis->created_at))
+                                                <span class="text-slate-400 italic">(modifié)</span>
+                                            @endif
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {{-- Stars & Overall Note --}}
+                                <div class="flex items-center gap-2">
+                                    <div class="flex items-center gap-1 text-amber-400 text-sm">
+                                        @for($s = 1; $s <= 5; $s++)
+                                            @if($avis->note_globale >= $s)
+                                                <i class="fas fa-star"></i>
+                                            @elseif($avis->note_globale >= $s - 0.5)
+                                                <i class="fas fa-star-half-alt"></i>
+                                            @else
+                                                <i class="far fa-star text-slate-200"></i>
+                                            @endif
+                                        @endfor
+                                    </div>
+                                    <span class="px-2.5 py-1 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-black">
+                                        {{ number_format($avis->note_globale, 2) }} / 5
+                                    </span>
+                                </div>
+                            </div>
+
+                            {{-- 4 Criteria Badges --}}
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px]">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-slate-500"><i class="fas fa-truck-fast text-slate-400 mr-1"></i> Livraison :</span>
+                                    <span class="font-bold text-slate-800">{{ $avis->note_livraison }}/5</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-slate-500"><i class="fas fa-box-open text-slate-400 mr-1"></i> Article :</span>
+                                    <span class="font-bold text-slate-800">{{ $avis->note_article }}/5</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-slate-500"><i class="fas fa-file-lines text-slate-400 mr-1"></i> Clarté :</span>
+                                    <span class="font-bold text-slate-800">{{ $avis->note_clarte }}/5</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-slate-500"><i class="fas fa-headset text-slate-400 mr-1"></i> Service :</span>
+                                    <span class="font-bold text-slate-800">{{ $avis->note_service }}/5</span>
+                                </div>
+                            </div>
+
+                            {{-- Comment Content --}}
+                            @if($avis->commentaire)
+                                <div class="mb-4 text-slate-700 text-sm leading-relaxed p-3.5 bg-slate-50/50 rounded-xl border-l-4 border-teal-500">
+                                    <p class="whitespace-pre-line">{{ $avis->commentaire }}</p>
+                                </div>
+                            @endif
+
+                            {{-- Bottom Row: Likes/Dislikes & Author/Admin Actions --}}
+                            <div class="flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                                {{-- Reaction Buttons (Alpine.js + Axios) --}}
+                                <div x-data="{
+                                    avisId: {{ $avis->id }},
+                                    likes: {{ $avis->likesCount() }},
+                                    dislikes: {{ $avis->dislikesCount() }},
+                                    userVote: '{{ $avis->getUserVote(auth()->id()) ?? '' }}',
+                                    isLoggedIn: {{ auth()->check() ? 'true' : 'false' }},
+                                    isAuthor: {{ auth()->id() === $avis->user_id ? 'true' : 'false' }},
+                                    loading: false,
+                                    async vote(type) {
+                                        if (!this.isLoggedIn) {
+                                            retissAlert({ title: 'Connexion requise', text: 'Veuillez vous connecter pour réagir à un avis.', icon: 'info' });
+                                            return;
+                                        }
+                                        if (this.isAuthor) {
+                                            retissAlert({ title: 'Non autorisé', text: 'Vous ne pouvez pas voter sur votre propre avis.', icon: 'warning' });
+                                            return;
+                                        }
+                                        if (this.loading) return;
+                                        this.loading = true;
+                                        try {
+                                            const res = await axios.post(`/avis/${this.avisId}/vote`, { type: type });
+                                            if (res.data.success) {
+                                                this.userVote = res.data.user_vote || '';
+                                                this.likes = res.data.likes_count;
+                                                this.dislikes = res.data.dislikes_count;
+                                            }
+                                        } catch (err) {
+                                            const msg = err.response?.data?.message || 'Erreur lors de l\'enregistrement du vote.';
+                                            retissAlert({ title: 'Erreur', text: msg, icon: 'error' });
+                                        } finally {
+                                            this.loading = false;
+                                        }
+                                    }
+                                }" class="flex items-center gap-2">
+                                    <span class="text-xs text-slate-400 mr-1 hidden sm:inline">Cet avis vous a-t-il été utile ?</span>
+
+                                    {{-- Like button --}}
+                                    <button type="button"
+                                            @click="vote('like')"
+                                            :disabled="loading || isAuthor"
+                                            :class="userVote === 'like' ? 'bg-emerald-100 text-emerald-800 border-emerald-300 ring-2 ring-emerald-400/30 font-bold' : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'"
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all disabled:opacity-50"
+                                            :title="isAuthor ? 'Vous êtes l\'auteur de cet avis' : 'Avis utile (J\'aime)'">
+                                        <i class="fas fa-thumbs-up" :class="userVote === 'like' ? 'text-emerald-600' : 'text-slate-400'"></i>
+                                        <span x-text="likes"></span>
+                                    </button>
+
+                                    {{-- Dislike button --}}
+                                    <button type="button"
+                                            @click="vote('dislike')"
+                                            :disabled="loading || isAuthor"
+                                            :class="userVote === 'dislike' ? 'bg-rose-100 text-rose-800 border-rose-300 ring-2 ring-rose-400/30 font-bold' : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'"
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all disabled:opacity-50"
+                                            :title="isAuthor ? 'Vous êtes l\'auteur de cet avis' : 'Pas utile (Je n\'aime pas)'">
+                                        <i class="fas fa-thumbs-down" :class="userVote === 'dislike' ? 'text-rose-600' : 'text-slate-400'"></i>
+                                        <span x-text="dislikes"></span>
+                                    </button>
+
+                                    @if(auth()->id() === $avis->user_id)
+                                        <span class="text-[10px] text-slate-400 italic ml-1">(Votre avis)</span>
+                                    @endif
+                                </div>
+
+                                {{-- Edit / Delete actions --}}
+                                <div class="flex items-center gap-2">
+                                    @can('update', $avis)
+                                        <a href="{{ route('avis.edit', $avis) }}"
+                                           class="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-slate-100 hover:bg-teal-50 text-slate-600 hover:text-teal-700 text-xs font-semibold transition-colors"
+                                           style="text-decoration:none">
+                                            <i class="fas fa-pen-to-square text-[10px]"></i>
+                                            <span>Modifier</span>
+                                        </a>
+                                    @endcan
+
+                                    @can('delete', $avis)
+                                        <form method="POST"
+                                              action="{{ route('avis.destroy', $avis) }}"
+                                              data-confirm="Êtes-vous sûr de vouloir supprimer cet avis ? Cette action est irréversible."
+                                              data-confirm-title="Supprimer l'avis"
+                                              data-confirm-button="Oui, supprimer"
+                                              class="inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit"
+                                                    class="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-700 text-xs font-semibold transition-colors"
+                                                    title="Supprimer cet avis">
+                                                <i class="fas fa-trash-alt text-[10px]"></i>
+                                                <span>Supprimer</span>
+                                            </button>
+                                        </form>
+                                    @endcan
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                {{-- Empty State for Reviews --}}
+                <div class="py-12 text-center">
+                    <div class="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center text-2xl mx-auto mb-4">
+                        <i class="far fa-star"></i>
+                    </div>
+                    <h3 class="font-display font-bold text-slate-800 text-lg mb-1">
+                        Aucun avis pour le moment
+                    </h3>
+                    <p class="text-xs text-slate-500 max-w-md mx-auto leading-relaxed mb-2">
+                        Les évaluations sont réservées aux clients ayant commandé cet article et confirmé sa bonne réception. Soyez le premier à commander pour partager votre expérience !
+                    </p>
+                </div>
+            @endif
+        </div>
+
+        {{-- Related Articles Section --}}
+        @if(isset($relatedArticles) && $relatedArticles->count() > 0)
+            <div class="mt-12">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h3 class="font-display text-xl font-bold text-slate-900">Articles similaires dans la même catégorie</h3>
+                        <p class="text-xs text-slate-500">D'autres créations textiles éco-responsables à découvrir</p>
+                    </div>
+                    <a href="{{ route('articles.index', ['categorie' => $article->categorie]) }}" class="text-xs font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1" style="text-decoration:none">
+                        <span>Voir tout</span>
+                        <i class="fas fa-arrow-right text-[10px]"></i>
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    @foreach($relatedArticles as $rel)
+                        <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+                            <div>
+                                <div class="h-44 bg-slate-900 overflow-hidden relative">
+                                    @if($rel->getFirstImageUrl())
+                                        <img src="{{ $rel->getFirstImageUrl() }}" alt="{{ $rel->titre }}" class="w-full h-full object-cover">
+                                    @else
+                                        <div class="w-full h-full flex items-center justify-center text-white/30 text-4xl">
+                                            <i class="fas fa-tshirt"></i>
+                                        </div>
+                                    @endif
+                                    <div class="absolute top-3 right-3">
+                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/90 backdrop-blur-sm text-slate-800">
+                                            {{ $rel->categorie }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="p-4">
+                                    <h4 class="font-bold text-slate-900 text-sm mb-1 truncate">
+                                        <a href="{{ route('articles.show', $rel) }}" class="hover:text-teal-600 transition-colors" style="text-decoration:none; color:inherit;">
+                                            {{ $rel->titre }}
+                                        </a>
+                                    </h4>
+                                    @if($rel->nbAvis() > 0)
+                                        <div class="flex items-center gap-1 text-[11px] text-amber-600 font-bold mb-2">
+                                            <i class="fas fa-star text-amber-500 text-[10px]"></i>
+                                            <span>{{ number_format($rel->noteMoyenne(), 1) }}</span>
+                                            <span class="text-slate-400 font-normal">({{ $rel->nbAvis() }})</span>
+                                        </div>
+                                    @endif
+                                    <div class="font-display font-extrabold text-base text-teal-700">
+                                        {{ number_format($rel->prix, 2) }} DT
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-slate-50 border-t border-slate-100">
+                                <a href="{{ route('articles.show', $rel) }}" class="block text-center py-2 px-3 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 transition-colors" style="text-decoration:none">
+                                    Voir l'article
+                                </a>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
 
     </div>
 </div>

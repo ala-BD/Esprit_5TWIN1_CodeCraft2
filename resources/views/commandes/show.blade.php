@@ -123,6 +123,35 @@
             </div>
         @endif
 
+        {{-- Delivery Confirmation Banner for Buyer --}}
+        @if($commande->peutConfirmerLivraison() && (auth()->id() === $commande->user_id || auth()->user()->isAdmin()))
+            <div class="mb-6 p-5 rounded-3xl bg-gradient-to-r from-emerald-600 via-teal-600 to-forest text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-3xl flex-shrink-0 shadow-inner">
+                        📦
+                    </div>
+                    <div>
+                        <span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white/25 text-white mb-1">
+                            Action client requise
+                        </span>
+                        <h3 class="font-extrabold text-base leading-tight">Votre commande est-elle bien arrivée ?</h3>
+                        <p class="text-xs text-white/90 mt-0.5">Si vous avez bien reçu votre colis, confirmez la livraison ci-contre afin de finaliser votre commande et évaluer vos articles.</p>
+                    </div>
+                </div>
+                <form action="{{ route('commandes.livraison', $commande) }}" method="POST" class="flex-shrink-0"
+                      data-confirm="Confirmez-vous avoir bien reçu votre commande {{ $commande->numero }} ? Elle passera en statut Livrée et vous pourrez évaluer vos articles."
+                      data-confirm-title="Confirmer la réception de la commande"
+                      data-confirm-button="Oui, commande bien reçue">
+                    @csrf
+                    @method('PATCH')
+                    <button type="submit" class="w-full md:w-auto px-6 py-3.5 bg-white text-emerald-800 hover:bg-emerald-50 font-black rounded-2xl text-sm shadow-xl transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2.5">
+                        <i class="fas fa-circle-check text-emerald-600 text-base"></i>
+                        <span>La commande est venue et bien livrée</span>
+                    </button>
+                </form>
+            </div>
+        @endif
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             {{-- LEFT COLUMN --}}
@@ -241,6 +270,39 @@
                                         <p class="text-xs text-teal-600 font-semibold mt-0.5">
                                             <i class="fas fa-tag"></i> Remise 10% appliquée
                                         </p>
+                                    @endif
+
+                                    {{-- Review section if order is delivered --}}
+                                    @if($article)
+                                        @if($commande->estLivree())
+                                            @php $existingAvis = $commande->getAvisForArticle($article->id); @endphp
+                                            @if($existingAvis)
+                                                <div class="mt-2.5 flex flex-wrap items-center gap-2">
+                                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                                                        <i class="fas fa-star text-amber-500 text-xs"></i>
+                                                        Votre avis : {{ number_format($existingAvis->note_globale, 1) }} / 5
+                                                    </span>
+                                                    @can('update', $existingAvis)
+                                                        <a href="{{ route('avis.edit', $existingAvis) }}"
+                                                           class="inline-flex items-center gap-1 text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-200 transition-colors">
+                                                            <i class="fas fa-pen text-[10px]"></i> Modifier
+                                                        </a>
+                                                    @endcan
+                                                </div>
+                                            @elseif(auth()->id() === $commande->user_id && $article->user_id !== auth()->id())
+                                                <div class="mt-2.5">
+                                                    <a href="{{ route('avis.create', ['commande' => $commande, 'article' => $article]) }}"
+                                                       class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm transition-all transform hover:-translate-y-0.5">
+                                                        <i class="fas fa-star text-xs"></i>
+                                                        <span>Laisser un avis</span>
+                                                    </a>
+                                                </div>
+                                            @endif
+                                        @elseif($commande->estExpediee() && auth()->id() === $commande->user_id)
+                                            <p class="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
+                                                <i class="fas fa-lock text-[10px]"></i> Évaluation disponible dès confirmation de la livraison
+                                            </p>
+                                        @endif
                                     @endif
                                 </div>
                                 {{-- Price --}}
@@ -384,6 +446,22 @@
                 {{-- ACTIONS --}}
                 <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-3">
                     <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Actions</h3>
+
+                    {{-- Client Delivery Confirmation Button in sidebar --}}
+                    @if($commande->peutConfirmerLivraison() && (auth()->id() === $commande->user_id || auth()->user()->isAdmin()))
+                        <form action="{{ route('commandes.livraison', $commande) }}" method="POST"
+                              data-confirm="Confirmez-vous que votre commande {{ $commande->numero }} a bien été livrée ?"
+                              data-confirm-title="Confirmer la livraison"
+                              data-confirm-button="Oui, commande reçue">
+                            @csrf
+                            @method('PATCH')
+                            <button type="submit"
+                                    class="flex items-center justify-center gap-2 w-full px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm font-bold shadow-md transition-all">
+                                <i class="fas fa-box-check text-base"></i>
+                                <span>Commande bien livrée</span>
+                            </button>
+                        </form>
+                    @endif
 
                     {{-- PDF Invoice --}}
                     <a href="{{ route('commandes.invoice', $commande) }}"

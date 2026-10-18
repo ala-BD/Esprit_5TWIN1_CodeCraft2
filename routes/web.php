@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdresseController;
 use App\Http\Controllers\ArticleController;
+use App\Http\Controllers\AvisController;
 use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\PaiementController;
 use App\Http\Controllers\PanierController;
@@ -106,7 +107,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('commandes',                   [CommandeController::class, 'store'])->name('commandes.store');
     Route::get('commandes/{commande}/invoice', [CommandeController::class, 'invoice'])->name('commandes.invoice');
     Route::get('commandes/{commande}/qrcode',  [CommandeController::class, 'qrCode'])->name('commandes.qrcode');
-    Route::patch('commandes/{commande}/statut',[CommandeController::class, 'updateStatut'])->name('commandes.statut');
+    Route::patch('commandes/{commande}/statut',   [CommandeController::class, 'updateStatut'])->name('commandes.statut');
+    Route::patch('commandes/{commande}/livraison',[CommandeController::class, 'confirmerLivraison'])->name('commandes.livraison');
 
     Route::resource('commandes', CommandeController::class)->except(['create', 'store']);
 
@@ -130,6 +132,19 @@ Route::middleware(['auth'])->group(function () {
     Route::get('paiement/succes/{commande}',        [PaiementController::class, 'succes'])   ->name('paiement.succes');
     Route::get('paiement/annule/{commande}',        [PaiementController::class, 'annule'])   ->name('paiement.annule');
     Route::post('paiement/{commande}/rembourser',   [PaiementController::class, 'rembourser'])->name('paiement.rembourser');
+    Route::post('paiement/{commande}/expedier',     [PaiementController::class, 'expedier'])  ->name('paiement.expedier');
+
+    /*
+    |----------------------------------------------------------------------
+    | Avis & Évaluations clients (Module Avis)
+    |----------------------------------------------------------------------
+    */
+    Route::get('commandes/{commande}/articles/{article}/avis/create', [AvisController::class, 'create'])->name('avis.create');
+    Route::post('commandes/{commande}/articles/{article}/avis',        [AvisController::class, 'store'])->name('avis.store');
+    Route::get('avis/{avis}/edit',                                     [AvisController::class, 'edit'])->name('avis.edit');
+    Route::match(['put', 'patch'], 'avis/{avis}',                      [AvisController::class, 'update'])->name('avis.update');
+    Route::delete('avis/{avis}',                                       [AvisController::class, 'destroy'])->name('avis.destroy');
+    Route::post('avis/{avis}/vote',                                    [AvisController::class, 'vote'])->name('avis.vote');
 });
 
 /*

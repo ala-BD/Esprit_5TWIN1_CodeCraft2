@@ -981,6 +981,41 @@
                     </div>
                 </div>
 
+                {{-- Note minimale (Avis) --}}
+                <div class="fs">
+                    <button type="button" class="fs-trigger" aria-expanded="{{ request()->filled('note_min') ? 'true' : 'false' }}" onclick="toggleSection(this)">
+                        <span class="fs-title">
+                            <span class="fs-title-icon bg-amber-50 text-amber-500"><i class="fas fa-star"></i></span>
+                            Note minimale
+                            @if(request()->filled('note_min'))
+                                <span class="fs-badge">≥ {{ request('note_min') }}★</span>
+                            @endif
+                        </span>
+                        <i class="fas fa-chevron-down fs-chevron"></i>
+                    </button>
+                    <div class="fs-body">
+                        @php
+                        $noteOptions = [
+                            '4' => '4 étoiles et plus',
+                            '3' => '3 étoiles et plus',
+                            '2' => '2 étoiles et plus',
+                            '1' => '1 étoile et plus',
+                        ];
+                        @endphp
+                        @foreach($noteOptions as $minVal => $minLabel)
+                            @php $isMinActive = (string) request('note_min') === (string) $minVal; @endphp
+                            <a href="{{ route('articles.index', array_merge(request()->except(['note_min','page']), ['note_min' => $isMinActive ? '' : $minVal])) }}"
+                               class="etat-row {{ $isMinActive ? 'active' : '' }}">
+                                <span class="text-amber-500 text-xs">
+                                    @for($s=0; $s < (int)$minVal; $s++) <i class="fas fa-star etat-star"></i> @endfor
+                                    @for($s=(int)$minVal; $s < 5; $s++) <i class="far fa-star etat-star text-slate-200"></i> @endfor
+                                </span>
+                                <span class="text-[11px] font-semibold text-slate-700">{{ $minLabel }}</span>
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+
                 {{-- Sticky footer on Mobile Drawer --}}
                 <div class="p-3 bg-white/95 backdrop-blur-md border-t border-slate-100 lg:hidden sticky bottom-0 z-20 shadow-lg">
                     <button type="submit" class="w-full py-3 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-md shadow-teal-700/20"
@@ -1032,9 +1067,10 @@
                     <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Trier :</span>
                     @php
                     $sortOptions = [
-                        'recent'    => ['label'=>'Récents', 'icon'=>'fa-clock'],
-                        'prix_asc'  => ['label'=>'Prix croissant', 'icon'=>'fa-sort-amount-up'],
-                        'prix_desc' => ['label'=>'Prix décroissant', 'icon'=>'fa-sort-amount-down'],
+                        'recent'      => ['label'=>'Récents', 'icon'=>'fa-clock'],
+                        'mieux_notes' => ['label'=>'Mieux notés', 'icon'=>'fa-star'],
+                        'prix_asc'    => ['label'=>'Prix croissant', 'icon'=>'fa-sort-amount-up'],
+                        'prix_desc'   => ['label'=>'Prix décroissant', 'icon'=>'fa-sort-amount-down'],
                     ];
                     @endphp
                     @foreach($sortOptions as $key => $opt)
@@ -1081,6 +1117,13 @@
                             </span>
                         @endif
                     @endforeach
+                    @if(request()->filled('note_min'))
+                        <span class="active-chip">
+                            <span>Note min:</span>
+                            <strong>≥ {{ request('note_min') }}★</strong>
+                            <a href="{{ route('articles.index', array_merge(request()->except(['note_min','page']))) }}" title="Supprimer ce filtre"><i class="fas fa-times-circle"></i></a>
+                        </span>
+                    @endif
                     @if(request()->boolean('mine') || request()->input('filter') === 'mine')
                         <span class="active-chip"><span>Mes articles</span> <a href="{{ route('articles.index', array_merge(request()->except(['mine','filter','page']))) }}"><i class="fas fa-times-circle"></i></a></span>
                     @endif
@@ -1181,7 +1224,18 @@
                                     </a>
                                 </h3>
                                 {{-- Meta badges --}}
-                                <div class="flex flex-wrap gap-1 mb-1.5">
+                                <div class="flex flex-wrap items-center gap-1 mb-1.5">
+                                    @php
+                                        $avgRating = $article->avis_avg_note_globale ?? $article->noteMoyenne();
+                                        $nbAvis = $article->avis_count ?? $article->nbAvis();
+                                    @endphp
+                                    @if($nbAvis > 0)
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200">
+                                            <i class="fas fa-star text-amber-500 text-[8px]"></i>
+                                            <span>{{ number_format($avgRating, 1) }}</span>
+                                            <span class="text-slate-400 font-normal">({{ $nbAvis }})</span>
+                                        </span>
+                                    @endif
                                     @if($article->taille)
                                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold"><i class="fas fa-ruler text-[8px]"></i>{{ $article->taille }}</span>
                                     @endif

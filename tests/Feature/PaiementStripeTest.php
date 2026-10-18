@@ -322,4 +322,51 @@ class PaiementStripeTest extends TestCase
         // Le stock doit augmenter de 3 : 1 + 3 = 4
         $this->assertEquals(4, $article->fresh()->stock, "Le stock doit être réaugmenté par l'admin car les produits sont rendus.");
     }
+
+    public function test_paid_order_transitions_to_en_preparation_on_success_page(): void
+    {
+        $user = User::factory()->create();
+        $commande = Commande::factory()->create([
+            'user_id'         => $user->id,
+            'statut'          => Commande::STATUT_CONFIRMEE,
+            'statut_paiement' => Commande::STATUT_PAIEMENT_PAYE,
+        ]);
+
+        $response = $this->actingAs($user)->get("/paiement/succes/{$commande->id}");
+        $response->assertOk();
+        $this->assertEquals(Commande::STATUT_EN_PREPARATION, $commande->fresh()->statut);
+    }
+
+    public function test_expedier_endpoint_transitions_order_from_preparation_to_expediee(): void
+    {
+        $user = User::factory()->create();
+        $commande = Commande::factory()->create([
+            'user_id'         => $user->id,
+            'statut'          => Commande::STATUT_EN_PREPARATION,
+            'statut_paiement' => Commande::STATUT_PAIEMENT_PAYE,
+        ]);
+
+        $response = $this->actingAs($user)->postJson("/paiement/{$commande->id}/expedier");
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'statut'  => Commande::STATUT_EXPEDIEE,
+        ]);
+        $this->assertEquals(Commande::STATUT_EXPEDIEE, $commande->fresh()->statut);
+    }
+
+    public function test_non_owner_cannot_expedier_order(): void
+    {
+        $user1 = User::factory()->create();
+        $user2 = User::factory()->create();
+        $commande = Commande::factory()->create([
+            'user_id'         => $user1->id,
+            'statut'          => Commande::STATUT_EN_PREPARATION,
+            'statut_paiement' => Commande::STATUT_PAIEMENT_PAYE,
+        ]);
+
+        $response = $this->actingAs($user2)->postJson("/paiement/{$commande->id}/expedier");
+        $response->assertForbidden();
+    }
 }
+

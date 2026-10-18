@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\Avis;
 use App\Models\Commande;
 use App\Models\Panier;
 use App\Models\PanierLigne;
+use App\Policies\AvisPolicy;
 use App\Policies\CommandePolicy;
 use App\Policies\PanierLignePolicy;
 use Illuminate\Support\Facades\Gate;
@@ -31,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
         // -------------------------------------------------------
         Gate::policy(PanierLigne::class, PanierLignePolicy::class);
         Gate::policy(Commande::class, CommandePolicy::class);
+        Gate::policy(Avis::class, AvisPolicy::class);
 
         // -------------------------------------------------------
         // View Composer — Compteur panier partagé dans toutes les vues

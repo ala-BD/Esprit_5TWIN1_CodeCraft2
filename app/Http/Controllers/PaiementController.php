@@ -279,9 +279,52 @@ class PaiementController extends Controller
             }
         }
 
+        // Si la commande est payée et encore en attente ou confirmée, elle passe en préparation
+        if ($commande->estPaye() && in_array($commande->statut, [Commande::STATUT_EN_ATTENTE_PAIEMENT, Commande::STATUT_EN_ATTENTE, Commande::STATUT_CONFIRMEE])) {
+            DB::transaction(function () use ($commande) {
+                $commande->update(['statut' => Commande::STATUT_EN_PREPARATION]);
+                $commande->pushHistorique(Commande::STATUT_EN_PREPARATION, 'Commande en cours de préparation à l\'atelier');
+            });
+            $commande->refresh();
+        }
+
         $commande->load(['lignes.article', 'adresse', 'user']);
 
         return view('paiement.succes', compact('commande'));
+    }
+
+    // =========================================================
+    // EXPEDIER — Passage automatique en statut Expédiée après préparation
+    // =========================================================
+    public function expedier(Request $request, Commande $commande): \Illuminate\Http\JsonResponse
+    {
+        $this->authorize('view', $commande);
+
+        if (in_array($commande->statut, [Commande::STATUT_EN_PREPARATION, Commande::STATUT_CONFIRMEE])) {
+            DB::transaction(function () use ($commande) {
+                $commande->update(['statut' => Commande::STATUT_EXPEDIEE]);
+                $commande->pushHistorique(Commande::STATUT_EXPEDIEE, 'Commande préparée et expédiée — remise au transporteur');
+            });
+
+            // Notification utilisateur
+            try {
+                $commande->load('user');
+                $commande->user->notify(new \App\Notifications\CommandeStatutNotification(
+                    $commande,
+                    Commande::STATUT_EXPEDIEE,
+                    "Bonne nouvelle ! Votre commande {$commande->numero} a été préparée avec succès et remise au transporteur pour expédition !"
+                ));
+            } catch (\Throwable $e) {
+                Log::warning('[Notification] Expedier error: ' . $e->getMessage());
+            }
+        }
+
+        return response()->json([
+            'success'     => true,
+            'statut'      => $commande->statut,
+            'statutLabel' => $commande->statutLabel(),
+            'message'     => 'Commande préparée et expédiée avec succès !',
+        ]);
     }
 
     // =========================================================
@@ -446,15 +489,16 @@ class PaiementController extends Controller
         DB::transaction(function () use ($commande, $session, $paymentIntentId) {
             $articleIds = $commande->lignes()->pluck('article_id');
 
-            // Update commande
+            // Update commande : passe en préparation après confirmation du paiement
             $commande->update([
-                'statut'                => Commande::STATUT_CONFIRMEE,
+                'statut'                => Commande::STATUT_EN_PREPARATION,
                 'stripe_session_id'     => $session->id,
                 'stripe_payment_intent' => $paymentIntentId,
                 'statut_paiement'       => Commande::STATUT_PAIEMENT_PAYE,
                 'date_paiement'         => now(),
             ]);
             $commande->pushHistorique(Commande::STATUT_CONFIRMEE, 'Paiement Stripe confirmé');
+            $commande->pushHistorique(Commande::STATUT_EN_PREPARATION, 'Commande en cours de préparation à l\'atelier');
 
             // Clear cart
             $commande->load('user');

@@ -643,6 +643,48 @@ class CommandeController extends Controller
     }
 
     // =========================================================
+    // CLIENT: Confirmer la bonne réception du colis (passe en statut LIVREE)
+    // =========================================================
+    public function confirmerLivraison(Request $request, Commande $commande): RedirectResponse
+    {
+        $this->authorize('view', $commande);
+
+        if ($commande->user_id !== $request->user()->id && ! $request->user()->isAdmin()) {
+            abort(403, 'Seul le client ayant passé cette commande peut confirmer la réception.');
+        }
+
+        if ($commande->statut === Commande::STATUT_LIVREE) {
+            return redirect()->route('commandes.show', $commande)->with('info', 'Cette commande est déjà marquée comme livrée.');
+        }
+
+        if (! in_array($commande->statut, [Commande::STATUT_EXPEDIEE, Commande::STATUT_EN_PREPARATION])) {
+            return redirect()->route('commandes.show', $commande)->with('error', 'La commande ne peut être marquée comme livrée que lorsqu\'elle est expédiée.');
+        }
+
+        DB::transaction(function () use ($commande) {
+            $commande->update(['statut' => Commande::STATUT_LIVREE]);
+            $commande->pushHistorique(
+                Commande::STATUT_LIVREE,
+                'Réception confirmée par le client — Commande bien reçue et livrée avec succès'
+            );
+        });
+
+        // Notification client
+        try {
+            $commande->load('user');
+            $commande->user->notify(new \App\Notifications\CommandeStatutNotification(
+                $commande,
+                Commande::STATUT_LIVREE,
+                "Merci d'avoir confirmé la bonne réception de votre commande {$commande->numero} ! Vous pouvez dès à présent évaluer vos articles achetés."
+            ));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Notification livraison client: ' . $e->getMessage());
+        }
+
+        return redirect()->route('commandes.show', $commande)->with('success', "🎉 Merci ! Votre commande {$commande->numero} a bien été marquée comme livrée. Vous pouvez dès maintenant évaluer les articles reçus !");
+    }
+
+    // =========================================================
     // HELPER — resolve cart items from request
     // =========================================================
     private function resolveCartItems(Request $request): array

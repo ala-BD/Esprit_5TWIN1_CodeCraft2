@@ -190,4 +190,45 @@ class User extends Authenticatable
     {
         return $this->hasOne(Panier::class);
     }
+
+    /**
+     * Relation 1-N : Avis rédigés par l'utilisateur.
+     */
+    public function avis(): HasMany
+    {
+        return $this->hasMany(Avis::class);
+    }
+
+    /**
+     * Relation 1-N : Votes émis par l'utilisateur (likes / dislikes).
+     */
+    public function avisVotes(): HasMany
+    {
+        return $this->hasMany(AvisVote::class);
+    }
+
+    /**
+     * Relation HasManyThrough : Avis reçus sur les articles vendus par cet utilisateur.
+     */
+    public function avisRecus(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
+    {
+        return $this->hasManyThrough(Avis::class, Article::class, 'user_id', 'article_id');
+    }
+
+    /**
+     * Note moyenne de l'Atelier / Vendeur (calculée sur l'ensemble de ses articles).
+     */
+    public function noteMoyenne(): float
+    {
+        $avg = $this->avisRecus()->avg('note_globale');
+        return $avg !== null ? round((float) $avg, 1) : 0.0;
+    }
+
+    /**
+     * Nombre total d'avis reçus sur ses articles.
+     */
+    public function nbAvisRecus(): int
+    {
+        return $this->avisRecus()->count();
+    }
 }

@@ -47,14 +47,19 @@ class ArticleController extends Controller
                 ))
             ->when($request->boolean('gratuits'), fn($q) => $q->donsGratuits())
             ->when($request->boolean('en_stock'), fn($q) => $q->enStock())
-            ->when($request->filled('vendeur_role'), fn($q) => $q->vendeurRole($request->vendeur_role));
+            ->when($request->filled('vendeur_role'), fn($q) => $q->vendeurRole($request->vendeur_role))
+            ->when($request->filled('note_min'), fn($q) => $q->noteMin((float) $request->note_min));
+
+        // Chargement des moyennes d'avis et nombre d'avis
+        $query->withAvg('avis', 'note_globale')->withCount('avis');
 
         // Tri
         $sort = $request->input('tri', 'recent');
         match ($sort) {
-            'prix_asc'  => $query->reorder('prix', 'asc'),
-            'prix_desc' => $query->reorder('prix', 'desc'),
-            default     => $query->reorder('created_at', 'desc'),
+            'prix_asc'    => $query->reorder('prix', 'asc'),
+            'prix_desc'   => $query->reorder('prix', 'desc'),
+            'mieux_notes' => $query->reorder('avis_avg_note_globale', 'desc')->orderByDesc('created_at'),
+            default       => $query->reorder('created_at', 'desc'),
         };
 
         $articles = $query->paginate(12)->withQueryString();
@@ -79,23 +84,25 @@ class ArticleController extends Controller
             $request->boolean('gratuits'),
             $request->boolean('en_stock'),
             $request->filled('vendeur_role'),
+            $request->filled('note_min'),
         ]);
 
         return view('articles.index', [
-            'articles'      => $articles,
-            'categories'    => Article::CATEGORIES,
-            'statuts'       => Article::STATUTS,
-            'tailles'       => Article::TAILLES,
-            'matieres'      => Article::MATIERES,
-            'etats'         => Article::ETATS,
-            'couleurs'      => Article::COULEURS,
-            'stats'         => $stats,
-            'filterMine'    => $filterMine,
-            'activeFilters' => count($activeFilters),
-            'currentQ'      => $request->input('q', ''),
-            'currentCat'    => $request->input('categorie', ''),
-            'currentStat'   => $request->input('statut', ''),
-            'currentTri'    => $sort,
+            'articles'       => $articles,
+            'categories'     => Article::CATEGORIES,
+            'statuts'        => Article::STATUTS,
+            'tailles'        => Article::TAILLES,
+            'matieres'       => Article::MATIERES,
+            'etats'          => Article::ETATS,
+            'couleurs'       => Article::COULEURS,
+            'stats'          => $stats,
+            'filterMine'     => $filterMine,
+            'activeFilters'  => count($activeFilters),
+            'currentQ'       => $request->input('q', ''),
+            'currentCat'     => $request->input('categorie', ''),
+            'currentStat'    => $request->input('statut', ''),
+            'currentTri'     => $sort,
+            'currentNoteMin' => $request->input('note_min', ''),
         ]);
     }
 
@@ -117,15 +124,33 @@ class ArticleController extends Controller
     }
 
     /**
-     * Affiche la page de detail d un article.
+     * Affiche la page de detail d un article avec ses avis clients et moyennes.
      */
-    public function show(Article $article): View
+    public function show(Request $request, Article $article): View
     {
         $this->authorize('view', $article);
 
         $article->load(['user', 'donVetement']);
+        $article->loadAvg('avis', 'note_globale')->loadCount('avis');
+
+        // Avis triés pour l'article
+        $avisTri = $request->input('avis_tri', 'utiles');
+        $avisQuery = $article->avis()->with(['user', 'votes']);
+
+        match ($avisTri) {
+            'recent'    => $avisQuery->latest(),
+            'note_desc' => $avisQuery->orderByDesc('note_globale')->latest(),
+            'note_asc'  => $avisQuery->orderBy('note_globale')->latest(),
+            'utiles'    => $avisQuery->withCount(['votes as likes_count' => fn($q) => $q->where('type', 'like')])
+                                     ->orderByDesc('likes_count')->latest(),
+            default     => $avisQuery->latest(),
+        };
+
+        $avisList = $avisQuery->get();
 
         $relatedArticles = Article::with('user')
+            ->withAvg('avis', 'note_globale')
+            ->withCount('avis')
             ->where('id', '!=', $article->id)
             ->where('categorie', $article->categorie)
             ->where('statut', Article::STATUT_DISPONIBLE)
@@ -134,6 +159,8 @@ class ArticleController extends Controller
 
         return view('articles.show', [
             'article'         => $article,
+            'avisList'        => $avisList,
+            'currentAvisTri'  => $avisTri,
             'relatedArticles' => $relatedArticles,
         ]);
     }
