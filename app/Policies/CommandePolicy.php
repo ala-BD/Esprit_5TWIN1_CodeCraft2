@@ -46,14 +46,14 @@ class CommandePolicy
     }
 
     /**
-     * Only the owner can cancel (before shipping), Admin always can.
+     * Only the owner can cancel or delete, Admin always can.
      */
     public function delete(User $user, Commande $commande): bool
     {
         if ($user->isAdmin()) {
             return true;
         }
-        return $commande->user_id === $user->id && $commande->estAnnulable();
+        return $commande->user_id === $user->id;
     }
 
     /**

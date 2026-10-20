@@ -303,6 +303,81 @@ class CommandeTest extends TestCase
         $this->assertNotSame(Commande::STATUT_ANNULEE, $commande->fresh()->statut);
     }
 
+    public function test_user_can_permanently_delete_already_cancelled_order(): void
+    {
+        $buyer = User::factory()->create();
+
+        $commande = Commande::create([
+            'user_id'            => $buyer->id,
+            'numero'             => 'TC-2026-000088',
+            'statut'             => Commande::STATUT_ANNULEE,
+            'montant_sous_total' => 40.00,
+            'montant_total'      => 47.00,
+            'frais_livraison'    => 7.00,
+            'mode_paiement'      => 'CARTE',
+        ]);
+
+        $response = $this->actingAs($buyer)->delete("/commandes/{$commande->id}");
+
+        $response->assertRedirect(route('commandes.index'));
+        $this->assertNull(Commande::find($commande->id));
+    }
+
+    public function test_user_can_force_delete_order_and_stock_is_restored(): void
+    {
+        $seller  = User::factory()->create(['role' => User::ROLE_ATELIER]);
+        $buyer   = User::factory()->create();
+        $article = Article::factory()->create(['user_id' => $seller->id, 'stock' => 2]);
+
+        $commande = Commande::create([
+            'user_id'            => $buyer->id,
+            'numero'             => 'TC-2026-000099',
+            'statut'             => Commande::STATUT_EN_ATTENTE,
+            'montant_sous_total' => 20.00,
+            'montant_total'      => 27.00,
+            'frais_livraison'    => 7.00,
+            'mode_paiement'      => 'A_LA_LIVRAISON',
+        ]);
+
+        LigneCommande::create([
+            'commande_id'   => $commande->id,
+            'article_id'    => $article->id,
+            'quantite'      => 3,
+            'prix_unitaire' => 20.00,
+            'remise'        => 0.00,
+            'total_ligne'   => 60.00,
+        ]);
+
+        $response = $this->actingAs($buyer)->delete("/commandes/{$commande->id}?force=1");
+
+        $response->assertRedirect(route('commandes.index'));
+        $this->assertNull(Commande::find($commande->id));
+        $this->assertSame(5, $article->fresh()->stock); // 2 + 3 = 5
+    }
+
+    public function test_delete_action_is_rendered_in_commandes_index(): void
+    {
+        $buyer = User::factory()->create();
+
+        $cActive = Commande::factory()->create([
+            'user_id' => $buyer->id,
+            'statut'  => Commande::STATUT_EN_ATTENTE,
+            'numero'  => 'TC-2026-000301',
+        ]);
+
+        $cCancelled = Commande::factory()->create([
+            'user_id' => $buyer->id,
+            'statut'  => Commande::STATUT_ANNULEE,
+            'numero'  => 'TC-2026-000302',
+        ]);
+
+        $response = $this->actingAs($buyer)->get('/commandes');
+
+        $response->assertOk();
+        $response->assertSee('Annuler');
+        $response->assertSee('Supprimer');
+    }
+
     public function test_user_can_download_invoice_pdf(): void
     {
         $seller  = User::factory()->create(['role' => User::ROLE_ATELIER]);

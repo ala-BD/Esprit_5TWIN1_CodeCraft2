@@ -345,6 +345,40 @@
                                             <i class="fas fa-pen mr-1"></i> Modifier
                                         </a>
                                     @endif
+
+                                    {{-- Delete / Cancel button --}}
+                                    @can('delete', $commande)
+                                        @if($commande->estAnnulable())
+                                            <form action="{{ route('commandes.destroy', $commande) }}" method="POST" class="inline"
+                                                  data-confirm="Êtes-vous sûr de vouloir annuler la commande {{ $commande->numero }} ? {{ $commande->estPaye() ? 'Le montant de ' . number_format($commande->montant_total, 2) . ' DT sera remboursé via Stripe et les articles remis en stock.' : 'La commande sera annulée et les articles remis en stock.' }}"
+                                                  data-confirm-title="Annuler la commande"
+                                                  data-confirm-button="Oui, annuler">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                        class="text-xs px-3 py-1.5 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-semibold transition-colors flex items-center gap-1"
+                                                        title="Annuler cette commande">
+                                                    <i class="fas fa-ban"></i>
+                                                    <span>Annuler</span>
+                                                </button>
+                                            </form>
+                                        @elseif($commande->statut === \App\Models\Commande::STATUT_ANNULEE || auth()->user()->isAdmin())
+                                            <form action="{{ route('commandes.destroy', $commande) }}" method="POST" class="inline"
+                                                  data-confirm="Êtes-vous sûr de vouloir supprimer définitivement la commande {{ $commande->numero }} de votre historique ?"
+                                                  data-confirm-title="Supprimer la commande"
+                                                  data-confirm-button="Oui, supprimer">
+                                                @csrf
+                                                @method('DELETE')
+                                                <input type="hidden" name="force" value="1">
+                                                <button type="submit"
+                                                        class="text-xs px-3 py-1.5 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-semibold transition-colors flex items-center gap-1"
+                                                        title="Supprimer la commande">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                    <span>Supprimer</span>
+                                                </button>
+                                            </form>
+                                        @endif
+                                    @endcan
                                 </div>
                             </div>
                         </div>

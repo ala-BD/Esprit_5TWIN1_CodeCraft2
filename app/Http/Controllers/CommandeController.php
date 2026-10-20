@@ -424,14 +424,37 @@ class CommandeController extends Controller
     }
 
     // =========================================================
-    // DESTROY — Cancel the order, restore stock
+    // DESTROY — Cancel the order, restore stock or permanently delete
     // =========================================================
-    public function destroy(Commande $commande): RedirectResponse
+    public function destroy(Request $request, Commande $commande): RedirectResponse
     {
         $this->authorize('delete', $commande);
 
-        if ($commande->statut === Commande::STATUT_ANNULEE) {
-            return back()->with('info', 'Cette commande est déjà annulée.');
+        $forceDelete = $request->boolean('force') || $request->input('action') === 'delete';
+
+        // Si la commande est déjà annulée ou si suppression définitive demandée
+        if ($commande->statut === Commande::STATUT_ANNULEE || $forceDelete) {
+            // Si la commande active est supprimée directement, restaurer le stock
+            if (! in_array($commande->statut, [Commande::STATUT_ANNULEE, Commande::STATUT_LIVREE])) {
+                DB::transaction(function () use ($commande) {
+                    $commande->load('lignes.article');
+                    foreach ($commande->lignes as $ligne) {
+                        if ($ligne->article) {
+                            $ligne->article->increment('stock', $ligne->quantite);
+                            if ($ligne->article->statut === Article::STATUT_VENDU) {
+                                $ligne->article->update(['statut' => Article::STATUT_DISPONIBLE]);
+                            }
+                        }
+                    }
+                });
+            }
+
+            $numero = $commande->numero;
+            $commande->delete();
+
+            return redirect()
+                ->route('commandes.index')
+                ->with('success', "La commande {$numero} a été supprimée avec succès.");
         }
 
         if ($commande->estExpediee()) {

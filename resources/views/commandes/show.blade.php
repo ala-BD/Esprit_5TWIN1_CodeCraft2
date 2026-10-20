@@ -506,7 +506,7 @@
                         @endif
                     @endcan
 
-                    {{-- Cancel --}}
+                    {{-- Cancel or Delete --}}
                     @can('delete', $commande)
                         @if($commande->estAnnulable())
                             <form action="{{ route('commandes.destroy', $commande) }}" method="POST"
@@ -515,9 +515,22 @@
                                   data-confirm-button="Oui, annuler la commande">
                                 @csrf @method('DELETE')
                                 <button type="submit"
-                                        class="flex items-center gap-3 w-full px-4 py-3 border border-red-200 hover:bg-red-50 text-red-600 rounded-2xl text-sm font-semibold transition-colors">
+                                        class="flex items-center justify-center gap-2 w-full px-4 py-3 border border-red-200 hover:bg-red-50 text-red-600 rounded-2xl text-sm font-semibold transition-colors">
                                     <i class="fas fa-ban"></i>
                                     <span>Annuler la commande</span>
+                                </button>
+                            </form>
+                        @elseif($commande->statut === \App\Models\Commande::STATUT_ANNULEE || auth()->user()->isAdmin())
+                            <form action="{{ route('commandes.destroy', $commande) }}" method="POST"
+                                  data-confirm="Êtes-vous sûr de vouloir supprimer définitivement la commande {{ $commande->numero }} de votre historique ?"
+                                  data-confirm-title="Supprimer la commande"
+                                  data-confirm-button="Oui, supprimer définitivement">
+                                @csrf @method('DELETE')
+                                <input type="hidden" name="force" value="1">
+                                <button type="submit"
+                                        class="flex items-center justify-center gap-2 w-full px-4 py-3 border border-red-200 hover:bg-red-50 text-red-600 rounded-2xl text-sm font-semibold transition-colors">
+                                    <i class="fas fa-trash-alt"></i>
+                                    <span>Supprimer définitivement</span>
                                 </button>
                             </form>
                         @endif

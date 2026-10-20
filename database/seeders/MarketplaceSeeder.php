@@ -169,6 +169,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Lin',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Blanc',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Pantalon Chino Recyclé Homme — Beige',
@@ -180,6 +184,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Beige',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Robe Longue Bohème Femme — Imprimé Floral',
@@ -191,6 +199,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Tres bon etat',
                 'couleur'     => 'Multicolore',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Blouse Lin & Coton Femme — Terracotta',
@@ -202,6 +214,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Lin',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Orange',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1564257631407-4deb1f99d992?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'T-shirt Graphique Upcyclé — "RETISS Love"',
@@ -213,6 +229,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Blanc',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
         ]);
 
@@ -229,6 +249,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Tres bon etat',
                 'couleur'     => 'Bleu',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Sac Cabas Tissu Recyclé — Rayures Berbères',
@@ -240,6 +264,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Multicolore',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1590874103328-eac38a683ce7?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Tote Bag Upcyclé — Logo RETISS Brodé',
@@ -251,6 +279,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Blanc',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1597484661643-2f5fef640dd1?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Pantalon Large Femme — Tissu Madras Recyclé',
@@ -262,6 +294,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Multicolore',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1509551388413-e18d0ac5d495?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Écharpe Soie Recyclée — Dégradé Coucher de Soleil',
@@ -273,6 +309,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Soie',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Orange',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1601924994987-69e26d50dc26?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
         ]);
 
@@ -289,6 +329,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Bleu',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Coussin Berbère Recyclé — Motifs Géométriques',
@@ -300,6 +344,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Laine',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Multicolore',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1616046229478-9901c5536a45?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Robe Enfant Tissée Main — Coton Bio',
@@ -311,6 +359,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Rose',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1622290291468-a28f7a7dc6a8?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Salopette Enfant Upcyclée — Denim Souple',
@@ -322,6 +374,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Bleu',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1519457431-44ccd64a579b?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Plaid Laine Recyclée — Bandes Naturelles',
@@ -333,6 +389,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Laine',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Beige',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1580301762395-21ce84d00bc6?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1600121848594-d8644e57abab?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
         ]);
 
@@ -349,6 +409,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Mixte',
                 'etat'        => 'Tres bon etat',
                 'couleur'     => 'Marron',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1548883354-7622d03aca27?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Short Cycliste Recyclé Femme — Noir Mat',
@@ -360,6 +424,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Synthetique',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Noir',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1506629082955-511b1aa562c8?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Chemise Wax Upcyclée Homme — Imprimé Africain',
@@ -371,6 +439,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Multicolore',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1607345366928-199ea26cfe3e?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Sweat Oversize Recyclé — Gris Chiné',
@@ -382,6 +454,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Gris',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1578587018452-892bacefd3f2?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Combinaison Femme Recyclée — Vert Olive',
@@ -393,6 +469,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Vert',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1502716119720-b23a93e5fe1b?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
         ]);
 
@@ -409,6 +489,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Synthetique',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Violet',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1582142407894-ec85a1260a46?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Manteau Laine Recyclée Femme — Camel',
@@ -420,6 +504,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Laine',
                 'etat'        => 'Tres bon etat',
                 'couleur'     => 'Beige',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1539533018447-63fcce667883?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Pyjama Enfant Coton Recyclé — Motifs Étoiles',
@@ -431,6 +519,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Bleu',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1514090458221-65bb69cf63e6?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1503919545889-aef636e10ad4?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Nappe Coton Recyclé — Carreaux Bistrot Rouge & Blanc',
@@ -442,6 +534,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Rouge',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1528458909336-e7a0adfed0a5?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Robe Courte Coton Femme — Broderie Anglaise Upcyclée',
@@ -453,6 +549,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Blanc',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1568252542512-9fe8fe9c87bb?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
             [
                 'titre'       => 'Ceinture Tissu Recyclé — Set de 3 coloris',
@@ -464,6 +564,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Noir',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1624222247344-550fb60583dc?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
         ]);
 
@@ -481,6 +585,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Mixte',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Bleu',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1582562124811-c09040d0a901?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
         ]);
 
@@ -495,6 +603,10 @@ class MarketplaceSeeder extends Seeder
                 'matiere'     => 'Coton',
                 'etat'        => 'Neuf',
                 'couleur'     => 'Beige',
+                'images'      => [
+                    'https://images.unsplash.com/photo-1534349762230-e0cadf78f5da?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=800&q=80',
+                ],
             ],
         ]);
 
@@ -512,7 +624,7 @@ class MarketplaceSeeder extends Seeder
     private function creerArticles(User $atelier, array $articles): void
     {
         foreach ($articles as $data) {
-            Article::firstOrCreate(
+            Article::updateOrCreate(
                 [
                     'user_id' => $atelier->id,
                     'titre'   => $data['titre'],
