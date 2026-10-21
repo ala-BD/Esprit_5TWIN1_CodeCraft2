@@ -25,6 +25,41 @@
 </div>
 @else
 
+{{-- ===== ALERTES MÉTIER ===== --}}
+@if($alertes->isNotEmpty())
+<div class="space-y-3 mb-8">
+    @foreach($alertes as $alerte)
+    @php
+        $config = match($alerte['niveau']) {
+            'danger'  => ['bg' => 'bg-red-50',    'border' => 'border-red-200',    'icon_bg' => 'bg-red-100',    'icon_color' => 'text-red-500',    'title_color' => 'text-red-800',    'text_color' => 'text-red-600',    'btn' => 'bg-red-100 hover:bg-red-200 text-red-700',    'close' => 'text-red-400 hover:text-red-600'],
+            'warning' => ['bg' => 'bg-amber-50',  'border' => 'border-amber-200',  'icon_bg' => 'bg-amber-100',  'icon_color' => 'text-amber-500',  'title_color' => 'text-amber-800',  'text_color' => 'text-amber-600',  'btn' => 'bg-amber-100 hover:bg-amber-200 text-amber-700',  'close' => 'text-amber-400 hover:text-amber-600'],
+            default   => ['bg' => 'bg-blue-50',   'border' => 'border-blue-200',   'icon_bg' => 'bg-blue-100',   'icon_color' => 'text-blue-500',   'title_color' => 'text-blue-800',   'text_color' => 'text-blue-600',   'btn' => 'bg-blue-100 hover:bg-blue-200 text-blue-700',   'close' => 'text-blue-400 hover:text-blue-600'],
+        };
+    @endphp
+    <div class="{{ $config['bg'] }} border {{ $config['border'] }} rounded-2xl p-4 flex items-start gap-4 alerte-item fade-in">
+        <div class="w-9 h-9 rounded-xl {{ $config['icon_bg'] }} flex items-center justify-center flex-shrink-0">
+            <i class="fas {{ $alerte['icone'] }} {{ $config['icon_color'] }} text-sm"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+            <p class="font-semibold {{ $config['title_color'] }} text-sm">{{ $alerte['titre'] }}</p>
+            <p class="{{ $config['text_color'] }} text-xs mt-0.5 leading-relaxed">{{ $alerte['message'] }}</p>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <a href="{{ $alerte['lien'] }}"
+               class="{{ $config['btn'] }} text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                {{ $alerte['lien_label'] }}
+            </a>
+            <button onclick="this.closest('.alerte-item').remove()"
+                    class="{{ $config['close'] }} w-6 h-6 flex items-center justify-center rounded-lg transition-colors"
+                    title="Fermer">
+                <i class="fas fa-times text-xs"></i>
+            </button>
+        </div>
+    </div>
+    @endforeach
+</div>
+@endif
+
 {{-- Stats principales --}}
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
     <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
@@ -125,8 +160,35 @@
     </div>
 </div>
 
-{{-- Derniers lots --}}
-<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+{{-- Mini sparkline 6 mois --}}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div class="flex items-center justify-between mb-3">
+            <div>
+                <p class="font-semibold text-gray-900 text-sm">Tendance des lots</p>
+                <p class="text-xs text-gray-400 mt-0.5">6 derniers mois</p>
+            </div>
+            <a href="{{ route('recyclage.statistiques') }}"
+               class="text-xs text-primary-DEFAULT hover:underline flex items-center gap-1">
+                Détails <i class="fas fa-arrow-right text-xs"></i>
+            </a>
+        </div>
+        <div class="h-24">
+            <canvas id="chartSparkline"></canvas>
+        </div>
+        @php
+            $lotsTotal = $stats['total'];
+            $certTaux  = $lotsTotal > 0 ? round(($stats['certifies'] / $lotsTotal) * 100) : 0;
+        @endphp
+        <div class="flex items-center gap-2 mt-2">
+            <span class="text-xs text-gray-500">Taux de certification :</span>
+            <span class="text-xs font-bold {{ $certTaux >= 50 ? 'text-green-600' : 'text-amber-600' }}">{{ $certTaux }}%</span>
+        </div>
+    </div>
+
+    {{-- Derniers lots (col-span-2) --}}
+    <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
     <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
         <h3 class="font-semibold text-gray-900">Derniers lots enregistrés</h3>
         <a href="{{ route('recyclage.lots.index') }}" class="text-sm text-primary-DEFAULT hover:text-primary-dark font-medium transition-colors">
@@ -168,9 +230,77 @@
                 </div>
             </div>
             @endforeach
-        </div>
-    @endif
-</div>
+            </div>{{-- /divide-y --}}
+        @endif
+    </div>{{-- /derniers lots --}}
+
+</div>{{-- /grid sparkline+lots --}}
 @endif
+
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Mini sparkline 6 derniers mois
+@php
+    $sparkData   = [];
+    $sparkLabels = [];
+    $recycleurIdSpark = isset($recycleur) ? $recycleur->id : 0;
+    for ($i = 5; $i >= 0; $i--) {
+        $moisSpark     = now()->subMonths($i);
+        $sparkLabels[] = $moisSpark->translatedFormat('M');
+        $sparkData[]   = \App\Models\LotTextile::where('recycleur_id', $recycleurIdSpark)
+            ->whereYear('created_at',  $moisSpark->year)
+            ->whereMonth('created_at', $moisSpark->month)
+            ->count();
+    }
+@endphp
+const sparkLabels = @json($sparkLabels);
+const sparkData   = @json($sparkData);
+
+const ctxSpark = document.getElementById('chartSparkline');
+if (ctxSpark) {
+    const gradSpark = ctxSpark.getContext('2d').createLinearGradient(0, 0, 0, 96);
+    gradSpark.addColorStop(0, 'rgba(13,148,136,0.25)');
+    gradSpark.addColorStop(1, 'rgba(13,148,136,0)');
+    new Chart(ctxSpark, {
+        type: 'line',
+        data: {
+            labels: sparkLabels,
+            datasets: [{
+                data: sparkData,
+                borderColor: '#0d9488',
+                backgroundColor: gradSpark,
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 3,
+                pointBackgroundColor: '#0d9488',
+                pointHoverRadius: 5,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    bodyColor: '#f1f5f9',
+                    padding: 8,
+                    cornerRadius: 8,
+                    callbacks: { label: ctx => ` ${ctx.parsed.y} lot(s)` }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                y: { display: false, beginAtZero: true }
+            }
+        }
+    });
+}
+</script>
+@endpush
 
 @endsection

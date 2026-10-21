@@ -70,6 +70,96 @@
             </div>
         </div>
 
+        {{-- Card Don rattaché --}}
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-900 text-sm flex items-center gap-2 mb-4">
+                <i class="fas fa-link text-primary-DEFAULT"></i>
+                Don rattaché
+            </h3>
+
+            @if($lot->donVetement)
+                {{-- Don déjà rattaché --}}
+                <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-4 mb-3">
+                    <div class="flex items-start gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-tshirt text-emerald-600 text-sm"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-semibold text-emerald-800 text-sm">Don n°{{ $lot->donVetement->id }}</p>
+                            <p class="text-emerald-600 text-xs mt-0.5">
+                                {{ $lot->donVetement->type }} — {{ $lot->donVetement->matiere }}
+                            </p>
+                            <p class="text-emerald-500 text-xs">
+                                État : {{ $lot->donVetement->etat }}
+                                @if($lot->donVetement->taille) | Taille : {{ $lot->donVetement->taille }} @endif
+                            </p>
+                            @if($lot->donVetement->pointCollecte)
+                            <p class="text-emerald-400 text-xs mt-1">
+                                <i class="fas fa-map-marker-alt mr-1"></i>
+                                {{ $lot->donVetement->pointCollecte->nom }}
+                            </p>
+                            @endif
+                        </div>
+                        <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg">RECYCLÉ</span>
+                    </div>
+                </div>
+
+                @if($lot->statut !== 'CERTIFIE')
+                <form method="POST" action="{{ route('recyclage.lots.detacher-don', $lot) }}"
+                      onsubmit="return confirm('Détacher ce don ? Son statut reviendra à EN_TRI.')">
+                    @csrf @method('DELETE')
+                    <button type="submit"
+                            class="w-full text-xs text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400
+                                   hover:bg-red-50 px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-2">
+                        <i class="fas fa-unlink"></i> Détacher ce don
+                    </button>
+                </form>
+                @endif
+
+            @else
+                {{-- Pas de don rattaché --}}
+                @if($lot->statut !== 'CERTIFIE' && $donsDisponibles->isNotEmpty())
+                    <p class="text-gray-400 text-xs mb-3">
+                        Rattachez un don en statut <strong>EN_TRI</strong> à ce lot.
+                    </p>
+                    <form method="POST" action="{{ route('recyclage.lots.rattacher-don', $lot) }}">
+                        @csrf
+                        @error('don_vetement_id')
+                            <p class="text-red-500 text-xs mb-2 flex items-center gap-1">
+                                <i class="fas fa-exclamation-circle"></i> {{ $message }}
+                            </p>
+                        @enderror
+                        <select name="don_vetement_id"
+                                class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl
+                                       focus:outline-none focus:ring-2 focus:ring-primary-DEFAULT mb-3
+                                       appearance-none bg-white text-gray-700">
+                            <option value="">-- Choisir un don --</option>
+                            @foreach($donsDisponibles as $don)
+                                <option value="{{ $don->id }}">
+                                    Don n°{{ $don->id }} — {{ $don->type }}, {{ $don->matiere }} ({{ $don->etat }})
+                                    @if($don->pointCollecte) | {{ $don->pointCollecte->nom }} @endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <button type="submit"
+                                class="w-full bg-primary-DEFAULT hover:bg-primary-dark text-white font-semibold
+                                       text-sm px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
+                            <i class="fas fa-link"></i> Rattacher ce don
+                        </button>
+                    </form>
+                @elseif($donsDisponibles->isEmpty())
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox text-gray-300 text-2xl mb-2 block"></i>
+                        <p class="text-gray-400 text-xs">Aucun don EN_TRI disponible pour le moment.</p>
+                    </div>
+                @else
+                    <p class="text-gray-400 text-xs text-center py-2">
+                        Aucun don rattaché — lot certifié non modifiable.
+                    </p>
+                @endif
+            @endif
+        </div>
+
         {{-- Actions --}}
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3">
             <h3 class="font-semibold text-gray-900 text-sm">Actions disponibles</h3>
@@ -288,6 +378,69 @@
         </div>
         @endif
     </div>
+</div>
+
+{{-- ===== SECTION HISTORIQUE COMPLET ===== --}}
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mt-6">
+    <div class="flex items-center justify-between mb-6">
+        <h3 class="font-semibold text-gray-900 flex items-center gap-2">
+            <i class="fas fa-history text-primary-DEFAULT"></i>
+            Historique complet du lot
+        </h3>
+        <span class="text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-lg">
+            {{ $historiques->count() }} événement(s)
+        </span>
+    </div>
+
+    @if($historiques->isEmpty())
+        <div class="text-center py-8 text-gray-300">
+            <i class="fas fa-history text-3xl mb-2 block"></i>
+            <p class="text-sm text-gray-400">Aucun événement enregistré pour l'instant.</p>
+        </div>
+    @else
+        <div class="relative">
+            {{-- Ligne verticale --}}
+            <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-100 z-0"></div>
+
+            <div class="space-y-3">
+                @foreach($historiques as $h)
+                @php $badge = $h->badge; @endphp
+                <div class="relative flex gap-4 items-start z-10">
+                    {{-- Icône --}}
+                    <div class="w-8 h-8 rounded-full {{ $badge['bg'] }} flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <i class="fas {{ $h->icone }} {{ $badge['text'] }} text-xs"></i>
+                    </div>
+
+                    {{-- Contenu --}}
+                    <div class="flex-1 bg-gray-50 rounded-xl px-4 py-3 min-w-0">
+                        <div class="flex items-start justify-between gap-2 flex-wrap">
+                            <p class="text-sm text-gray-800 font-medium leading-snug">{{ $h->description }}</p>
+                            <span class="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
+                                {{ $h->created_at->diffForHumans() }}
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-3 mt-1 flex-wrap">
+                            @if($h->user)
+                                <span class="text-xs text-gray-400">
+                                    <i class="fas fa-user text-xs mr-1"></i>
+                                    {{ $h->user->prenom ?? $h->user->name }}
+                                </span>
+                            @endif
+                            <span class="text-xs text-gray-300">
+                                {{ $h->created_at->format('d/m/Y à H:i') }}
+                            </span>
+                            @if($h->ancienne_valeur && $h->nouvelle_valeur)
+                                <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-mono">
+                                    {{ $h->ancienne_valeur }} → {{ $h->nouvelle_valeur }}
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
 </div>
 
 {{-- Modals terminer étape --}}

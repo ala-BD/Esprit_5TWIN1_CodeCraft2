@@ -70,6 +70,12 @@ class LotTextile extends Model
         return $this->hasOne(PasseportNumerique::class);
     }
 
+    /** Historique complet du lot */
+    public function historiques(): HasMany
+    {
+        return $this->hasMany(LotHistorique::class)->orderByDesc('created_at');
+    }
+
     /*
     |------------------------------------------------------------------
     | Helpers

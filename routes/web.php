@@ -142,6 +142,11 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('/', [LotTextileController::class, 'dashboard'])->name('dashboard');
 
+        // Export CSV/Excel/PDF — doit être AVANT la resource pour éviter conflit avec {lot}
+        Route::get('lots/export',             [\App\Http\Controllers\Recyclage\ExportController::class, 'exportLots'])->name('lots.export');
+        Route::get('statistiques/export',     [\App\Http\Controllers\Recyclage\ExportController::class, 'exportStatistiques'])->name('statistiques.export');
+        Route::get('statistiques/export-pdf', [\App\Http\Controllers\Recyclage\ExportController::class, 'exportStatistiquesPdf'])->name('statistiques.export-pdf');
+
         // CRUD Lots textiles
         Route::resource('lots', LotTextileController::class);
 
@@ -154,6 +159,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('lots/{lot}/passeport',     [PasseportNumeriqueController::class, 'show'])->name('passeport.show');
         Route::post('lots/{lot}/passeport',    [PasseportNumeriqueController::class, 'generer'])->name('passeport.generer');
         Route::get('lots/{lot}/passeport/pdf', [PasseportNumeriqueController::class, 'telechargerPdf'])->name('passeport.pdf');
+
+        // Lien Don → Lot
+        Route::post('lots/{lot}/rattacher-don',   [LotTextileController::class, 'rattacherDon'])->name('lots.rattacher-don');
+        Route::delete('lots/{lot}/detacher-don',  [LotTextileController::class, 'detacherDon'])->name('lots.detacher-don');
+        Route::get('dons-disponibles',            [LotTextileController::class, 'donsDisponibles'])->name('dons-disponibles');
 
         // Statistiques
         Route::get('statistiques', [StatistiqueController::class, 'index'])->name('statistiques');

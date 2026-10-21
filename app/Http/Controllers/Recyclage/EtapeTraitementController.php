@@ -56,6 +56,14 @@ class EtapeTraitementController extends Controller
         $this->mettreAJourStatutLot($lot);
 
         $label = EtapeTraitement::LABELS[$request->type];
+
+        // Historique
+        \App\Models\LotHistorique::enregistrer(
+            $lot,
+            \App\Models\LotHistorique::ETAPE_AJOUTEE,
+            "Étape « {$label} » démarrée le " . \Carbon\Carbon::parse($request->date_debut)->format('d/m/Y')
+        );
+
         return redirect()
             ->route('recyclage.lots.show', $lot)
             ->with('success', "Étape « {$label} » ajoutée avec succès.");
@@ -85,6 +93,14 @@ class EtapeTraitementController extends Controller
         ]);
 
         $this->mettreAJourStatutLot($lot);
+
+        // Historique
+        \App\Models\LotHistorique::enregistrer(
+            $lot,
+            \App\Models\LotHistorique::ETAPE_TERMINEE,
+            "Étape « {$etape->label} » terminée le " . \Carbon\Carbon::parse($request->date_fin)->format('d/m/Y')
+            . ($request->poids_sortant_kg ? " — {$request->poids_sortant_kg} kg sortants" : '')
+        );
 
         return redirect()
             ->route('recyclage.lots.show', $lot)

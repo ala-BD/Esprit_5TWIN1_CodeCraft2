@@ -75,6 +75,13 @@ class PasseportNumeriqueController extends Controller
         // Marquer le lot comme certifié
         $lot->update(['statut' => 'CERTIFIE']);
 
+        // Historique
+        \App\Models\LotHistorique::enregistrer(
+            $lot,
+            \App\Models\LotHistorique::PASSEPORT_GENERE,
+            "Passeport numérique généré — QR : {$passeport->qr_code} | CO₂ évité : {$passeport->co2_evite_kg} kg"
+        );
+
         return redirect()
             ->route('recyclage.passeport.show', $lot)
             ->with('success', "Passeport numérique généré — QR : {$passeport->qr_code}");
