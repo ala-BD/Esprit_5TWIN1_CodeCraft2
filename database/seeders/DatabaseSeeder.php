@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RecyclageSeeder::class,
             MarketplaceSeeder::class,
+            TestAccountsSeeder::class,
         ]);
     }
 }
