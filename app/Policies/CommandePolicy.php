@@ -27,11 +27,12 @@ class CommandePolicy
     }
 
     /**
-     * Any logged-in user can place an order (business rules enforced in controller).
+     * Any logged-in user can place an order EXCEPT Atelier (vendor role).
+     * Atelier is a seller, not a buyer.
      */
     public function create(User $user): bool
     {
-        return true;
+        return $user->role !== User::ROLE_ATELIER;
     }
 
     /**
@@ -57,11 +58,23 @@ class CommandePolicy
     }
 
     /**
-     * Only admin can update status (advance workflow).
+     * Admin can update any status.
+     * Atelier can confirm/prepare/ship orders that contain their articles.
      */
     public function updateStatut(User $user, Commande $commande): bool
     {
-        return $user->isAdmin();
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        // Atelier can manage orders that contain at least one of their articles
+        if ($user->role === User::ROLE_ATELIER) {
+            return $commande->lignes()
+                ->whereHas('article', fn($q) => $q->where('user_id', $user->id))
+                ->exists();
+        }
+
+        return false;
     }
 
     /**
