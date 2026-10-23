@@ -4,9 +4,11 @@ use App\Http\Controllers\AdresseController;
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\AvisController;
 use App\Http\Controllers\CommandeController;
+use App\Http\Controllers\FavoriController;
 use App\Http\Controllers\PaiementController;
 use App\Http\Controllers\PanierController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RechercheSauvegardeeController;
 use App\Http\Controllers\Recyclage\LotTextileController;
 use App\Http\Controllers\Recyclage\EtapeTraitementController;
 use App\Http\Controllers\Recyclage\PasseportNumeriqueController;
@@ -145,6 +147,17 @@ Route::middleware(['auth'])->group(function () {
     Route::match(['put', 'patch'], 'avis/{avis}',                      [AvisController::class, 'update'])->name('avis.update');
     Route::delete('avis/{avis}',                                       [AvisController::class, 'destroy'])->name('avis.destroy');
     Route::post('avis/{avis}/vote',                                    [AvisController::class, 'vote'])->name('avis.vote');
+
+    /*
+    |----------------------------------------------------------------------
+    | Liste de souhaits (Favoris) & Recherches sauvegardées (Alertes intelligentes)
+    |----------------------------------------------------------------------
+    */
+    Route::get('favoris',                              [FavoriController::class, 'index'])->name('favoris.index');
+    Route::post('favoris/toggle/{article}',             [FavoriController::class, 'toggle'])->name('favoris.toggle');
+
+    Route::post('recherches-sauvegardees',              [RechercheSauvegardeeController::class, 'store'])->name('recherches-sauvegardees.store');
+    Route::delete('recherches-sauvegardees/{rechercheSauvegardee}', [RechercheSauvegardeeController::class, 'destroy'])->name('recherches-sauvegardees.destroy');
 });
 
 /*

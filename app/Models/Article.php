@@ -87,6 +87,16 @@ class Article extends Model
     public function lignesCommande(): HasMany  { return $this->hasMany(LigneCommande::class); }
     public function panierLignes(): HasMany    { return $this->hasMany(PanierLigne::class); }
     public function avis(): HasMany            { return $this->hasMany(Avis::class); }
+    public function favoris(): HasMany         { return $this->hasMany(Favori::class); }
+
+    /**
+     * Vérifie si cet article est dans les favoris d'un utilisateur donné.
+     */
+    public function isFavoriDe(?int $userId): bool
+    {
+        if (!$userId) return false;
+        return $this->favoris()->where('user_id', $userId)->exists();
+    }
 
     // Query Scopes
     public function scopeRecherche(Builder $q, string $terme): Builder

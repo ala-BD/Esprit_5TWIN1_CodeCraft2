@@ -87,22 +87,32 @@ class ArticleController extends Controller
             $request->filled('note_min'),
         ]);
 
+        $favorisIds = $request->user()
+            ? $request->user()->favoris()->pluck('article_id')->all()
+            : [];
+
+        $recherchesSauvegardees = $request->user()
+            ? $request->user()->recherchesSauvegardees()->latest()->get()
+            : collect();
+
         return view('articles.index', [
-            'articles'       => $articles,
-            'categories'     => Article::CATEGORIES,
-            'statuts'        => Article::STATUTS,
-            'tailles'        => Article::TAILLES,
-            'matieres'       => Article::MATIERES,
-            'etats'          => Article::ETATS,
-            'couleurs'       => Article::COULEURS,
-            'stats'          => $stats,
-            'filterMine'     => $filterMine,
-            'activeFilters'  => count($activeFilters),
-            'currentQ'       => $request->input('q', ''),
-            'currentCat'     => $request->input('categorie', ''),
-            'currentStat'    => $request->input('statut', ''),
-            'currentTri'     => $sort,
-            'currentNoteMin' => $request->input('note_min', ''),
+            'articles'               => $articles,
+            'categories'             => Article::CATEGORIES,
+            'statuts'                => Article::STATUTS,
+            'tailles'                => Article::TAILLES,
+            'matieres'               => Article::MATIERES,
+            'etats'                  => Article::ETATS,
+            'couleurs'               => Article::COULEURS,
+            'stats'                  => $stats,
+            'filterMine'             => $filterMine,
+            'activeFilters'          => count($activeFilters),
+            'currentQ'               => $request->input('q', ''),
+            'currentCat'             => $request->input('categorie', ''),
+            'currentStat'            => $request->input('statut', ''),
+            'currentTri'             => $sort,
+            'currentNoteMin'         => $request->input('note_min', ''),
+            'favorisIds'             => $favorisIds,
+            'recherchesSauvegardees' => $recherchesSauvegardees,
         ]);
     }
 
@@ -157,11 +167,14 @@ class ArticleController extends Controller
             ->take(3)
             ->get();
 
+        $isFavori = $request->user() ? $article->isFavoriDe($request->user()->id) : false;
+
         return view('articles.show', [
             'article'         => $article,
             'avisList'        => $avisList,
             'currentAvisTri'  => $avisTri,
             'relatedArticles' => $relatedArticles,
+            'isFavori'        => $isFavori,
         ]);
     }
 

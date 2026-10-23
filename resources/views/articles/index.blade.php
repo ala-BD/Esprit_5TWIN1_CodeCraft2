@@ -678,6 +678,56 @@
                     </div>
                 </div>
 
+                {{-- Bouton Sauvegarder cette recherche (Alerte intelligente) --}}
+                @auth
+                    <div class="p-3 bg-gradient-to-r from-teal-50 to-emerald-50 border-b border-teal-100/80">
+                        <button type="button"
+                                onclick="openSaveSearchModal()"
+                                class="w-full py-2 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
+                                title="Sauvegarder ces critères et être notifié par email et in-app à chaque nouvel article">
+                            <i class="fas fa-bell"></i>
+                            <span>Sauvegarder cette recherche</span>
+                        </button>
+                    </div>
+
+                    {{-- Recherches sauvegardées (Accordéon) --}}
+                    @if(isset($recherchesSauvegardees) && $recherchesSauvegardees->count() > 0)
+                        <div class="fs">
+                            <button type="button" class="fs-trigger" aria-expanded="{{ request()->filled('recherche_id') ? 'true' : 'false' }}" onclick="toggleSection(this)">
+                                <span class="fs-title">
+                                    <span class="fs-title-icon bg-amber-50 text-amber-600"><i class="fas fa-bookmark"></i></span>
+                                    Mes alertes sauvegardées
+                                    <span class="fs-badge">{{ $recherchesSauvegardees->count() }}</span>
+                                </span>
+                                <i class="fas fa-chevron-down fs-chevron"></i>
+                            </button>
+                            <div class="fs-body space-y-2">
+                                @foreach($recherchesSauvegardees as $rs)
+                                    <div class="p-2.5 rounded-xl border border-slate-200/80 bg-white hover:border-teal-300 transition-all flex items-center justify-between gap-2 group/rs"
+                                         id="rs-item-{{ $rs->id }}">
+                                        <a href="{{ route('articles.index', $rs->filtres ?? []) }}"
+                                           class="flex-1 min-w-0"
+                                           title="Appliquer cette recherche">
+                                            <p class="text-xs font-bold text-slate-800 truncate group-hover/rs:text-teal-600 transition-colors">
+                                                {{ $rs->nom }}
+                                            </p>
+                                            <p class="text-[10px] text-slate-400 truncate mt-0.5">
+                                                {{ $rs->resumeFiltres() }}
+                                            </p>
+                                        </a>
+                                        <button type="button"
+                                                onclick="deleteSavedSearch({{ $rs->id }}, '{{ addslashes($rs->nom) }}')"
+                                                class="text-slate-300 hover:text-red-500 p-1 rounded-lg transition-colors"
+                                                title="Supprimer cette recherche">
+                                            <i class="fas fa-trash-alt text-[10px]"></i>
+                                        </button>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+                @endauth
+
                 {{-- Quick Toggles --}}
                 <div class="fs">
                     <button type="button" class="fs-trigger" aria-expanded="true" onclick="toggleSection(this)">
@@ -1182,19 +1232,30 @@
                                 </div>
                             @endif
 
-                            {{-- Category Badge --}}
-                            <div class="absolute top-3 left-3">
+                            {{-- Category & Status Badges --}}
+                            <div class="absolute top-3 left-3 flex flex-wrap gap-1 items-center max-w-[calc(100%-48px)]">
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/90 backdrop-blur-sm text-slate-800 shadow-sm">
                                     {{ $article->categorie }}
                                 </span>
-                            </div>
-
-                            {{-- Status Badge --}}
-                            <div class="absolute top-3 right-3">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold {{ $statutClass }} shadow-sm">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $statutClass }} shadow-sm">
                                     {{ $article->statut }}
                                 </span>
                             </div>
+
+                            {{-- Heart / Wishlist Toggle Button --}}
+                            @auth
+                                @php
+                                    $isArticleFavori = in_array($article->id, $favorisIds ?? []);
+                                @endphp
+                                <button type="button"
+                                        onclick="toggleArticleFavori({{ $article->id }}, this, event)"
+                                        class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm backdrop-blur-md {{ $isArticleFavori ? 'bg-white text-rose-500 scale-105' : 'bg-white/90 hover:bg-white text-slate-400 hover:text-rose-500 hover:scale-110' }}"
+                                        title="{{ $isArticleFavori ? 'Retirer des favoris' : 'Mettre en favori' }}"
+                                        data-favori="{{ $isArticleFavori ? '1' : '0' }}"
+                                        data-article-id="{{ $article->id }}">
+                                    <i class="{{ $isArticleFavori ? 'fas' : 'far' }} fa-heart text-xs transition-transform duration-200"></i>
+                                </button>
+                            @endauth
 
                             {{-- Photo count badge if multiple --}}
                             @if($article->images && count($article->images) > 1)
@@ -1518,5 +1579,203 @@ document.addEventListener('DOMContentLoaded', function () {
     const chips = document.querySelector('.active-chip');
     if (chips) chips.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 });
+
+// ===== Toggle Favori (Wishlist Heart Icon) =====
+async function toggleArticleFavori(articleId, btn, e) {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    const icon = btn.querySelector('i');
+    const isCurrentlyFavori = btn.getAttribute('data-favori') === '1';
+
+    // Optimistic UI toggle
+    btn.setAttribute('data-favori', isCurrentlyFavori ? '0' : '1');
+    if (!isCurrentlyFavori) {
+        btn.classList.remove('text-slate-400');
+        btn.classList.add('text-rose-500', 'bg-white', 'scale-105');
+        icon.classList.remove('far');
+        icon.classList.add('fas');
+    } else {
+        btn.classList.remove('text-rose-500', 'scale-105');
+        btn.classList.add('text-slate-400');
+        icon.classList.remove('fas');
+        icon.classList.add('far');
+    }
+
+    try {
+        const response = await fetch(`/favoris/toggle/${articleId}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+        const data = await response.json();
+        if (response.ok) {
+            // Update counter in navbar
+            document.querySelectorAll('.favoris-badge-count').forEach(el => {
+                el.textContent = data.favori_count > 99 ? '99+' : data.favori_count;
+                el.style.display = data.favori_count > 0 ? 'flex' : 'none';
+            });
+            if (typeof retissToast === 'function') {
+                retissToast({
+                    title: data.is_favori ? 'Ajouté aux favoris' : 'Retiré des favoris',
+                    text: data.message,
+                    icon: data.is_favori ? 'success' : 'info'
+                });
+            }
+        }
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+// ===== Save Search & Alerts Modal =====
+async function openSaveSearchModal() {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    const currentUrl = new URL(window.location.href);
+    const params = new URLSearchParams(currentUrl.search);
+
+    const filterParams = {};
+    for (const [key, value] of params.entries()) {
+        if (key !== 'page' && value !== '') {
+            filterParams[key] = value;
+        }
+    }
+
+    let defaultName = '';
+    if (filterParams.q) defaultName += filterParams.q;
+    if (filterParams.categorie) defaultName += (defaultName ? ' - ' : '') + filterParams.categorie;
+    if (filterParams.taille) defaultName += (defaultName ? ' - T: ' : 'Taille ') + filterParams.taille;
+    if (filterParams.prix_max) defaultName += (defaultName ? ' ≤ ' : 'Max ') + filterParams.prix_max + ' DT';
+    if (!defaultName) defaultName = 'Ma recherche personnalisée';
+
+    if (typeof Swal !== 'undefined') {
+        const { value: searchName } = await Swal.fire({
+            title: 'Sauvegarder cette recherche',
+            text: 'Donnez un nom à cette recherche. Vous recevrez une notification in-app et un e-mail dès qu\'un nouvel article correspondant est mis en vente !',
+            input: 'text',
+            inputValue: defaultName,
+            inputPlaceholder: 'Ex: Veste en jean taille M < 30 DT',
+            showCancelButton: true,
+            confirmButtonText: '<i class="fas fa-bell mr-1"></i> Sauvegarder & Alerter',
+            cancelButtonText: 'Annuler',
+            customClass: {
+                popup: 'retiss-swal-popup',
+                confirmButton: 'retiss-swal-confirm-btn btn-teal',
+                cancelButton: 'retiss-swal-cancel-btn',
+            },
+            inputValidator: (value) => {
+                if (!value || !value.trim()) {
+                    return 'Veuillez saisir un nom pour votre recherche.';
+                }
+            }
+        });
+
+        if (searchName) {
+            try {
+                const response = await fetch('{{ route("recherches-sauvegardees.store") }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        nom: searchName.trim(),
+                        ...filterParams
+                    })
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Alerte activée !',
+                        text: `Votre recherche « ${searchName} » a été enregistrée avec succès.`,
+                        confirmButtonText: 'Parfait',
+                        customClass: {
+                            popup: 'retiss-swal-popup',
+                            confirmButton: 'retiss-swal-confirm-btn btn-teal',
+                        }
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Erreur',
+                        text: data.message || 'Impossible d\'enregistrer cette recherche.',
+                    });
+                }
+            } catch(e) {
+                console.error(e);
+            }
+        }
+    } else {
+        const name = prompt('Nom de votre recherche sauvegardée :', defaultName);
+        if (name && name.trim()) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ route("recherches-sauvegardees.store") }}';
+            const csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = '_token';
+            csrf.value = csrfToken;
+            form.appendChild(csrf);
+
+            const nomInput = document.createElement('input');
+            nomInput.type = 'hidden';
+            nomInput.name = 'nom';
+            nomInput.value = name.trim();
+            form.appendChild(nomInput);
+
+            for (const [k, v] of Object.entries(filterParams)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = k;
+                input.value = v;
+                form.appendChild(input);
+            }
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+}
+
+// ===== Delete Saved Search =====
+async function deleteSavedSearch(id, nom) {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (typeof retissConfirm === 'function') {
+        const confirmed = await retissConfirm({
+            title: 'Supprimer l\'alerte ?',
+            text: `Voulez-vous supprimer la recherche sauvegardée « ${nom} » ? Vous ne recevrez plus d'alertes pour ces critères.`,
+            confirmButtonText: 'Oui, supprimer',
+            isDestructive: true
+        });
+        if (!confirmed) return;
+    } else if (!confirm(`Supprimer la recherche « ${nom} » ?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/recherches-sauvegardees/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            }
+        });
+        const data = await response.json();
+        if (response.ok) {
+            const item = document.getElementById(`rs-item-${id}`);
+            if (item) item.remove();
+            if (typeof retissToast === 'function') {
+                retissToast({ title: 'Supprimée', text: `Recherche « ${nom} » supprimée.`, icon: 'info' });
+            }
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
 </script>
 @endsection

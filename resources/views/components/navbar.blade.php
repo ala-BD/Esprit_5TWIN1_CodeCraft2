@@ -218,6 +218,22 @@
                         <span>Adresses</span>
                     </a>
 
+                    {{-- Liste de souhaits (Favoris) avec badge compteur --}}
+                    <a href="{{ route('favoris.index') }}"
+                       id="subnav-favoris-link"
+                       class="subnav-link relative flex items-center gap-2 text-xs font-semibold px-3.5 py-1.5 rounded-full transition-all duration-200 {{ request()->routeIs('favoris.*') ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/25 font-bold' : 'text-slate-600 hover:text-rose-600 hover:bg-slate-100' }}"
+                       style="text-decoration:none">
+                        <span class="relative inline-flex items-center">
+                            <i class="fas fa-heart text-xs {{ request()->routeIs('favoris.*') ? 'text-white' : 'text-rose-500' }}"></i>
+                            <span id="navbar-favoris-badge"
+                                  class="favoris-badge-count absolute -top-2 -right-2.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold text-white items-center justify-center transition-all {{ ($favorisCount ?? 0) > 0 ? 'flex' : 'hidden' }}"
+                                  style="background:#f43f5e;line-height:1;">
+                                {{ ($favorisCount ?? 0) > 99 ? '99+' : ($favorisCount ?? 0) }}
+                            </span>
+                        </span>
+                        <span class="ml-1">Favoris</span>
+                    </a>
+
                     {{-- Panier avec badge compteur --}}
                     <a href="{{ route('panier.index') }}"
                        id="subnav-cart-link"
@@ -296,6 +312,18 @@
                        class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors {{ request()->routeIs('adresses.*') ? 'bg-teal-50 text-teal-700 font-bold' : '' }}"
                        style="text-decoration:none">
                         <i class="fas fa-map-marker-alt w-4 text-center" style="color:#0d9488"></i> Mes Adresses
+                    </a>
+
+                    {{-- Wishlist mobile --}}
+                    <a href="{{ route('favoris.index') }}"
+                       class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors {{ request()->routeIs('favoris.*') ? 'bg-rose-50 text-rose-600 font-bold' : '' }}"
+                       style="text-decoration:none">
+                        <i class="fas fa-heart w-4 text-center text-rose-500"></i>
+                        <span>Ma Liste de Souhaits</span>
+                        <span class="favoris-badge-count ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold text-white {{ ($favorisCount ?? 0) > 0 ? '' : 'hidden' }}"
+                              style="background:#f43f5e">
+                            {{ ($favorisCount ?? 0) > 99 ? '99+' : ($favorisCount ?? 0) }}
+                        </span>
                     </a>
 
                     {{-- Panier mobile --}}

@@ -403,6 +403,19 @@
                                     <i class="fas fa-bolt text-amber-500"></i>
                                     <span>Commander directement</span>
                                 </a>
+
+                                {{-- Bouton Liste de souhaits (Favoris) --}}
+                                @auth
+                                    @if(!$isOwner)
+                                        <button type="button"
+                                                id="btn-toggle-favori-show"
+                                                onclick="toggleFavoriShow({{ $article->id }})"
+                                                class="w-full py-2.5 px-4 rounded-xl border {{ $isFavori ? 'border-rose-300 bg-rose-50 text-rose-600' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700' }} font-semibold text-xs transition-colors flex items-center justify-center gap-2">
+                                            <i class="{{ $isFavori ? 'fas' : 'far' }} fa-heart text-rose-500 text-sm"></i>
+                                            <span id="favori-show-text">{{ $isFavori ? 'Dans votre liste de souhaits' : 'Ajouter à ma liste de souhaits' }}</span>
+                                        </button>
+                                    @endif
+                                @endauth
                             </form>
                         @endif
                     @else
@@ -410,6 +423,19 @@
                             <i class="fas fa-exclamation-triangle text-amber-600"></i>
                             <span>Cet article est actuellement <strong>{{ $article->statut }}</strong></span>
                         </div>
+
+                        {{-- Permettre de mettre en favori même si hors stock ou réservé pour être prévenu au retour ! --}}
+                        @auth
+                            @if(!$isOwner)
+                                <button type="button"
+                                        id="btn-toggle-favori-show"
+                                        onclick="toggleFavoriShow({{ $article->id }})"
+                                        class="w-full py-2.5 px-4 rounded-xl border {{ $isFavori ? 'border-rose-300 bg-rose-50 text-rose-600' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700' }} font-semibold text-xs transition-colors flex items-center justify-center gap-2 mb-4">
+                                    <i class="{{ $isFavori ? 'fas' : 'far' }} fa-heart text-rose-500 text-sm"></i>
+                                    <span id="favori-show-text">{{ $isFavori ? 'Alerte active (En favoris)' : 'M\'alerter du retour en stock' }}</span>
+                                </button>
+                            @endif
+                        @endauth
                     @endif
 
                     <div class="space-y-2.5 pt-2 border-t border-slate-100">
@@ -974,5 +1000,52 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// ===== Toggle Favori sur la page de détail =====
+async function toggleFavoriShow(articleId) {
+    const btn = document.getElementById('btn-toggle-favori-show');
+    const textSpan = document.getElementById('favori-show-text');
+    if (!btn) return;
+    const icon = btn.querySelector('i');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+    try {
+        const res = await fetch(`/favoris/toggle/${articleId}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+        const data = await res.json();
+        if (res.ok) {
+            if (data.is_favori) {
+                btn.className = 'w-full py-2.5 px-4 rounded-xl border border-rose-300 bg-rose-50 text-rose-600 font-semibold text-xs transition-colors flex items-center justify-center gap-2 mb-2';
+                icon.className = 'fas fa-heart text-rose-500 text-sm';
+                textSpan.textContent = 'Dans votre liste de souhaits';
+            } else {
+                btn.className = 'w-full py-2.5 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors flex items-center justify-center gap-2 mb-2';
+                icon.className = 'far fa-heart text-rose-500 text-sm';
+                textSpan.textContent = 'Ajouter à ma liste de souhaits';
+            }
+
+            document.querySelectorAll('.favoris-badge-count').forEach(el => {
+                el.textContent = data.favori_count > 99 ? '99+' : data.favori_count;
+                el.style.display = data.favori_count > 0 ? 'flex' : 'none';
+            });
+
+            if (typeof retissToast === 'function') {
+                retissToast({
+                    title: data.is_favori ? 'Ajouté aux favoris' : 'Retiré des favoris',
+                    text: data.message,
+                    icon: data.is_favori ? 'success' : 'info'
+                });
+            }
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
 </script>
 @endsection

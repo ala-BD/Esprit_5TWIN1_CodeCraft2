@@ -2,10 +2,13 @@
 
 namespace App\Providers;
 
+use App\Models\Article;
 use App\Models\Avis;
 use App\Models\Commande;
+use App\Models\Favori;
 use App\Models\Panier;
 use App\Models\PanierLigne;
+use App\Observers\ArticleObserver;
 use App\Policies\AvisPolicy;
 use App\Policies\CommandePolicy;
 use App\Policies\PanierLignePolicy;
@@ -29,6 +32,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // -------------------------------------------------------
+        // Observers
+        // -------------------------------------------------------
+        Article::observe(ArticleObserver::class);
+
+        // -------------------------------------------------------
         // Policies
         // -------------------------------------------------------
         Gate::policy(PanierLigne::class, PanierLignePolicy::class);
@@ -36,29 +44,30 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Avis::class, AvisPolicy::class);
 
         // -------------------------------------------------------
-        // View Composer — Compteur panier partagé dans toutes les vues
+        // View Composer — Compteurs panier & favoris partagés dans toutes les vues
         // -------------------------------------------------------
-        // Injecte $panierCount (nb d'articles) dans toutes les vues
-        // pour afficher le badge du panier dans la navbar.
         View::composer('*', function ($view) {
             if (auth()->check()) {
-                $panier = Panier::where('user_id', auth()->id())
-                    ->withCount('lignes')
+                $userId = auth()->id();
+
+                // Panier count
+                $panier = Panier::where('user_id', $userId)
+                    ->with('lignes')
                     ->first();
+                $panierCount = $panier ? (int) $panier->lignes->sum('quantite') : 0;
 
-                $count = 0;
-                if ($panier) {
-                    // Somme réelle des quantités
-                    $count = (int) Panier::where('user_id', auth()->id())
-                        ->with('lignes')
-                        ->first()
-                        ?->lignes
-                        ?->sum('quantite') ?? 0;
-                }
+                // Favoris count
+                $favorisCount = Favori::where('user_id', $userId)->count();
 
-                $view->with('panierCount', $count);
+                $view->with([
+                    'panierCount'  => $panierCount,
+                    'favorisCount' => $favorisCount,
+                ]);
             } else {
-                $view->with('panierCount', 0);
+                $view->with([
+                    'panierCount'  => 0,
+                    'favorisCount' => 0,
+                ]);
             }
         });
     }

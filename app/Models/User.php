@@ -231,4 +231,20 @@ class User extends Authenticatable
     {
         return $this->avisRecus()->count();
     }
+
+    /**
+     * Relation 1-N : Articles mis en favoris par l'utilisateur.
+     */
+    public function favoris(): HasMany
+    {
+        return $this->hasMany(Favori::class);
+    }
+
+    /**
+     * Relation 1-N : Recherches sauvegardées par l'utilisateur.
+     */
+    public function recherchesSauvegardees(): HasMany
+    {
+        return $this->hasMany(RechercheSauvegardee::class);
+    }
 }
