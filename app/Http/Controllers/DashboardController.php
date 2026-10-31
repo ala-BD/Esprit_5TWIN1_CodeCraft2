@@ -70,7 +70,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        $articles = $user->articles()->latest()->get();
+        $articles = $user->articles()->with(['derniereEstimation'])->latest()->get();
 
         $baseQuery = Commande::with(['lignes.article', 'user'])
             ->whereHas('lignes.article', fn($q) => $q->where('user_id', $user->id))
@@ -81,16 +81,49 @@ class DashboardController extends Controller
             ->whereIn('statut', [Commande::STATUT_CONFIRMEE, Commande::STATUT_EN_PREPARATION])
             ->get();
 
+        $dernieresEstimations = $user->estimations()->with('article')->latest()->take(5)->get();
+
+        // Gisement de dons disponibles pour transformation / upcycling
+        $donsDisponibles = Article::with(['user', 'donVetement', 'derniereEstimation'])
+            ->where('prix', 0)
+            ->where('statut', Article::STATUT_DISPONIBLE)
+            ->where('stock', '>', 0)
+            ->latest()
+            ->take(4)
+            ->get();
+
+        // Calcul des métriques de rentabilité de l'atelier
+        $articlesGagnants   = $articles->filter(fn($a) => $a->derniereEstimation?->niveau_alerte === \App\Models\Estimation::ALERTE_VERT);
+        $articlesASurveiller = $articles->filter(fn($a) => $a->derniereEstimation?->niveau_alerte === \App\Models\Estimation::ALERTE_ORANGE);
+        $articlesPerdants   = $articles->filter(fn($a) => $a->derniereEstimation?->niveau_alerte === \App\Models\Estimation::ALERTE_ROUGE);
+        $articlesACorriger  = $articles->filter(fn($a) => in_array($a->derniereEstimation?->niveau_alerte, [\App\Models\Estimation::ALERTE_ROUGE, \App\Models\Estimation::ALERTE_ORANGE]));
+
+        $margeTotaleEstimee = $articles->sum(fn($a) => (float) ($a->derniereEstimation?->marge_nette ?? 0.0));
+
         $stats = [
-            'total_articles'   => $articles->count(),
-            'en_attente'       => $commandesEnAttente->count(),
-            'en_preparation'   => $commandesConfirmees->count(),
-            'chiffre_affaires' => Commande::whereHas('lignes.article', fn($q) => $q->where('user_id', $user->id))
+            'total_articles'        => $articles->count(),
+            'en_attente'            => $commandesEnAttente->count(),
+            'en_preparation'        => $commandesConfirmees->count(),
+            'chiffre_affaires'      => Commande::whereHas('lignes.article', fn($q) => $q->where('user_id', $user->id))
                 ->whereNotIn('statut', [Commande::STATUT_ANNULEE, Commande::STATUT_EN_ATTENTE_PAIEMENT])
                 ->sum('montant_total'),
+            'marge_totale_estimee'  => $margeTotaleEstimee,
+            'nb_gagnants'           => $articlesGagnants->count(),
+            'nb_a_surveiller'       => $articlesASurveiller->count(),
+            'nb_perdants'           => $articlesPerdants->count(),
+            'nb_a_corriger'         => $articlesACorriger->count(),
+            'nb_dons_disponibles'   => Article::where('prix', 0)->where('statut', Article::STATUT_DISPONIBLE)->where('stock', '>', 0)->count(),
         ];
 
-        return view('dashboard.atelier', compact('articles', 'commandesEnAttente', 'commandesConfirmees', 'stats'));
+        return view('dashboard.atelier', compact(
+            'articles',
+            'commandesEnAttente',
+            'commandesConfirmees',
+            'stats',
+            'articlesACorriger',
+            'dernieresEstimations',
+            'donsDisponibles'
+        ));
     }
 
     // ─────────────────────────────────────────────────────────────────

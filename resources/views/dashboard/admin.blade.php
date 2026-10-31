@@ -18,6 +18,11 @@
             <p class="text-slate-400 mt-1 text-sm">Vue globale de la plateforme RETISS.</p>
         </div>
         <div class="flex items-center gap-2">
+            <a href="{{ route('admin.parametres-cout.index') }}"
+               class="flex items-center gap-2 text-sm text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 px-4 py-2 rounded-xl border border-purple-500/30 transition-colors">
+                <i class="fas fa-sliders text-purple-400"></i>
+                Barèmes des coûts & Marges
+            </a>
             <span class="flex items-center gap-2 text-sm text-emerald-400 bg-emerald-400/10 px-4 py-2 rounded-xl border border-emerald-400/20">
                 <span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
                 Système actif

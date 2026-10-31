@@ -68,6 +68,7 @@ class Article extends Model
         'user_id', 'don_vetement_id', 'titre', 'description', 'prix',
         'prix_estime_ia', 'stock', 'categorie', 'statut',
         'taille', 'matiere', 'etat', 'couleur', 'co2_economise_kg', 'images',
+        'poids_kg', 'cout_achat', 'heures_travail', 'cout_materiaux',
     ];
 
     protected function casts(): array
@@ -76,18 +77,27 @@ class Article extends Model
             'prix'             => 'decimal:2',
             'prix_estime_ia'   => 'decimal:2',
             'co2_economise_kg' => 'decimal:3',
+            'poids_kg'         => 'decimal:3',
+            'cout_achat'       => 'decimal:2',
+            'heures_travail'   => 'decimal:2',
+            'cout_materiaux'   => 'decimal:2',
             'stock'            => 'integer',
             'images'           => 'array',
         ];
     }
 
     // Relations
-    public function user(): BelongsTo         { return $this->belongsTo(User::class); }
-    public function donVetement(): BelongsTo  { return $this->belongsTo(DonVetement::class, 'don_vetement_id'); }
-    public function lignesCommande(): HasMany  { return $this->hasMany(LigneCommande::class); }
-    public function panierLignes(): HasMany    { return $this->hasMany(PanierLigne::class); }
-    public function avis(): HasMany            { return $this->hasMany(Avis::class); }
-    public function favoris(): HasMany         { return $this->hasMany(Favori::class); }
+    public function user(): BelongsTo              { return $this->belongsTo(User::class); }
+    public function donVetement(): BelongsTo       { return $this->belongsTo(DonVetement::class, 'don_vetement_id'); }
+    public function lignesCommande(): HasMany      { return $this->hasMany(LigneCommande::class); }
+    public function panierLignes(): HasMany        { return $this->hasMany(PanierLigne::class); }
+    public function avis(): HasMany                { return $this->hasMany(Avis::class); }
+    public function favoris(): HasMany             { return $this->hasMany(Favori::class); }
+    public function estimations(): HasMany         { return $this->hasMany(Estimation::class); }
+    public function derniereEstimation(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Estimation::class)->latestOfMany();
+    }
 
     /**
      * Vérifie si cet article est dans les favoris d'un utilisateur donné.

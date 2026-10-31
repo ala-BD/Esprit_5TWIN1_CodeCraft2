@@ -13,6 +13,8 @@ use App\Http\Controllers\RechercheSauvegardeeController;
 use App\Http\Controllers\Recyclage\LotTextileController;
 use App\Http\Controllers\Recyclage\EtapeTraitementController;
 use App\Http\Controllers\Recyclage\PasseportNumeriqueController;
+use App\Http\Controllers\Atelier\EstimationController;
+use App\Http\Controllers\Admin\ParametreCoutController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -111,10 +113,6 @@ Route::middleware(['auth'])->group(function () {
     */
     Route::get('articles/suggest', [ArticleController::class, 'suggest'])->name('articles.suggest');
 
-    // Lecture : tout le monde peut consulter le catalogue
-    Route::get('articles',            [ArticleController::class, 'index'])->name('articles.index');
-    Route::get('articles/{article}',  [ArticleController::class, 'show'])->name('articles.show');
-
     // Écriture : ATELIER, DONATEUR, ADMIN uniquement
     Route::middleware('role:ATELIER,DONATEUR,ADMIN')->group(function () {
         Route::get('articles/create',           [ArticleController::class, 'create'])->name('articles.create');
@@ -124,6 +122,10 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('articles/{article}',      [ArticleController::class, 'update']);
         Route::delete('articles/{article}',     [ArticleController::class, 'destroy'])->name('articles.destroy');
     });
+
+    // Lecture : tout le monde peut consulter le catalogue
+    Route::get('articles',            [ArticleController::class, 'index'])->name('articles.index');
+    Route::get('articles/{article}',  [ArticleController::class, 'show'])->name('articles.show');
 
     /*
     |----------------------------------------------------------------------
@@ -148,6 +150,33 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('role:ATELIER,ADMIN')->group(function () {
         Route::patch('commandes/{commande}/statut', [CommandeController::class, 'updateStatut'])
             ->name('commandes.statut');
+
+        // Consultation des dons textiles gratuits disponibles pour l'Atelier
+        Route::get('atelier/dons', [EstimationController::class, 'donsDisponibles'])
+            ->name('atelier.dons');
+
+        // IA pour l'Atelier : Estimation des coûts, prix et rentabilité
+        Route::prefix('atelier/estimations')->name('atelier.estimations.')->group(function () {
+            Route::post('calculer',         [EstimationController::class, 'calculer'])
+                ->middleware('throttle:30,1')
+                ->name('calculer');
+            Route::post('recalculer-marge', [EstimationController::class, 'recalculerMarge'])
+                ->name('recalculer-marge');
+            Route::get('historique',        [EstimationController::class, 'historique'])
+                ->name('historique');
+            Route::delete('{estimation}',   [EstimationController::class, 'destroy'])
+                ->name('destroy');
+        });
+    });
+
+    /*
+    |----------------------------------------------------------------------
+    | ADMINISTRATION — Barèmes des coûts (ADMIN uniquement)
+    |----------------------------------------------------------------------
+    */
+    Route::middleware('role:ADMIN')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('parametres-cout',                        [ParametreCoutController::class, 'index'])->name('parametres-cout.index');
+        Route::put('parametres-cout/{parametreCout}',        [ParametreCoutController::class, 'update'])->name('parametres-cout.update');
     });
 
     /*

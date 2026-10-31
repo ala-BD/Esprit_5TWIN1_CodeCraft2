@@ -4,7 +4,7 @@
 
 @section('styles')
 <style>
-    .article-form-page {
+    .article-form-page{
         min-height: 100vh;
         background: linear-gradient(160deg, #f0fdf9 0%, #f8fafc 40%, #f0f4ff 100%);
         padding-top: 72px;
@@ -131,6 +131,22 @@
             <form method="POST"
                   action="{{ $isEdit ? route('articles.update', $article) : route('articles.store') }}"
                   enctype="multipart/form-data"
+                  x-data="assistantEstimation({
+                      articleId: {{ $article->id ?? 'null' }},
+                      isAtelier: {{ (auth()->user()->role === \App\Models\User::ROLE_ATELIER || auth()->user()->isAdmin()) ? 'true' : 'false' }},
+                      initialPrix: '{{ old('prix', $article->prix ?? '') }}',
+                      initialMatiere: '{{ old('matiere', $article->matiere ?? '') }}',
+                      initialCategorie: '{{ old('categorie', $article->categorie ?? '') }}',
+                      initialEtat: '{{ old('etat', $article->etat ?? '') }}',
+                      initialTaille: '{{ old('taille', $article->taille ?? '') }}',
+                      initialCouleur: '{{ old('couleur', $article->couleur ?? '') }}',
+                      initialPoids: '{{ old('poids_kg', $article->poids_kg ?? 0.5) }}',
+                      initialAchat: '{{ old('cout_achat', $article->cout_achat ?? 0.0) }}',
+                      initialHeures: '{{ old('heures_travail', $article->heures_travail ?? 1.0) }}',
+                      initialMateriaux: '{{ old('cout_materiaux', $article->cout_materiaux ?? 0.0) }}',
+                      csrfToken: '{{ csrf_token() }}',
+                      endpointCalculer: '{{ route('atelier.estimations.calculer') }}'
+                  })"
                   class="space-y-6">
                 @csrf
                 @if($isEdit)
@@ -210,6 +226,416 @@
                     @endif
                 </div>
 
+                {{-- Caractéristiques Textiles (Matière, Taille, État, Couleur) --}}
+                <div class="p-5 bg-slate-50/70 border border-slate-200/80 rounded-2xl">
+                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <i class="fas fa-layer-group text-teal-600"></i> Caractéristiques textiles de la pièce
+                    </h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        {{-- Matière --}}
+                        <div>
+                            <label for="matiere" class="form-label text-xs">Matière</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-certificate input-icon text-xs"></i>
+                                <select id="matiere" name="matiere" x-model="form.matiere"
+                                        class="form-input text-xs bg-white {{ $errors->has('matiere') ? 'border-red-400 bg-red-50' : '' }}">
+                                    <option value="">Sélectionnez</option>
+                                    @foreach($matieres as $mat)
+                                        <option value="{{ $mat }}" {{ old('matiere', $article->matiere) === $mat ? 'selected' : '' }}>
+                                            {{ $mat }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @error('matiere')
+                                <p class="mt-1 text-[11px] text-red-500">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        {{-- Taille --}}
+                        <div>
+                            <label for="taille" class="form-label text-xs">Taille</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-ruler-combined input-icon text-xs"></i>
+                                <select id="taille" name="taille" x-model="form.taille"
+                                        class="form-input text-xs bg-white {{ $errors->has('taille') ? 'border-red-400 bg-red-50' : '' }}">
+                                    <option value="">Sélectionnez</option>
+                                    @foreach($tailles as $t)
+                                        <option value="{{ $t }}" {{ old('taille', $article->taille) === $t ? 'selected' : '' }}>
+                                            {{ $t }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @error('taille')
+                                <p class="mt-1 text-[11px] text-red-500">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        {{-- État --}}
+                        <div>
+                            <label for="etat" class="form-label text-xs">État</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-sparkles input-icon text-xs"></i>
+                                <select id="etat" name="etat" x-model="form.etat"
+                                        class="form-input text-xs bg-white {{ $errors->has('etat') ? 'border-red-400 bg-red-50' : '' }}">
+                                    <option value="">Sélectionnez</option>
+                                    @foreach($etats as $et)
+                                        <option value="{{ $et }}" {{ old('etat', $article->etat) === $et ? 'selected' : '' }}>
+                                            {{ $et }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @error('etat')
+                                <p class="mt-1 text-[11px] text-red-500">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        {{-- Couleur --}}
+                        <div>
+                            <label for="couleur" class="form-label text-xs">Couleur</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-palette input-icon text-xs"></i>
+                                <select id="couleur" name="couleur" x-model="form.couleur"
+                                        class="form-input text-xs bg-white {{ $errors->has('couleur') ? 'border-red-400 bg-red-50' : '' }}">
+                                    <option value="">Sélectionnez</option>
+                                    @foreach($couleurs as $c)
+                                        <option value="{{ $c }}" {{ old('couleur', $article->couleur) === $c ? 'selected' : '' }}>
+                                            {{ $c }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @error('couleur')
+                                <p class="mt-1 text-[11px] text-red-500">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Données spécifiques Atelier : Charges d'Upcycling & Poids --}}
+                @if(auth()->user()->role === \App\Models\User::ROLE_ATELIER || auth()->user()->isAdmin())
+                <div class="p-5 bg-gradient-to-br from-amber-50/60 to-orange-50/40 border border-amber-200/80 rounded-2xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fas fa-scissors text-amber-600"></i> Charges & Données Atelier (Upcycling / Réparation)
+                        </h3>
+                        <span class="text-[11px] font-semibold text-amber-700 bg-amber-100/80 px-2.5 py-0.5 rounded-full">
+                            Tarif atelier : {{ auth()->user()->tarif_horaire_effectif }} DT/h
+                        </span>
+                    </div>
+                    <p class="text-xs text-amber-800/80 mb-4">
+                        Ces données permettent à l'assistant d'estimer vos coûts de revient réels, de simuler la filière recyclage et de calculer votre rentabilité nette.
+                    </p>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div>
+                            <label for="poids_kg" class="form-label text-xs">Poids (kg)</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-weight-hanging input-icon text-xs"></i>
+                                <input id="poids_kg" name="poids_kg" type="number" step="0.01" min="0.01" max="50"
+                                       x-model="form.poids_kg"
+                                       value="{{ old('poids_kg', $article->poids_kg ?? 0.5) }}"
+                                       class="form-input text-xs bg-white"
+                                       placeholder="ex. 0.45">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="cout_achat" class="form-label text-xs">Coût d'achat (DT)</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-receipt input-icon text-xs"></i>
+                                <input id="cout_achat" name="cout_achat" type="number" step="0.01" min="0"
+                                       x-model="form.cout_achat"
+                                       value="{{ old('cout_achat', $article->cout_achat ?? 0.0) }}"
+                                       class="form-input text-xs bg-white"
+                                       placeholder="0.00 si don">
+                            </div>
+                            <span class="text-[10px] text-gray-500">0 DT si don</span>
+                        </div>
+
+                        <div>
+                            <label for="heures_travail" class="form-label text-xs">Heures de travail (h)</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-clock input-icon text-xs"></i>
+                                <input id="heures_travail" name="heures_travail" type="number" step="0.25" min="0"
+                                       x-model="form.heures_travail"
+                                       value="{{ old('heures_travail', $article->heures_travail ?? 1.0) }}"
+                                       class="form-input text-xs bg-white"
+                                       placeholder="ex. 1.5">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="cout_materiaux" class="form-label text-xs">Coût matériaux (DT)</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-cubes input-icon text-xs"></i>
+                                <input id="cout_materiaux" name="cout_materiaux" type="number" step="0.01" min="0"
+                                       x-model="form.cout_materiaux"
+                                       value="{{ old('cout_materiaux', $article->cout_materiaux ?? 0.0) }}"
+                                       class="form-input text-xs bg-white"
+                                       placeholder="Fils, boutons, patchs…">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Panneau « Assistant d'estimation IA & Rentabilité » --}}
+                <div class="border-2 border-purple-200 bg-gradient-to-b from-purple-50/40 via-white to-indigo-50/30 rounded-3xl p-6 sm:p-7 shadow-sm transition-all"
+                     id="panneau-assistant-ia">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-purple-100">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="w-2.5 h-2.5 rounded-full bg-purple-600 animate-pulse"></span>
+                                <span class="text-xs font-bold uppercase tracking-wider text-purple-700">Aide à la décision · Rôle Atelier</span>
+                            </div>
+                            <h3 class="text-lg font-bold font-display text-gray-900 flex items-center gap-2">
+                                <i class="fas fa-sparkles text-purple-600"></i>
+                                Assistant d'estimation des coûts, prix et rentabilité
+                            </h3>
+                            <p class="text-xs text-gray-500 mt-0.5">
+                                Répond à trois questions : combien me coûte la transformation, à quel prix vendre, et est-ce rentable ?
+                            </p>
+                        </div>
+                        <button type="button"
+                                @click="lancerEstimation()"
+                                :disabled="loading"
+                                class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-purple-600/20 hover:shadow-lg transition-all disabled:opacity-50 flex-shrink-0 cursor-pointer">
+                            <i class="fas" :class="loading ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'"></i>
+                            <span x-text="loading ? 'Analyse & Calcul en cours…' : (resultat ? 'Réestimer avec l\'IA' : 'Estimer avec l\'IA')"></span>
+                        </button>
+                    </div>
+
+                    {{-- Erreur éventuelle --}}
+                    <div x-show="error" x-cloak class="mt-4 p-4 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+                        <i class="fas fa-circle-exclamation text-red-500 text-sm"></i>
+                        <span x-text="error"></span>
+                    </div>
+
+                    {{-- État initial avant estimation --}}
+                    <div x-show="!resultat && !loading" class="py-8 text-center">
+                        <div class="w-14 h-14 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center mx-auto mb-3 text-xl">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <p class="text-sm font-bold text-gray-800">Prêt pour l'estimation</p>
+                        <p class="text-xs text-gray-500 max-w-md mx-auto mt-1">
+                            Renseignez les caractéristiques de votre pièce ci-dessus puis cliquez sur « Estimer avec l'IA » pour obtenir le détail des charges, la fourchette de prix et votre alerte de rentabilité.
+                        </p>
+                    </div>
+
+                    {{-- Résultat de l'estimation --}}
+                    <div x-show="resultat !== null" x-cloak class="mt-6 space-y-6">
+
+                        {{-- 1. Grande alerte dynamique de rentabilité --}}
+                        <div class="p-5 rounded-2xl border-2 transition-all"
+                             :class="{
+                                 'bg-emerald-50 border-emerald-300 text-emerald-950': alerteNiveauLive === 'vert',
+                                 'bg-amber-50 border-amber-300 text-amber-950': alerteNiveauLive === 'orange',
+                                 'bg-rose-50 border-rose-300 text-rose-950': alerteNiveauLive === 'rouge'
+                             }">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-11 h-11 rounded-xl flex items-center justify-center text-lg font-bold shadow-sm"
+                                         :class="{
+                                             'bg-emerald-500 text-white': alerteNiveauLive === 'vert',
+                                             'bg-amber-500 text-white': alerteNiveauLive === 'orange',
+                                             'bg-rose-500 text-white': alerteNiveauLive === 'rouge'
+                                         }">
+                                        <i class="fas"
+                                           :class="{
+                                               'fa-circle-check': alerteNiveauLive === 'vert',
+                                               'fa-triangle-exclamation': alerteNiveauLive === 'orange',
+                                               'fa-circle-xmark': alerteNiveauLive === 'rouge'
+                                           }"></i>
+                                    </div>
+                                    <div>
+                                        <span class="text-[11px] font-bold uppercase tracking-wider opacity-75">Statut de Rentabilité</span>
+                                        <h4 class="text-lg font-extrabold" x-text="alerteTitreLive"></h4>
+                                    </div>
+                                </div>
+                                <div class="text-left sm:text-right">
+                                    <p class="text-2xl font-black font-display"
+                                       :class="{
+                                           'text-emerald-700': alerteNiveauLive === 'vert',
+                                           'text-amber-700': alerteNiveauLive === 'orange',
+                                           'text-rose-700': alerteNiveauLive === 'rouge'
+                                       }">
+                                        <span x-text="margeNetteLive > 0 ? '+' + margeNetteLive.toFixed(2) : margeNetteLive.toFixed(2)"></span> DT
+                                        <span class="text-xs font-semibold">(<span x-text="margePctLive.toFixed(1)"></span>%)</span>
+                                    </p>
+                                    <p class="text-[11px] opacity-75">Marge nette estimée</p>
+                                </div>
+                            </div>
+
+                            {{-- Chiffres clés chiffrés --}}
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-black/10 text-xs">
+                                <div class="bg-white/70 backdrop-blur-sm p-2.5 rounded-xl border border-black/5">
+                                    <span class="text-gray-500 block text-[10px]">Coût total de revient</span>
+                                    <strong class="text-gray-900 font-bold" x-text="resultat?.cout_upcycling?.toFixed(2) + ' DT'"></strong>
+                                </div>
+                                <div class="bg-white/70 backdrop-blur-sm p-2.5 rounded-xl border border-black/5">
+                                    <span class="text-gray-500 block text-[10px]">Prix testé</span>
+                                    <strong class="text-gray-900 font-bold" x-text="parseFloat(prixChoisi || 0).toFixed(2) + ' DT'"></strong>
+                                </div>
+                                <div class="bg-white/70 backdrop-blur-sm p-2.5 rounded-xl border border-black/5">
+                                    <span class="text-gray-500 block text-[10px]">Frais plateforme</span>
+                                    <strong class="text-gray-900 font-bold" x-text="(resultat?.parametres?.frais_plateforme_pct || 5) + '%'"></strong>
+                                </div>
+                                <div class="bg-white/70 backdrop-blur-sm p-2.5 rounded-xl border border-black/5">
+                                    <span class="text-gray-500 block text-[10px]">Marge cible</span>
+                                    <strong class="text-gray-900 font-bold" x-text="(resultat?.parametres?.marge_cible_pourcent || 20) + '%'"></strong>
+                                </div>
+                            </div>
+
+                            {{-- Conseil personnalisé direct --}}
+                            <div class="mt-3.5 pt-3 border-t border-black/10 flex items-start gap-2 text-xs font-medium">
+                                <i class="fas fa-lightbulb text-amber-500 mt-0.5 flex-shrink-0"></i>
+                                <span x-text="conseilLive"></span>
+                            </div>
+                        </div>
+
+                        {{-- 2. Fourchette de prix & Curseur interactif --}}
+                        <div class="p-5 bg-white rounded-2xl border border-purple-100 shadow-sm">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                                <div>
+                                    <h4 class="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                        <i class="fas fa-sliders text-purple-600"></i>
+                                        Fourchette de revente conseillée
+                                    </h4>
+                                    <p class="text-xs text-gray-400">Ajustez le curseur pour simuler en temps réel l'impact sur votre marge.</p>
+                                </div>
+                                <button type="button"
+                                        @click="appliquerPrixConseille()"
+                                        class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-semibold text-xs transition-colors self-start sm:self-auto cursor-pointer">
+                                    <i class="fas fa-check-double text-purple-600"></i>
+                                    <span>Utiliser le prix conseillé (<strong x-text="resultat?.prix_conseille + ' DT'"></strong>)</span>
+                                </button>
+                            </div>
+
+                            {{-- Repères Min - Conseillé - Max --}}
+                            <div class="grid grid-cols-3 gap-2 text-center mb-3">
+                                <div class="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                                    <p class="text-[10px] text-gray-500 font-semibold uppercase">Prix plancher</p>
+                                    <p class="text-sm font-bold text-gray-700" x-text="resultat?.prix_min + ' DT'"></p>
+                                </div>
+                                <div class="p-2 rounded-xl bg-purple-50 border border-purple-200">
+                                    <p class="text-[10px] text-purple-700 font-bold uppercase">Prix conseillé IA</p>
+                                    <p class="text-base font-extrabold text-purple-700" x-text="resultat?.prix_conseille + ' DT'"></p>
+                                </div>
+                                <div class="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                                    <p class="text-[10px] text-gray-500 font-semibold uppercase">Prix plafond</p>
+                                    <p class="text-sm font-bold text-gray-700" x-text="resultat?.prix_max + ' DT'"></p>
+                                </div>
+                            </div>
+
+                            {{-- Curseur interactif (Range Slider) --}}
+                            <div class="space-y-2 mt-4 px-1">
+                                <div class="flex items-center justify-between text-xs text-gray-400">
+                                    <span x-text="sliderMin + ' DT'"></span>
+                                    <span class="font-bold text-purple-700 text-sm" x-text="'Prix sélectionné : ' + parseFloat(prixChoisi || 0).toFixed(2) + ' DT'"></span>
+                                    <span x-text="sliderMax + ' DT'"></span>
+                                </div>
+                                <input type="range"
+                                       :min="sliderMin"
+                                       :max="sliderMax"
+                                       step="0.5"
+                                       x-model="prixChoisi"
+                                       @input="recalculerLive()"
+                                       class="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600">
+                            </div>
+                        </div>
+
+                        {{-- 3. Détail ligne par ligne des charges (Recyclage vs Upcycling) --}}
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                            {{-- Filière Upcycling --}}
+                            <div class="p-4 rounded-2xl bg-white border border-amber-200/80 shadow-sm">
+                                <div class="flex items-center justify-between mb-3 pb-2 border-b border-amber-100">
+                                    <h5 class="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                                        <i class="fas fa-cut text-amber-600"></i> Filière Upcycling
+                                    </h5>
+                                    <strong class="text-sm font-extrabold text-amber-700" x-text="resultat?.detail_upcycling?.total?.toFixed(2) + ' DT'"></strong>
+                                </div>
+                                <div class="space-y-1.5 text-xs text-gray-600">
+                                    <div class="flex justify-between">
+                                        <span>Achat de la pièce :</span>
+                                        <span class="font-medium text-gray-800" x-text="resultat?.detail_upcycling?.achat?.toFixed(2) + ' DT'"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Main-d'œuvre (<span x-text="resultat?.detail_upcycling?.heures + 'h × ' + resultat?.detail_upcycling?.tarif_horaire + ' DT/h'"></span>) :</span>
+                                        <span class="font-medium text-gray-800" x-text="resultat?.detail_upcycling?.main_d_oeuvre?.toFixed(2) + ' DT'"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Matériaux / fournitures :</span>
+                                        <span class="font-medium text-gray-800" x-text="resultat?.detail_upcycling?.materiaux?.toFixed(2) + ' DT'"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Transport & logistique :</span>
+                                        <span class="font-medium text-gray-800" x-text="resultat?.detail_upcycling?.transport?.toFixed(2) + ' DT'"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Filière Recyclage --}}
+                            <div class="p-4 rounded-2xl bg-white border border-blue-200/80 shadow-sm">
+                                <div class="flex items-center justify-between mb-3 pb-2 border-b border-blue-100">
+                                    <h5 class="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                                        <i class="fas fa-recycle text-blue-600"></i> Filière Recyclage
+                                    </h5>
+                                    <strong class="text-sm font-extrabold text-blue-700" x-text="resultat?.detail_recyclage?.total?.toFixed(2) + ' DT'"></strong>
+                                </div>
+                                <div class="space-y-1.5 text-xs text-gray-600">
+                                    <div class="flex justify-between">
+                                        <span>Tri fixe unitaire :</span>
+                                        <span class="font-medium text-gray-800" x-text="resultat?.detail_recyclage?.tri?.toFixed(2) + ' DT'"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Traitement matière (<span x-text="resultat?.detail_recyclage?.cout_au_kg + ' DT/kg'"></span>) :</span>
+                                        <span class="font-medium text-gray-800" x-text="resultat?.detail_recyclage?.traitement_base?.toFixed(2) + ' DT'"></span>
+                                    </div>
+                                    <div class="flex justify-between" x-show="resultat?.detail_recyclage?.majoration_mixte > 0">
+                                        <span>Majoration mélange complexe (<span x-text="resultat?.detail_recyclage?.majoration_pourcent + '%'"></span>) :</span>
+                                        <span class="font-medium text-amber-600" x-text="resultat?.detail_recyclage?.majoration_mixte?.toFixed(2) + ' DT'"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Transport par poids :</span>
+                                        <span class="font-medium text-gray-800" x-text="resultat?.detail_recyclage?.transport?.toFixed(2) + ' DT'"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Orientation recommandée --}}
+                        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3 text-xs">
+                            <span class="px-2 py-0.5 rounded-md font-bold text-[10px]"
+                                  :class="resultat?.filiere_orientation?.badge_class"
+                                  x-text="resultat?.filiere_orientation?.filiere_recommandee"></span>
+                            <p class="text-slate-600" x-text="resultat?.filiere_orientation?.motif"></p>
+                        </div>
+
+                        {{-- 4. Explication & Indice de confiance IA --}}
+                        <div class="p-4 rounded-2xl bg-purple-50/60 border border-purple-100 text-xs">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px]"
+                                          :class="resultat?.source === 'ia' ? 'bg-purple-200 text-purple-800' : 'bg-blue-100 text-blue-800'">
+                                        <i class="fas" :class="resultat?.source === 'ia' ? 'fa-sparkles' : 'fa-calculator'"></i>
+                                        <span x-text="resultat?.source === 'ia' ? 'IA RETISS Hybride' : 'Règles & Barèmes métier'"></span>
+                                    </span>
+                                    <span class="text-gray-400">·</span>
+                                    <span class="text-gray-500 text-[11px]">
+                                        Confiance : <strong class="text-gray-700 capitalize" x-text="resultat?.confiance"></strong>
+                                    </span>
+                                </div>
+                            </div>
+                            <p class="text-slate-700 leading-relaxed italic" x-text="'« ' + resultat?.explication + ' »'"></p>
+                        </div>
+
+                    </div>{{-- /resultat --}}
+
+                </div>{{-- /panneau-assistant-ia --}}
+                @endif
+
                 {{-- Prix & Stock --}}
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     @if(auth()->user()->role === \App\Models\User::ROLE_DONATEUR)
@@ -236,6 +662,8 @@
                             <div class="input-wrap">
                                 <i class="fas fa-coins input-icon"></i>
                                 <input id="prix" name="prix" type="number" step="0.01" min="0.01"
+                                       x-model="form.prix"
+                                       @input="onManualPriceInput()"
                                        class="form-input {{ $errors->has('prix') ? 'border-red-400 bg-red-50' : '' }}"
                                        value="{{ old('prix', $article->prix) }}"
                                        placeholder="ex. 45.00"
@@ -639,5 +1067,181 @@ dropzone.addEventListener('drop', (e) => {
         handleNewFiles(dt.files);
     }
 }, false);
+
+// ── Assistant d'estimation IA & Rentabilité (Alpine.js) ────────────────
+function assistantEstimation(config) {
+    return {
+        articleId: config.articleId,
+        isAtelier: config.isAtelier,
+        form: {
+            titre: '',
+            categorie: config.initialCategorie || '',
+            matiere: config.initialMatiere || '',
+            taille: config.initialTaille || '',
+            etat: config.initialEtat || '',
+            couleur: config.initialCouleur || '',
+            poids_kg: config.initialPoids || 0.5,
+            cout_achat: config.initialAchat || 0,
+            heures_travail: config.initialHeures || 1,
+            cout_materiaux: config.initialMateriaux || 0,
+            prix: config.initialPrix || '',
+        },
+        loading: false,
+        error: null,
+        resultat: null,
+        prixChoisi: config.initialPrix ? parseFloat(config.initialPrix) : 0,
+        sliderMin: 5,
+        sliderMax: 100,
+        margeNetteLive: 0,
+        margePctLive: 0,
+        alerteNiveauLive: 'vert',
+        alerteTitreLive: '',
+        conseilLive: '',
+
+        init() {
+            const titreInput = document.getElementById('titre');
+            if (titreInput) {
+                this.form.titre = titreInput.value;
+                titreInput.addEventListener('input', (e) => { this.form.titre = e.target.value; });
+            }
+            const catSelect = document.getElementById('categorie');
+            if (catSelect) {
+                this.form.categorie = catSelect.value;
+                catSelect.addEventListener('change', (e) => { this.form.categorie = e.target.value; });
+            }
+        },
+
+        async lancerEstimation() {
+            this.loading = true;
+            this.error = null;
+
+            this.form.titre = document.getElementById('titre')?.value || this.form.titre;
+            this.form.categorie = document.getElementById('categorie')?.value || this.form.categorie;
+
+            const payload = {
+                titre: this.form.titre,
+                categorie: this.form.categorie,
+                matiere: this.form.matiere,
+                taille: this.form.taille,
+                etat: this.form.etat,
+                couleur: this.form.couleur,
+                poids_kg: parseFloat(this.form.poids_kg) || 0.5,
+                cout_achat: parseFloat(this.form.cout_achat) || 0,
+                heures_travail: parseFloat(this.form.heures_travail) || 0,
+                cout_materiaux: parseFloat(this.form.cout_materiaux) || 0,
+                prix: parseFloat(this.form.prix) || null,
+                article_id: this.articleId,
+                save: true,
+                _token: config.csrfToken
+            };
+
+            try {
+                const response = await axios.post(config.endpointCalculer, payload);
+                if (response.data && response.data.success) {
+                    this.resultat = response.data.data;
+                    
+                    const conseillle = parseFloat(this.resultat.prix_conseille) || 30;
+                    const pMin = parseFloat(this.resultat.prix_min) || (conseillle * 0.8);
+                    const pMax = parseFloat(this.resultat.prix_max) || (conseillle * 1.25);
+                    
+                    this.sliderMin = Math.max(2, Math.floor(pMin * 0.7));
+                    this.sliderMax = Math.ceil(pMax * 1.3);
+
+                    if (!this.form.prix || parseFloat(this.form.prix) <= 0) {
+                        this.prixChoisi = conseillle;
+                        this.form.prix = conseillle.toFixed(2);
+                    } else {
+                        this.prixChoisi = parseFloat(this.form.prix);
+                    }
+
+                    this.recalculerLive();
+
+                    this.$nextTick(() => {
+                        const panel = document.getElementById('panneau-assistant-ia');
+                        if (panel) {
+                            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    });
+                } else {
+                    this.error = response.data?.error || "Une erreur est survenue lors du calcul.";
+                }
+            } catch (err) {
+                console.error(err);
+                this.error = err.response?.data?.message || err.response?.data?.error || "Erreur lors de la communication avec l'assistant d'estimation.";
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        recalculerLive() {
+            if (!this.resultat) return;
+
+            const prix = parseFloat(this.prixChoisi) || 0;
+            const coutRevient = parseFloat(this.resultat.cout_upcycling) || 0;
+            const coutRecyclage = parseFloat(this.resultat.cout_recyclage) || 0;
+            const fraisPct = parseFloat(this.resultat.parametres?.frais_plateforme_pct) || 5;
+            const margeCiblePct = parseFloat(this.resultat.parametres?.marge_cible_pourcent) || 20;
+
+            const frais = (prix * (fraisPct / 100));
+            const margeNette = prix - coutRevient - frais;
+            const margePct = prix > 0 ? (margeNette / prix) * 100 : -100;
+
+            this.margeNetteLive = margeNette;
+            this.margePctLive = margePct;
+
+            this.form.prix = prix.toFixed(2);
+
+            const denom = 1 - ((fraisPct + margeCiblePct) / 100);
+            const prixPourCible = denom > 0 ? (coutRevient / denom).toFixed(2) : (coutRevient * 1.3).toFixed(2);
+
+            if (margeNette > 0 && margePct >= margeCiblePct) {
+                this.alerteNiveauLive = 'vert';
+                this.alerteTitreLive = 'Article gagnant (Rentabilité optimale)';
+                this.conseilLive = `Excellente rentabilité ! Votre marge nette de ${margeNette.toFixed(2)} DT (${margePct.toFixed(1)}%) dépasse l'objectif cible de ${margeCiblePct}%.`;
+            } else if (margeNette > 0 && margePct < margeCiblePct) {
+                this.alerteNiveauLive = 'orange';
+                this.alerteTitreLive = 'À surveiller (Marge positive mais faible)';
+                this.conseilLive = `Marge positive mais faible (${margeNette.toFixed(2)} DT, soit ${margePct.toFixed(1)}%). Augmentez le prix à ${prixPourCible} DT pour atteindre l'objectif de ${margeCiblePct}% de marge.`;
+            } else {
+                this.alerteNiveauLive = 'rouge';
+                this.alerteTitreLive = 'Article perdant (Vente à perte)';
+                const perte = Math.abs(margeNette).toFixed(2);
+                if (coutRevient > prix && coutRevient > (coutRecyclage * 2.5) && coutRecyclage > 0) {
+                    this.conseilLive = `Attention, vente à perte (déficit de ${perte} DT). Cet article coûte plus cher à transformer (${coutRevient.toFixed(2)} DT) qu'à recycler (${coutRecyclage.toFixed(2)} DT) : orientez plutôt cette pièce vers la filière recyclage ou fixez un prix minimal de ${prixPourCible} DT.`;
+                } else {
+                    this.conseilLive = `Attention, marge déficitaire (-${perte} DT). Pour couvrir vos charges d'atelier et atteindre ${margeCiblePct}% de marge, le prix minimal requis est de ${prixPourCible} DT.`;
+                }
+            }
+        },
+
+        onManualPriceInput() {
+            const p = parseFloat(this.form.prix);
+            if (!isNaN(p) && p >= 0) {
+                this.prixChoisi = p;
+                if (p > this.sliderMax) this.sliderMax = Math.ceil(p * 1.2);
+                if (p < this.sliderMin) this.sliderMin = Math.max(1, Math.floor(p * 0.8));
+                this.recalculerLive();
+            }
+        },
+
+        appliquerPrixConseille() {
+            if (this.resultat?.prix_conseille) {
+                this.prixChoisi = parseFloat(this.resultat.prix_conseille);
+                this.recalculerLive();
+                
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: `Prix conseillé (${this.prixChoisi.toFixed(2)} DT) appliqué !`,
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                }
+            }
+        }
+    };
+}
 </script>
 @endsection

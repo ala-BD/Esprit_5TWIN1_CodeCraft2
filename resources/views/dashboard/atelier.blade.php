@@ -19,6 +19,14 @@
             <p class="text-gray-500 mt-1 text-sm">Gérez vos articles et confirmez les commandes de vos clients.</p>
         </div>
         <div class="flex items-center gap-3">
+            <a href="{{ route('atelier.dons') }}"
+               class="inline-flex items-center gap-2 border border-emerald-200 bg-emerald-50/80 text-emerald-800 font-semibold px-4 py-3 rounded-xl hover:bg-emerald-100 transition-all text-sm shadow-sm">
+                <i class="fas fa-gift text-emerald-600"></i> Gisement de Dons ({{ $stats['nb_dons_disponibles'] ?? 0 }})
+            </a>
+            <a href="{{ route('atelier.estimations.historique') }}"
+               class="inline-flex items-center gap-2 border border-purple-200 bg-purple-50/70 text-purple-700 font-semibold px-4 py-3 rounded-xl hover:bg-purple-100 transition-all text-sm shadow-sm">
+                <i class="fas fa-sparkles text-purple-600"></i> Historique IA
+            </a>
             <a href="{{ route('articles.create') }}"
                class="inline-flex items-center gap-2 bg-gradient-to-r from-orange-600 to-orange-500 text-white font-semibold px-5 py-3 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all duration-200 text-sm">
                 <i class="fas fa-plus"></i> Nouvel article
@@ -79,6 +87,146 @@
             <p class="text-gray-500 text-xs mt-0.5">Chiffre d'affaires</p>
         </div>
     </div>
+
+    {{-- ── AIDE À LA DÉCISION IA & RENTABILITÉ ───────────────────── --}}
+    <div class="mb-10 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+        <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute right-40 top-0 w-48 h-48 bg-purple-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 relative z-10 mb-6">
+            <div>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30 mb-2">
+                    <i class="fas fa-sparkles"></i> IA Atelier · Pilotage de la Rentabilité
+                </span>
+                <h2 class="text-xl sm:text-2xl font-bold font-display">Performance économique & Alertes</h2>
+                <p class="text-slate-300 text-sm mt-1 max-w-2xl">
+                    Estimation en temps réel des charges d'upcycling, valorisation matière et détection des marges critiques pour chacun de vos articles.
+                </p>
+            </div>
+            <a href="{{ route('atelier.estimations.historique') }}"
+               class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all self-start lg:self-center">
+                <span>Voir toutes les estimations</span>
+                <i class="fas fa-arrow-right text-[10px]"></i>
+            </a>
+        </div>
+
+        {{-- 4 Mini KPI Rentabilité --}}
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 relative z-10">
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+                <p class="text-xs text-slate-400 font-medium">Marge nette totale</p>
+                <p class="text-2xl font-extrabold text-emerald-400 mt-1">
+                    {{ number_format($stats['marge_totale_estimee'], 2) }} <span class="text-xs font-normal text-slate-400">DT</span>
+                </p>
+                <p class="text-[11px] text-slate-400 mt-0.5">Sur articles estimés</p>
+            </div>
+
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-slate-400 font-medium">Articles gagnants</p>
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></span>
+                </div>
+                <p class="text-2xl font-extrabold text-emerald-300 mt-1">{{ $stats['nb_gagnants'] }}</p>
+                <p class="text-[11px] text-emerald-400/80 mt-0.5">Marge &ge; 20% (Alerte verte)</p>
+            </div>
+
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-slate-400 font-medium">À surveiller</p>
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50"></span>
+                </div>
+                <p class="text-2xl font-extrabold text-amber-300 mt-1">{{ $stats['nb_a_surveiller'] }}</p>
+                <p class="text-[11px] text-amber-400/80 mt-0.5">Marge 0% à 20% (Alerte orange)</p>
+            </div>
+
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-slate-400 font-medium">Articles à corriger</p>
+                    <span class="w-2.5 h-2.5 rounded-full bg-rose-400 shadow-sm shadow-rose-400/50"></span>
+                </div>
+                <p class="text-2xl font-extrabold text-rose-300 mt-1">{{ $stats['nb_perdants'] }}</p>
+                <p class="text-[11px] text-rose-400/80 mt-0.5">Vente à perte (Alerte rouge)</p>
+            </div>
+        </div>
+
+        @if($stats['nb_a_corriger'] > 0)
+            <div class="mt-5 p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-start gap-3">
+                <i class="fas fa-triangle-exclamation text-rose-400 text-lg mt-0.5 flex-shrink-0"></i>
+                <div class="text-xs">
+                    <p class="font-bold text-rose-200">Attention : {{ $stats['nb_a_corriger'] }} article(s) nécessitent un ajustement de prix ou de filière.</p>
+                    <p class="text-slate-300 mt-0.5">Ces pièces présentent une marge trop faible ou déficitaire par rapport à vos coûts de main-d'œuvre et matériaux. Ouvrez l'article pour réajuster le prix conseillé ou le basculer en recyclage.</p>
+                </div>
+            </div>
+        @endif
+    </div>
+
+    {{-- ── GISEMENT DE DONS TEXTILES DISPONIBLES ─────────────────── --}}
+    @if(isset($donsDisponibles) && $donsDisponibles->count() > 0)
+        <div class="mb-10 bg-white rounded-3xl border border-emerald-200 p-6 sm:p-7 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            <i class="fas fa-gift text-emerald-600"></i> Dons textiles publiés
+                        </span>
+                        <span class="text-xs text-slate-400 font-semibold">• Coût d'achat : 0.00 DT</span>
+                    </div>
+                    <h2 class="font-display font-bold text-gray-900 text-xl">
+                        Matières & Vêtements Donnés à Transformer
+                    </h2>
+                    <p class="text-xs text-gray-500 mt-0.5">
+                        L'IA analyse le potentiel économique de chaque don textile et estime votre bénéfice par pièce et par lot.
+                    </p>
+                </div>
+                <a href="{{ route('atelier.dons') }}"
+                   class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-4 py-2.5 rounded-xl transition">
+                    <span>Voir tout le gisement ({{ $stats['nb_dons_disponibles'] ?? $donsDisponibles->count() }})</span>
+                    <i class="fas fa-arrow-right text-[10px]"></i>
+                </a>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                @foreach($donsDisponibles as $don)
+                    <div class="border border-slate-200/80 rounded-2xl p-4 hover:border-emerald-400 hover:shadow-md transition-all flex flex-col justify-between group bg-slate-50/50">
+                        <div>
+                            <div class="relative h-32 rounded-xl bg-slate-100 overflow-hidden mb-3">
+                                @if($don->getFirstImageUrl())
+                                    <img src="{{ $don->getFirstImageUrl() }}" alt="{{ $don->titre }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                                @else
+                                    <div class="w-full h-full flex items-center justify-center text-slate-300 text-2xl"><i class="fas fa-shirt"></i></div>
+                                @endif
+                                <span class="absolute top-2 left-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs">
+                                    0 DT (Don)
+                                </span>
+                                <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs">
+                                    {{ $don->stock }} {{ $don->stock > 1 ? 'pcs' : 'pc' }}
+                                </span>
+                            </div>
+
+                            <h3 class="font-bold text-slate-900 text-xs line-clamp-1 group-hover:text-emerald-700 transition mb-1">
+                                {{ $don->titre }}
+                            </h3>
+                            <div class="flex flex-wrap gap-1 text-[10px] text-slate-500 mb-2">
+                                @if($don->matiere)<span class="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-semibold">{{ $don->matiere }}</span>@endif
+                                @if($don->etat)<span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">{{ $don->etat }}</span>@endif
+                                @if($don->poids_kg)<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{{ $don->poids_kg }} kg</span>@endif
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-200/60 flex items-center justify-between">
+                            <span class="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
+                                <i class="fas fa-circle-check text-emerald-500"></i> Potentiel IA
+                            </span>
+                            <a href="{{ route('articles.show', $don) }}"
+                               class="text-xs font-bold text-white bg-slate-900 hover:bg-emerald-600 px-3 py-1.5 rounded-lg transition flex items-center gap-1 shadow-xs">
+                                <span>Évaluer</span>
+                                <i class="fas fa-arrow-right text-[9px]"></i>
+                            </a>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
 
     {{-- ── COMMANDES À TRAITER ─────────────────────────────────── --}}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -249,22 +397,47 @@
                     </a>
                 @else
                     <div class="space-y-3">
-                        @foreach($articles->take(4) as $article)
-                        <div class="flex items-center gap-3 group">
-                            @if($article->photos?->first())
-                                <img src="{{ asset('storage/' . $article->photos->first()) }}"
-                                     class="w-10 h-10 rounded-lg object-cover border border-gray-100 flex-shrink-0" alt="">
+                        @foreach($articles->take(6) as $article)
+                        @php
+                            $img = !empty($article->images) && is_array($article->images) ? $article->images[0] : null;
+                            $imgUrl = $img ? (str_starts_with($img, 'http') ? $img : asset('storage/' . $img)) : null;
+                            $est = $article->derniereEstimation;
+                        @endphp
+                        <div class="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors group">
+                            @if($imgUrl)
+                                <img src="{{ $imgUrl }}"
+                                     class="w-11 h-11 rounded-lg object-cover border border-gray-100 flex-shrink-0" alt="">
                             @else
-                                <div class="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
+                                <div class="w-11 h-11 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
                                     <i class="fas fa-tshirt text-orange-400 text-xs"></i>
                                 </div>
                             @endif
                             <div class="min-w-0 flex-1">
-                                <p class="text-sm font-semibold text-gray-800 truncate">{{ $article->titre }}</p>
-                                <p class="text-xs text-gray-400">{{ number_format($article->prix, 2) }} DT · stock : {{ $article->stock }}</p>
+                                <p class="text-xs font-bold text-gray-800 truncate">{{ $article->titre }}</p>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-xs font-semibold text-gray-700">{{ number_format($article->prix, 2) }} DT</span>
+                                    @if($est)
+                                        @if($est->niveau_alerte === 'vert')
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                                🟢 +{{ number_format($est->marge_pourcent, 0) }}%
+                                            </span>
+                                        @elseif($est->niveau_alerte === 'orange')
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                                                🟠 {{ number_format($est->marge_pourcent, 0) }}%
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 animate-pulse">
+                                                🔴 {{ number_format($est->marge_pourcent, 0) }}%
+                                            </span>
+                                        @endif
+                                    @else
+                                        <span class="text-[10px] text-gray-400">⚪ Non estimé</span>
+                                    @endif
+                                </div>
                             </div>
                             <a href="{{ route('articles.edit', $article) }}"
-                               class="text-gray-300 hover:text-orange-500 transition-colors flex-shrink-0">
+                               class="w-7 h-7 rounded-lg bg-gray-50 group-hover:bg-orange-50 text-gray-400 group-hover:text-orange-600 flex items-center justify-center transition-colors flex-shrink-0"
+                               title="Estimer / Modifier le prix">
                                 <i class="fas fa-edit text-xs"></i>
                             </a>
                         </div>
@@ -278,6 +451,48 @@
                     @endif
                 @endif
             </div>
+
+            {{-- Estimations IA récentes --}}
+            @if(isset($dernieresEstimations) && $dernieresEstimations->count() > 0)
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-display font-bold text-gray-900 text-sm flex items-center gap-2">
+                        <i class="fas fa-sparkles text-purple-600"></i> Derniers calculs IA
+                    </h3>
+                    <a href="{{ route('atelier.estimations.historique') }}" class="text-[11px] text-purple-600 font-bold hover:underline">
+                        Tout voir →
+                    </a>
+                </div>
+                <div class="space-y-2.5">
+                    @foreach($dernieresEstimations as $est)
+                    <div class="p-2.5 rounded-xl border border-gray-100 hover:border-purple-200 transition-colors bg-gray-50/50">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-gray-800 truncate max-w-[130px]">
+                                {{ $est->article?->titre ?? 'Article sans titre' }}
+                            </span>
+                            @if($est->niveau_alerte === 'vert')
+                                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                                    🟢 +{{ number_format($est->marge_pourcent, 0) }}%
+                                </span>
+                            @elseif($est->niveau_alerte === 'orange')
+                                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                                    🟠 {{ number_format($est->marge_pourcent, 0) }}%
+                                </span>
+                            @else
+                                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">
+                                    🔴 {{ number_format($est->marge_pourcent, 0) }}%
+                                </span>
+                            @endif
+                        </div>
+                        <div class="flex items-center justify-between text-[11px] text-gray-400 mt-1">
+                            <span>Conseillé : <strong class="text-gray-700">{{ number_format($est->prix_conseille, 2) }} DT</strong></span>
+                            <span>{{ $est->created_at->diffForHumans() }}</span>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
 
             {{-- Profil rapide --}}
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">

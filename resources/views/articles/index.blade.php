@@ -1315,7 +1315,13 @@
                             <div>
                                 {{-- Price & Stock --}}
                                 <div class="flex items-baseline justify-between pt-2 border-t border-slate-100 mb-2">
-                                    <span class="font-display font-extrabold text-lg text-teal-700">{{ number_format($article->prix, 2) }} DT</span>
+                                    @if($article->prix == 0)
+                                        <span class="inline-flex items-center gap-1.5 font-display font-black text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                                            <i class="fas fa-gift text-emerald-600"></i> Gratuit (Don)
+                                        </span>
+                                    @else
+                                        <span class="font-display font-extrabold text-lg text-teal-700">{{ number_format($article->prix, 2) }} DT</span>
+                                    @endif
                                     @if($article->stock > 0)
                                         <span class="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">{{ $article->stock }} en stock</span>
                                     @else
@@ -1354,7 +1360,14 @@
                                 <i class="fas fa-eye mr-1"></i> Détails
                             </a>
 
-                            @if($article->isDisponible() && !$isOwner)
+                            @if(auth()->check() && (auth()->user()->role === \App\Models\User::ROLE_ATELIER || auth()->user()->isAdmin()) && $article->prix == 0)
+                                <a href="{{ route('articles.show', $article) }}"
+                                   class="py-2 px-3 rounded-xl bg-slate-900 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                                   title="Simuler la rentabilité d'upcycling avec l'IA">
+                                    <i class="fas fa-calculator text-emerald-400"></i>
+                                    <span>Estimer IA</span>
+                                </a>
+                            @elseif($article->isDisponible() && !$isOwner)
                                 <form method="POST" action="{{ route('panier.ajouter', $article) }}" class="inline add-to-cart-form">
                                     @csrf
                                     <input type="hidden" name="quantite" value="1">

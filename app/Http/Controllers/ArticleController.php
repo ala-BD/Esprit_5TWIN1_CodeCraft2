@@ -169,12 +169,33 @@ class ArticleController extends Controller
 
         $isFavori = $request->user() ? $article->isFavoriDe($request->user()->id) : false;
 
+        // Évaluation IA automatique pour les ateliers consultant un don textile gratuit
+        $estimationDon = null;
+        $user = $request->user();
+        if ($user && ($user->role === \App\Models\User::ROLE_ATELIER || $user->isAdmin()) && (float)$article->prix === 0.0) {
+            $estimationService = app(\App\Services\EstimationService::class);
+            $estimationDon = $estimationService->estimer([
+                'quantite'       => $article->stock > 0 ? $article->stock : 1,
+                'poids_kg'       => $article->poids_kg ?? 0.5,
+                'heures_travail' => $article->heures_travail ?? 1.0,
+                'cout_materiaux' => $article->cout_materiaux ?? 2.0,
+                'cout_achat'     => 0.0,
+                'matiere'        => $article->matiere,
+                'categorie'      => $article->categorie,
+                'etat'           => $article->etat,
+                'taille'         => $article->taille,
+                'couleur'        => $article->couleur,
+                'titre'          => $article->titre,
+            ], $user, $article, false);
+        }
+
         return view('articles.show', [
             'article'         => $article,
             'avisList'        => $avisList,
             'currentAvisTri'  => $avisTri,
             'relatedArticles' => $relatedArticles,
             'isFavori'        => $isFavori,
+            'estimationDon'   => $estimationDon,
         ]);
     }
 

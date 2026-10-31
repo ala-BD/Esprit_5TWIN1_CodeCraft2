@@ -46,4 +46,14 @@ return [
         'currency'       => env('STRIPE_CURRENCY', 'eur'),
     ],
 
+    'ai' => [
+        'api_key'    => env('AI_API_KEY'),
+        'provider'   => env('AI_PROVIDER', 'gemini'),
+        'model'      => env('AI_MODEL', 'gemini-3.5-flash'),
+        'timeout'    => env('AI_TIMEOUT', 20),
+        'max_tokens' => env('AI_MAX_TOKENS', 2048),
+        'thinking'   => env('AI_THINKING_LEVEL', 'low'),
+        'devise'     => env('AI_DEVISE', 'EUR'),
+    ],
+
 ];
