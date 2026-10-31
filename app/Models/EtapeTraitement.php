@@ -42,6 +42,19 @@ class EtapeTraitement extends Model
         'EXPEDITION'       => 6,
     ];
 
+    /**
+     * Circuit d'étapes selon la filière retenue :
+     *  - revente / upcycling : pas de transformation de la matière (pas d'étape TRAITEMENT)
+     *  - recyclage fibre     : circuit complet (effilochage = TRAITEMENT)
+     *  - recyclage énergie   : broyage en combustible, ni nettoyage ni contrôle qualité textile
+     */
+    const CIRCUITS = [
+        'REVENTE'           => ['RECEPTION', 'TRI', 'NETTOYAGE', 'CONTROLE_QUALITE', 'EXPEDITION'],
+        'UPCYCLING'         => ['RECEPTION', 'TRI', 'NETTOYAGE', 'CONTROLE_QUALITE', 'EXPEDITION'],
+        'RECYCLAGE_FIBRE'   => ['RECEPTION', 'TRI', 'NETTOYAGE', 'TRAITEMENT', 'CONTROLE_QUALITE', 'EXPEDITION'],
+        'RECYCLAGE_ENERGIE' => ['RECEPTION', 'TRI', 'TRAITEMENT', 'EXPEDITION'],
+    ];
+
     const LABELS = [
         'RECEPTION'        => 'Réception',
         'TRI'              => 'Tri',

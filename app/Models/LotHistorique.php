@@ -32,6 +32,8 @@ class LotHistorique extends Model
     const DON_RATTACHE      = 'DON_RATTACHE';
     const DON_DETACHE       = 'DON_DETACHE';
     const MODIFICATION      = 'MODIFICATION';
+    const IA_PREDICTION     = 'IA_PREDICTION';
+    const FILIERE_VALIDEE   = 'FILIERE_VALIDEE';
 
     /*
     |------------------------------------------------------------------
@@ -47,6 +49,8 @@ class LotHistorique extends Model
         self::DON_RATTACHE     => ['icone' => 'fa-link',           'couleur' => 'teal'],
         self::DON_DETACHE      => ['icone' => 'fa-unlink',         'couleur' => 'orange'],
         self::MODIFICATION     => ['icone' => 'fa-edit',           'couleur' => 'amber'],
+        self::IA_PREDICTION    => ['icone' => 'fa-brain',          'couleur' => 'indigo'],
+        self::FILIERE_VALIDEE  => ['icone' => 'fa-user-check',     'couleur' => 'teal'],
     ];
 
     /*

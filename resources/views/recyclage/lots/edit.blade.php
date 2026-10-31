@@ -139,31 +139,15 @@
             </div>
 
             {{-- Statut --}}
+            {{-- Le statut est calculé automatiquement à partir des étapes et du passeport --}}
             @if($lot->statut !== 'CERTIFIE')
-            <div>
-                <label for="statut" class="block text-sm font-semibold text-gray-700 mb-2">
-                    Statut du lot <span class="text-red-500">*</span>
-                </label>
-                <div class="relative">
-                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                        <i class="fas fa-tag text-sm"></i>
-                    </span>
-                    <select id="statut" name="statut"
-                            class="w-full pl-11 pr-4 py-3 rounded-xl border
-                                   {{ $errors->has('statut') ? 'border-red-400 bg-red-50' : 'border-gray-200' }}
-                                   focus:outline-none focus:ring-2 focus:ring-primary-DEFAULT focus:border-transparent
-                                   transition-all duration-200 text-gray-700 bg-white appearance-none">
-                        <option value="EN_ATTENTE"    {{ old('statut', $lot->statut) === 'EN_ATTENTE'    ? 'selected' : '' }}>En attente</option>
-                        <option value="EN_TRAITEMENT" {{ old('statut', $lot->statut) === 'EN_TRAITEMENT' ? 'selected' : '' }}>En traitement</option>
-                        <option value="TRAITE"        {{ old('statut', $lot->statut) === 'TRAITE'        ? 'selected' : '' }}>Traité</option>
-                    </select>
-                </div>
-                @error('statut')
-                    <p class="mt-1.5 text-xs text-red-500 flex items-center gap-1">
-                        <i class="fas fa-exclamation-circle"></i> {{ $message }}
+                <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center gap-3">
+                    <i class="fas fa-info-circle text-blue-400"></i>
+                    <p class="text-blue-700 text-sm">
+                        Statut actuel : <strong>{{ $badge['label'] }}</strong>. Il évolue automatiquement avec les étapes
+                        de traitement, puis passe à « Certifié » à la génération du passeport.
                     </p>
-                @enderror
-            </div>
+                </div>
             @else
                 <div class="bg-purple-50 border border-purple-100 rounded-xl p-4 flex items-center gap-3">
                     <i class="fas fa-lock text-purple-400"></i>

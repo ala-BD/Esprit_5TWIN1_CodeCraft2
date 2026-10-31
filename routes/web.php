@@ -14,6 +14,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureCollecteur;
 use App\Http\Controllers\Recyclage\EtapeTraitementController;
+use App\Http\Controllers\Recyclage\IAFiliereController;
 use App\Http\Controllers\Recyclage\LotTextileController;
 use App\Http\Controllers\Recyclage\PasseportNumeriqueController;
 use App\Http\Controllers\Recyclage\StatistiqueController;
@@ -167,6 +168,12 @@ Route::middleware(['auth'])->group(function () {
 
         // Statistiques
         Route::get('statistiques', [StatistiqueController::class, 'index'])->name('statistiques');
+
+        // IA filière (modèle entraîné, explicable, auto-apprenant)
+        Route::get('ia',                             [IAFiliereController::class, 'index'])->name('ia.index');
+        Route::post('ia/entrainer',                  [IAFiliereController::class, 'entrainer'])->name('ia.entrainer');
+        Route::post('lots/{lot}/filiere/valider',    [IAFiliereController::class, 'valider'])->name('lots.filiere.valider');
+        Route::post('lots/{lot}/filiere/recalculer', [IAFiliereController::class, 'recalculer'])->name('lots.filiere.recalculer');
     });
 
     /*

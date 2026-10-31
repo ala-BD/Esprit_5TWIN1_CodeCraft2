@@ -5,35 +5,94 @@ namespace App\Http\Controllers\Recyclage;
 use App\Http\Controllers\Controller;
 use App\Models\LotTextile;
 use App\Models\Recycleur;
+use App\Services\Recyclage\ExportExcel;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ExportController extends Controller
 {
+    /** Facteurs d'impact (identiques au passeport numérique) */
+    const CO2_PAR_KG = 2.4;
+    const EAU_PAR_KG = 3000;
+
     /*
     |------------------------------------------------------------------
-    | GET /recyclage/lots/export — Exporter les lots (Excel stylé ou CSV)
+    | GET /recyclage/lots/export — Inventaire des lots (Excel .xlsx ou CSV)
     |------------------------------------------------------------------
     */
-    public function exportLots(Request $request): Response|StreamedResponse
+    public function exportLots(Request $request, ExportExcel $excel): Response
+    {
+        $recycleur = Recycleur::where('user_id', Auth::id())->firstOrFail();
+        $lots = $this->lotsFiltres($request, $recycleur);
+
+        if ($request->get('format') === 'csv') {
+            return $this->csv('inventaire-lots-' . now()->format('Y-m-d') . '.csv', $this->lignesCsvLots($lots));
+        }
+
+        return $excel->telecharger(
+            $excel->inventaireLots($lots, $recycleur, $this->descriptionFiltres($request)),
+            'inventaire-lots-retiss-' . now()->format('Y-m-d') . '.xlsx'
+        );
+    }
+
+    /*
+    |------------------------------------------------------------------
+    | GET /recyclage/statistiques/export — Bilan d'activité (Excel .xlsx ou CSV)
+    |------------------------------------------------------------------
+    */
+    public function exportStatistiques(Request $request, ExportExcel $excel): Response
+    {
+        $recycleur = Recycleur::where('user_id', Auth::id())->firstOrFail();
+        $bilan = $this->bilan($recycleur);
+
+        if ($request->get('format') === 'csv') {
+            return $this->csv('bilan-recyclage-' . now()->format('Y-m-d') . '.csv', $this->lignesCsvBilan($recycleur, $bilan));
+        }
+
+        return $excel->telecharger(
+            $excel->bilan($recycleur, $bilan),
+            'bilan-activite-retiss-' . now()->format('Y-m-d') . '.xlsx'
+        );
+    }
+
+    /*
+    |------------------------------------------------------------------
+    | GET /recyclage/statistiques/export-pdf — Bilan d'activité (PDF)
+    |------------------------------------------------------------------
+    */
+    public function exportStatistiquesPdf()
     {
         $recycleur = Recycleur::where('user_id', Auth::id())->firstOrFail();
 
-        // Appliquer les mêmes filtres que l'index
+        return Pdf::loadView('recyclage.exports.statistiques-pdf', [
+            'recycleur' => $recycleur,
+            'bilan'     => $this->bilan($recycleur),
+        ])->setOption('isFontSubsettingEnabled', true)
+          ->setPaper('a4', 'portrait')
+          ->download('bilan-recyclage-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    /*
+    |------------------------------------------------------------------
+    | Données
+    |------------------------------------------------------------------
+    */
+
+    /** Lots du recycleur avec les mêmes filtres que la liste */
+    private function lotsFiltres(Request $request, Recycleur $recycleur): Collection
+    {
         $query = LotTextile::where('recycleur_id', $recycleur->id)
             ->with(['etapeTraitements', 'passeportNumerique', 'donVetement']);
 
         if ($request->filled('q')) {
             $q = '%' . $request->q . '%';
-            $query->where(fn($sub) =>
-                $sub->where('reference', 'like', $q)
-                    ->orWhere('composition', 'like', $q)
-                    ->orWhere('origine', 'like', $q)
-            );
+            $query->where(fn ($sub) => $sub->where('reference', 'like', $q)
+                ->orWhere('composition', 'like', $q)
+                ->orWhere('origine', 'like', $q));
         }
         if ($request->filled('statut')) {
             $query->where('statut', $request->statut);
@@ -54,238 +113,149 @@ class ExportController extends Controller
             $query->where('poids_kg', '<=', (float) $request->poids_max);
         }
 
-        $lots = $query->orderByDesc('created_at')->get();
+        return $query->orderByDesc('created_at')->get();
+    }
 
-        $format = $request->get('format', 'excel');
+    private function descriptionFiltres(Request $request): string
+    {
+        $f = [];
+        if ($request->filled('q'))          $f[] = "recherche « {$request->q} »";
+        if ($request->filled('statut'))     $f[] = 'statut ' . self::statutLabel($request->statut);
+        if ($request->filled('filiere'))    $f[] = 'filière ' . LotTextile::libelleFiliere($request->filiere);
+        if ($request->filled('date_debut')) $f[] = 'depuis le ' . date('d/m/Y', strtotime($request->date_debut));
+        if ($request->filled('date_fin'))   $f[] = "jusqu'au " . date('d/m/Y', strtotime($request->date_fin));
+        if ($request->filled('poids_min'))  $f[] = "≥ {$request->poids_min} kg";
+        if ($request->filled('poids_max'))  $f[] = "≤ {$request->poids_max} kg";
 
-        // Logo en base64 pour intégration directe dans Excel
-        $logoPath = public_path('images/logo.png');
-        $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : '';
+        return $f ? 'Filtres : ' . implode(' · ', $f) : 'Tous les lots';
+    }
 
-        // Si format CSV brut demandé
-        if ($format === 'csv') {
-            $filename = 'lots-recyclage-' . now()->format('Y-m-d') . '.csv';
-            $headers = [
-                'Référence', 'Poids (kg)', 'Composition', 'Origine', 'Filière IA',
-                'Statut', 'Progression (%)', 'Nb étapes', 'Don rattaché', 'Passeport QR',
-                'CO₂ évité (kg)', 'Eau économisée (L)', 'Date création', 'Dernière MAJ',
+    /**
+     * Indicateurs du bilan d'activité + évolution sur les 12 derniers mois.
+     * Les mois partent du 1er du mois (évite le décalage des fins de mois : 31/10 − 1 mois ≠ 31/11).
+     */
+    private function bilan(Recycleur $recycleur): array
+    {
+        $lots = LotTextile::where('recycleur_id', $recycleur->id)->get(['poids_kg', 'statut', 'filiere_recommandee_ia', 'created_at']);
+        $totalKg = (float) $lots->sum('poids_kg');
+
+        $mois = [];
+        $debut = now()->startOfMonth();
+        for ($i = 11; $i >= 0; $i--) {
+            $m = $debut->copy()->subMonths($i);
+            $duMois = $lots->filter(fn ($l) => $l->created_at->format('Y-m') === $m->format('Y-m'));
+            $kg = (float) $duMois->sum('poids_kg');
+            $mois[] = [
+                'label' => ucfirst($m->translatedFormat('M Y')),
+                'lots'  => $duMois->count(),
+                'kg'    => $kg,
+                'co2'   => round($kg * self::CO2_PAR_KG, 1),
             ];
-
-            return response()->stream(function () use ($lots, $headers) {
-                $handle = fopen('php://output', 'w');
-                fwrite($handle, "\xEF\xBB\xBF");
-                fputcsv($handle, $headers, ';');
-                foreach ($lots as $lot) {
-                    $co2 = round($lot->poids_kg * 2.4, 2);
-                    $eau = round($lot->poids_kg * 3000, 0);
-                    fputcsv($handle, [
-                        $lot->reference,
-                        $lot->poids_kg,
-                        $lot->composition,
-                        $lot->origine,
-                        $this->filiereLabel($lot->filiere_recommandee_ia),
-                        $this->statutLabel($lot->statut),
-                        $lot->progression,
-                        $lot->etapeTraitements->count(),
-                        $lot->donVetement ? "Don n°{$lot->donVetement->id} ({$lot->donVetement->type})" : '',
-                        $lot->passeportNumerique?->qr_code ?? '',
-                        $co2,
-                        $eau,
-                        $lot->created_at->format('d/m/Y H:i'),
-                        $lot->updated_at->format('d/m/Y H:i'),
-                    ], ';');
-                }
-                fclose($handle);
-            }, 200, [
-                'Content-Type' => 'text/csv; charset=UTF-8',
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-                'Cache-Control' => 'no-store, no-cache',
-            ]);
         }
 
-        // Par défaut : Template Excel professionnel stylisé (.xls)
-        $filename = 'inventaire-lots-retiss-' . now()->format('Y-m-d') . '.xls';
+        return [
+            'total_lots' => $lots->count(),
+            'total_kg'   => $totalKg,
+            'co2'        => round($totalKg * self::CO2_PAR_KG, 1),
+            'eau'        => round($totalKg * self::EAU_PAR_KG),
+            'capacite'   => $recycleur->capacite_kg > 0 ? round($totalKg / $recycleur->capacite_kg * 100) : 0,
+            'statuts'    => collect(['EN_ATTENTE', 'EN_TRAITEMENT', 'TRAITE', 'CERTIFIE'])
+                ->mapWithKeys(fn ($s) => [$s => $lots->where('statut', $s)->count()])->all(),
+            'filieres'   => collect(LotTextile::FILIERES)
+                ->mapWithKeys(fn ($f) => [$f => $lots->where('filiere_recommandee_ia', $f)->count()])->all(),
+            'mois'       => $mois,
+        ];
+    }
 
-        $content = view('recyclage.exports.lots-excel', compact('lots', 'recycleur', 'logoBase64'))->render();
+    /*
+    |------------------------------------------------------------------
+    | CSV : données brutes, une ligne d'en-tête, prêt pour Excel FR
+    | (séparateur « ; », décimales « , », UTF-8 avec BOM)
+    |------------------------------------------------------------------
+    */
+    private function lignesCsvLots(Collection $lots): array
+    {
+        $lignes = [[
+            'Référence', 'Date de création', 'Composition', 'Poids (kg)', 'Origine',
+            'Filière IA', 'Confiance IA (%)', 'Filière retenue', 'Statut', 'Progression (%)',
+            'Étapes terminées', 'Don rattaché', 'Passeport (QR)', 'CO2 évité (kg)', 'Eau économisée (L)',
+        ]];
 
-        return response($content, 200, [
-            'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-            'Cache-Control'       => 'max-age=0',
-            'Pragma'              => 'public',
+        foreach ($lots as $lot) {
+            $circuit = \App\Models\EtapeTraitement::CIRCUITS[$lot->filiere_finale] ?? [];
+            $lignes[] = [
+                $lot->reference,
+                $lot->created_at->format('d/m/Y H:i'),
+                $lot->composition,
+                self::nombre($lot->poids_kg, 1),
+                $lot->origine,
+                LotTextile::libelleFiliere($lot->filiere_recommandee_ia),
+                $lot->score_confiance_ia !== null ? self::nombre($lot->score_confiance_ia * 100, 0) : '',
+                $lot->filiere_validee ? LotTextile::libelleFiliere($lot->filiere_validee) : '',
+                self::statutLabel($lot->statut),
+                $lot->progression,
+                $lot->etapeTraitements->whereNotNull('date_fin')->whereIn('type', $circuit)->count() . '/' . count($circuit),
+                $lot->donVetement ? "Don n°{$lot->donVetement->id} ({$lot->donVetement->type})" : '',
+                $lot->passeportNumerique?->qr_code ?? '',
+                self::nombre($lot->poids_kg * self::CO2_PAR_KG, 1),
+                self::nombre($lot->poids_kg * self::EAU_PAR_KG, 0),
+            ];
+        }
+
+        return $lignes;
+    }
+
+    private function lignesCsvBilan(Recycleur $recycleur, array $bilan): array
+    {
+        $l = [['Section', 'Indicateur', 'Valeur', 'Unité']];
+        $l[] = ['Recycleur', 'Nom', $recycleur->nom, ''];
+        $l[] = ['Recycleur', 'Agrément', $recycleur->agrement, ''];
+        $l[] = ['Recycleur', 'Localisation', $recycleur->localisation, ''];
+        $l[] = ['Recycleur', 'Capacité', self::nombre($recycleur->capacite_kg, 0), 'kg'];
+        $l[] = ['Activité', 'Lots enregistrés', $bilan['total_lots'], 'lots'];
+        $l[] = ['Activité', 'Poids total', self::nombre($bilan['total_kg'], 1), 'kg'];
+        $l[] = ['Activité', 'Capacité utilisée', $bilan['capacite'], '%'];
+        foreach ($bilan['statuts'] as $s => $n) {
+            $l[] = ['Statut', self::statutLabel($s), $n, 'lots'];
+        }
+        foreach ($bilan['filieres'] as $f => $n) {
+            $l[] = ['Filière IA', LotTextile::libelleFiliere($f), $n, 'lots'];
+        }
+        $l[] = ['Impact', 'CO2 évité', self::nombre($bilan['co2'], 1), 'kg'];
+        $l[] = ['Impact', 'Eau économisée', self::nombre($bilan['eau'], 0), 'L'];
+        foreach ($bilan['mois'] as $m) {
+            $l[] = ['Mensuel', $m['label'] . ' — lots', $m['lots'], 'lots'];
+            $l[] = ['Mensuel', $m['label'] . ' — poids', self::nombre($m['kg'], 1), 'kg'];
+        }
+
+        return $l;
+    }
+
+    private function csv(string $fichier, array $lignes): StreamedResponse
+    {
+        return response()->stream(function () use ($lignes) {
+            $h = fopen('php://output', 'w');
+            fwrite($h, "\xEF\xBB\xBF");
+            foreach ($lignes as $ligne) {
+                fputcsv($h, $ligne, ';');
+            }
+            fclose($h);
+        }, 200, [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $fichier . '"',
+            'Cache-Control'       => 'no-store, no-cache',
         ]);
     }
 
-    /*
-    |------------------------------------------------------------------
-    | GET /recyclage/statistiques/export — Exporter le bilan stats (Excel)
-    |------------------------------------------------------------------
-    */
-    public function exportStatistiques(Request $request): Response|StreamedResponse
+    /** Nombre au format français (virgule décimale, sans séparateur de milliers pour rester numérique) */
+    private static function nombre(float $valeur, int $decimales): string
     {
-        $recycleur = Recycleur::where('user_id', Auth::id())->firstOrFail();
-
-        $base    = fn() => LotTextile::where('recycleur_id', $recycleur->id);
-        $totalKg = ($base)()->sum('poids_kg');
-
-        $stats = [
-            'total_lots'    => ($base)()->count(),
-            'en_attente'    => ($base)()->where('statut', 'EN_ATTENTE')->count(),
-            'en_traitement' => ($base)()->where('statut', 'EN_TRAITEMENT')->count(),
-            'traites'       => ($base)()->where('statut', 'TRAITE')->count(),
-            'certifies'     => ($base)()->where('statut', 'CERTIFIE')->count(),
-            'total_kg'      => $totalKg,
-            'filieres' => [
-                'REVENTE'           => ($base)()->where('filiere_recommandee_ia', 'REVENTE')->count(),
-                'UPCYCLING'         => ($base)()->where('filiere_recommandee_ia', 'UPCYCLING')->count(),
-                'RECYCLAGE_FIBRE'   => ($base)()->where('filiere_recommandee_ia', 'RECYCLAGE_FIBRE')->count(),
-                'RECYCLAGE_ENERGIE' => ($base)()->where('filiere_recommandee_ia', 'RECYCLAGE_ENERGIE')->count(),
-            ],
-        ];
-
-        // Évolution sur les 12 mois
-        $labelsM     = [];
-        $seriesLots  = [];
-        $seriesPoids = [];
-        $seriesCo2   = [];
-
-        for ($i = 11; $i >= 0; $i--) {
-            $m = now()->subMonths($i);
-            $labelsM[]     = $m->translatedFormat('M Y');
-            $lotsM         = LotTextile::where('recycleur_id', $recycleur->id)
-                                ->whereYear('created_at', $m->year)
-                                ->whereMonth('created_at', $m->month);
-            $seriesLots[]  = (clone $lotsM)->count();
-            $pds           = (clone $lotsM)->sum('poids_kg');
-            $seriesPoids[] = $pds;
-            $seriesCo2[]   = round($pds * 2.4, 1);
-        }
-
-        $format = $request->get('format', 'excel');
-
-        // Si CSV brut demandé
-        if ($format === 'csv') {
-            $csvRows = [
-                ['Indicateur', 'Valeur'],
-                ['=== PROFIL RECYCLEUR ===', ''],
-                ['Nom', $recycleur->nom],
-                ['Agrément', $recycleur->agrement],
-                ['Localisation', $recycleur->localisation],
-                ['Capacité (kg)', $recycleur->capacite_kg],
-                ['=== STATISTIQUES LOTS ===', ''],
-                ['Total lots', $stats['total_lots']],
-                ['Total kg traités', $stats['total_kg']],
-                ['Lots certifiés', $stats['certifies']],
-                ['=== IMPACT ÉCOLOGIQUE ===', ''],
-                ['CO₂ évité (kg)', round($totalKg * 2.4, 1)],
-                ['Eau économisée (L)', round($totalKg * 3000, 0)],
-            ];
-
-            return response()->stream(function () use ($csvRows) {
-                $handle = fopen('php://output', 'w');
-                fwrite($handle, "\xEF\xBB\xBF");
-                foreach ($csvRows as $r) {
-                    fputcsv($handle, $r, ';');
-                }
-                fclose($handle);
-            }, 200, [
-                'Content-Type' => 'text/csv; charset=UTF-8',
-                'Content-Disposition' => 'attachment; filename="statistiques-recyclage-' . now()->format('Y-m-d') . '.csv"',
-            ]);
-        }
-
-        // Template Excel professionnel stylisé
-        $logoPath = public_path('images/logo.png');
-        $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : '';
-
-        $filename = 'bilan-activite-retiss-' . now()->format('Y-m-d') . '.xls';
-
-        $content = view('recyclage.exports.statistiques-excel', compact(
-            'recycleur', 'stats', 'labelsM', 'seriesLots', 'seriesPoids', 'seriesCo2', 'logoBase64'
-        ))->render();
-
-        return response($content, 200, [
-            'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-            'Cache-Control'       => 'max-age=0',
-            'Pragma'              => 'public',
-        ]);
+        return number_format($valeur, $decimales, ',', '');
     }
 
-    /*
-    |------------------------------------------------------------------
-    | GET /recyclage/statistiques/export-pdf — Exporter le bilan stats en PDF
-    |------------------------------------------------------------------
-    */
-    public function exportStatistiquesPdf()
+    public static function statutLabel(string $statut): string
     {
-        $recycleur = Recycleur::where('user_id', Auth::id())->firstOrFail();
-
-        $base    = fn() => LotTextile::where('recycleur_id', $recycleur->id);
-        $totalKg = ($base)()->sum('poids_kg');
-
-        $stats = [
-            'total_lots'    => ($base)()->count(),
-            'en_attente'    => ($base)()->where('statut', 'EN_ATTENTE')->count(),
-            'en_traitement' => ($base)()->where('statut', 'EN_TRAITEMENT')->count(),
-            'traites'       => ($base)()->where('statut', 'TRAITE')->count(),
-            'certifies'     => ($base)()->where('statut', 'CERTIFIE')->count(),
-            'total_kg'      => $totalKg,
-            'filieres' => [
-                'REVENTE'           => ($base)()->where('filiere_recommandee_ia', 'REVENTE')->count(),
-                'UPCYCLING'         => ($base)()->where('filiere_recommandee_ia', 'UPCYCLING')->count(),
-                'RECYCLAGE_FIBRE'   => ($base)()->where('filiere_recommandee_ia', 'RECYCLAGE_FIBRE')->count(),
-                'RECYCLAGE_ENERGIE' => ($base)()->where('filiere_recommandee_ia', 'RECYCLAGE_ENERGIE')->count(),
-            ],
-        ];
-
-        // Évolution sur les 12 mois
-        $labelsM     = [];
-        $seriesLots  = [];
-        $seriesPoids = [];
-        $seriesCo2   = [];
-
-        for ($i = 11; $i >= 0; $i--) {
-            $m = now()->subMonths($i);
-            $labelsM[]     = $m->translatedFormat('M Y');
-            $lotsM         = LotTextile::where('recycleur_id', $recycleur->id)
-                                ->whereYear('created_at', $m->year)
-                                ->whereMonth('created_at', $m->month);
-            $seriesLots[]  = (clone $lotsM)->count();
-            $pds           = (clone $lotsM)->sum('poids_kg');
-            $seriesPoids[] = $pds;
-            $seriesCo2[]   = round($pds * 2.4, 1);
-        }
-
-        $logoPath = public_path('images/logo.png');
-        $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : '';
-
-        $pdf = Pdf::loadView('recyclage.exports.statistiques-pdf', compact(
-            'recycleur', 'stats', 'labelsM', 'seriesLots', 'seriesPoids', 'seriesCo2', 'logoBase64'
-        ))->setPaper('a4', 'portrait');
-
-        return $pdf->download('bilan-recyclage-' . now()->format('Y-m-d') . '.pdf');
-    }
-
-    /*
-    |------------------------------------------------------------------
-    | Helpers labels
-    |------------------------------------------------------------------
-    */
-    private function filiereLabel(string $filiere): string
-    {
-        return match($filiere) {
-            'REVENTE'           => 'Revente',
-            'UPCYCLING'         => 'Upcycling',
-            'RECYCLAGE_FIBRE'   => 'Recyclage fibre',
-            'RECYCLAGE_ENERGIE' => 'Recyclage énergie',
-            default             => $filiere,
-        };
-    }
-
-    private function statutLabel(string $statut): string
-    {
-        return match($statut) {
+        return match ($statut) {
             'EN_ATTENTE'    => 'En attente',
             'EN_TRAITEMENT' => 'En traitement',
             'TRAITE'        => 'Traité',

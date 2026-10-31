@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LotHistorique;
 use App\Models\LotTextile;
 use App\Models\Recycleur;
+use App\Services\Recyclage\FiliereIA;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -202,7 +203,7 @@ class LotTextileController extends Controller
     | POST /recyclage/lots — Enregistrer un lot
     |------------------------------------------------------------------
     */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, FiliereIA $ia): RedirectResponse
     {
         $request->validate([
             'reference'   => ['required', 'string', 'max:50', 'unique:lot_textiles,reference'],
@@ -221,32 +222,31 @@ class LotTextileController extends Controller
 
         $recycleur = Recycleur::where('user_id', Auth::id())->firstOrFail();
 
-        // Recommandation IA simulée
-        $filiereIA = LotTextile::recommanderFiliereIA(
-            $request->composition,
-            (float) $request->poids_kg
-        );
-
         $lot = LotTextile::create([
             'recycleur_id'          => $recycleur->id,
             'reference'             => strtoupper($request->reference),
             'poids_kg'              => $request->poids_kg,
             'composition'           => $request->composition,
             'origine'               => $request->origine,
-            'filiere_recommandee_ia'=> $filiereIA,
+            'filiere_recommandee_ia'=> LotTextile::recommanderFiliereIA($request->composition, (float) $request->poids_kg),
             'statut'                => 'EN_ATTENTE',
         ]);
+
+        // Prédiction IA (modèle entraîné, règles métier en secours)
+        $lot->update($ia->predire($lot));
+        $filiereIA = LotTextile::libelleFiliere($lot->filiere_recommandee_ia);
+        $confiance = $lot->score_confiance_ia !== null ? ' (' . round($lot->score_confiance_ia * 100) . ' % de confiance)' : '';
 
         // Historique : création
         LotHistorique::enregistrer(
             $lot,
             LotHistorique::CREATION,
-            "Lot {$lot->reference} créé — {$lot->poids_kg} kg, filière IA : {$filiereIA}",
+            "Lot {$lot->reference} créé — {$lot->poids_kg} kg, filière IA : {$filiereIA}{$confiance}",
         );
 
         return redirect()
             ->route('recyclage.lots.show', $lot)
-            ->with('success', "Lot {$lot->reference} enregistré. Filière recommandée : {$filiereIA}");
+            ->with('success', "Lot {$lot->reference} enregistré. Filière recommandée : {$filiereIA}{$confiance}");
     }
 
     /*
@@ -265,10 +265,8 @@ class LotTextileController extends Controller
         // Étapes déjà enregistrées
         $etapesEnregistrees = $lot->etapeTraitements->pluck('type')->toArray();
 
-        // Prochaine étape disponible
-        $toutesEtapes = array_keys(\App\Models\EtapeTraitement::ORDRE);
-        $prochaineEtape = collect($toutesEtapes)
-            ->first(fn($e) => !in_array($e, $etapesEnregistrees));
+        // Prochaine étape autorisée (circuit de la filière, ordre imposé)
+        $prochaineEtape = $lot->prochaine_etape;
 
         // Dons disponibles pour rattachement (EN_TRI, pas encore liés à un lot)
         $donsDisponibles = \App\Models\DonVetement::where('statut', 'EN_TRI')
@@ -301,7 +299,7 @@ class LotTextileController extends Controller
     | PUT /recyclage/lots/{lot} — Mettre à jour un lot
     |------------------------------------------------------------------
     */
-    public function update(Request $request, LotTextile $lot): RedirectResponse
+    public function update(Request $request, LotTextile $lot, FiliereIA $ia): RedirectResponse
     {
         $recycleur = Recycleur::where('user_id', Auth::id())->firstOrFail();
         abort_if($lot->recycleur_id !== $recycleur->id, 403);
@@ -309,25 +307,19 @@ class LotTextileController extends Controller
         $request->validate([
             'composition' => ['required', 'string', 'max:255'],
             'origine'     => ['required', 'string', 'max:255'],
-            'statut'      => ['required', 'in:EN_ATTENTE,EN_TRAITEMENT,TRAITE,CERTIFIE'],
         ]);
 
-        // Capturer les changements avant update
-        $ancienStatut = $lot->statut;
+        // Le statut n'est pas modifiable à la main : il découle des étapes et du passeport.
+        // La composition d'un lot certifié est figée (elle figure sur le passeport).
+        if ($lot->statut === LotTextile::STATUT_CERTIFIE && $request->composition !== $lot->composition) {
+            return back()->withErrors(['composition' => "La composition d'un lot certifié ne peut plus être modifiée."])->withInput();
+        }
+
         $ancienneComp = $lot->composition;
 
-        $lot->update($request->only(['composition', 'origine', 'statut']));
+        $lot->update($request->only(['composition', 'origine']));
 
-        // Historique statut
-        if ($ancienStatut !== $lot->statut) {
-            LotHistorique::enregistrer(
-                $lot,
-                LotHistorique::STATUT_CHANGE,
-                "Statut modifié : {$ancienStatut} → {$lot->statut}",
-                'statut', $ancienStatut, $lot->statut
-            );
-        }
-        // Historique composition
+        // Historique composition + nouvelle prédiction IA
         if ($ancienneComp !== $lot->composition) {
             LotHistorique::enregistrer(
                 $lot,
@@ -335,6 +327,7 @@ class LotTextileController extends Controller
                 "Composition modifiée",
                 'composition', $ancienneComp, $lot->composition
             );
+            $this->repredire($lot, $ia, 'composition modifiée');
         }
 
         return redirect()
@@ -347,11 +340,15 @@ class LotTextileController extends Controller
     | POST /recyclage/lots/{lot}/rattacher-don — Rattacher un don au lot
     |------------------------------------------------------------------
     */
-    public function rattacherDon(Request $request, LotTextile $lot): RedirectResponse
+    public function rattacherDon(Request $request, LotTextile $lot, FiliereIA $ia): RedirectResponse
     {
         $recycleur = Recycleur::where('user_id', Auth::id())->firstOrFail();
         abort_if($lot->recycleur_id !== $recycleur->id, 403);
         abort_if($lot->statut === 'CERTIFIE', 422, 'Impossible de modifier un lot certifié.');
+
+        if ($lot->don_vetement_id) {
+            return back()->withErrors(['don_vetement_id' => "Ce lot a déjà un don rattaché : détachez-le avant d'en rattacher un autre."]);
+        }
 
         $request->validate([
             'don_vetement_id' => ['required', 'integer', 'exists:don_vetements,id'],
@@ -378,6 +375,9 @@ class LotTextileController extends Controller
             'don_vetement_id', null, (string) $don->id
         );
 
+        // L'état et le type du don affinent la prédiction
+        $this->repredire($lot->fresh(), $ia, "don n°{$don->id} rattaché");
+
         return redirect()
             ->route('recyclage.lots.show', $lot)
             ->with('success', "Don n°{$don->id} ({$don->type} — {$don->matiere}) rattaché au lot {$lot->reference}. Statut mis à jour : RECYCLÉ.");
@@ -388,7 +388,7 @@ class LotTextileController extends Controller
     | DELETE /recyclage/lots/{lot}/detacher-don — Détacher le don du lot
     |------------------------------------------------------------------
     */
-    public function detacherDon(LotTextile $lot): RedirectResponse
+    public function detacherDon(LotTextile $lot, FiliereIA $ia): RedirectResponse
     {
         $recycleur = Recycleur::where('user_id', Auth::id())->firstOrFail();
         abort_if($lot->recycleur_id !== $recycleur->id, 403);
@@ -408,6 +408,8 @@ class LotTextileController extends Controller
             "Don n°{$don->id} ({$don->type}) détaché. Statut don remis à EN_TRI.",
             'don_vetement_id', (string) $don->id, null
         );
+
+        $this->repredire($lot->fresh(), $ia, "don n°{$don->id} détaché");
 
         return redirect()
             ->route('recyclage.lots.show', $lot)
@@ -434,6 +436,26 @@ class LotTextileController extends Controller
             ]);
 
         return response()->json($dons);
+    }
+
+    /*
+    |------------------------------------------------------------------
+    | Recalcule la prédiction IA et trace le changement éventuel
+    |------------------------------------------------------------------
+    */
+    private function repredire(LotTextile $lot, FiliereIA $ia, string $raison): void
+    {
+        $ancienne = $lot->filiere_recommandee_ia;
+        $lot->update($ia->predire($lot));
+        $lot->actualiserStatut();   // le circuit d'étapes dépend de la filière
+
+        $confiance = $lot->score_confiance_ia !== null ? ' (' . round($lot->score_confiance_ia * 100) . ' %)' : '';
+        LotHistorique::enregistrer(
+            $lot,
+            LotHistorique::IA_PREDICTION,
+            "Prédiction IA recalculée ({$raison}) : " . LotTextile::libelleFiliere($lot->filiere_recommandee_ia) . $confiance,
+            'filiere_recommandee_ia', $ancienne, $lot->filiere_recommandee_ia
+        );
     }
 
     /*

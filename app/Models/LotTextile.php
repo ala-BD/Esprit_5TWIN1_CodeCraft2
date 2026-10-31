@@ -20,13 +20,26 @@ class LotTextile extends Model
         'composition',
         'origine',
         'filiere_recommandee_ia',
+        'score_confiance_ia',
+        'probabilites_ia',
+        'explication_ia',
+        'source_ia',
+        'version_modele_ia',
+        'filiere_validee',
+        'filiere_validee_le',
         'statut',
     ];
+
+    const FILIERES = ['REVENTE', 'UPCYCLING', 'RECYCLAGE_FIBRE', 'RECYCLAGE_ENERGIE'];
 
     protected function casts(): array
     {
         return [
-            'poids_kg' => 'float',
+            'poids_kg'           => 'float',
+            'score_confiance_ia' => 'float',
+            'probabilites_ia'    => 'array',
+            'explication_ia'     => 'array',
+            'filiere_validee_le' => 'datetime',
         ];
     }
 
@@ -106,13 +119,107 @@ class LotTextile extends Model
         };
     }
 
-    /** Progression du traitement en % */
+    /** Filière retenue : décision du recycleur si validée, sinon recommandation IA */
+    public function getFiliereFinaleAttribute(): string
+    {
+        return $this->filiere_validee ?? $this->filiere_recommandee_ia;
+    }
+
+    /** Libellé lisible d'une filière */
+    public static function libelleFiliere(?string $filiere): string
+    {
+        return match($filiere) {
+            'REVENTE'           => 'Revente',
+            'UPCYCLING'         => 'Upcycling',
+            'RECYCLAGE_FIBRE'   => 'Recyclage fibre',
+            'RECYCLAGE_ENERGIE' => 'Recyclage énergie',
+            default             => (string) $filiere,
+        };
+    }
+
+    /**
+     * Étapes du circuit de ce lot (selon la filière retenue), dans l'ordre.
+     * Les étapes déjà enregistrées hors circuit (filière modifiée en cours de route) restent affichées.
+     */
+    public function getCircuitEtapesAttribute(): array
+    {
+        $circuit = EtapeTraitement::CIRCUITS[$this->filiere_finale] ?? array_keys(EtapeTraitement::ORDRE);
+        $enregistrees = $this->etapeTraitements->pluck('type')->all();
+
+        $types = array_unique(array_merge($circuit, $enregistrees));
+        usort($types, fn ($a, $b) => EtapeTraitement::ORDRE[$a] <=> EtapeTraitement::ORDRE[$b]);
+
+        return $types;
+    }
+
+    /** Étape en cours (commencée, non terminée) */
+    public function getEtapeEnCoursAttribute(): ?EtapeTraitement
+    {
+        return $this->etapeTraitements->firstWhere('date_fin', null);
+    }
+
+    /**
+     * Prochaine étape autorisée : la première étape du circuit non enregistrée,
+     * uniquement si aucune étape n'est en cours et que le lot n'est pas certifié.
+     */
+    public function getProchaineEtapeAttribute(): ?string
+    {
+        if ($this->statut === self::STATUT_CERTIFIE || $this->etape_en_cours) {
+            return null;
+        }
+        $enregistrees = $this->etapeTraitements->pluck('type')->all();
+
+        return collect(EtapeTraitement::CIRCUITS[$this->filiere_finale] ?? array_keys(EtapeTraitement::ORDRE))
+            ->first(fn ($type) => !in_array($type, $enregistrees));
+    }
+
+    /** Date à partir de laquelle la prochaine étape peut commencer (fin de la dernière étape) */
+    public function getDebutMinimumProchaineEtapeAttribute(): ?\Illuminate\Support\Carbon
+    {
+        return $this->etapeTraitements->max('date_fin');
+    }
+
+    /** Progression du traitement en % (étapes terminées du circuit) */
     public function getProgressionAttribute(): int
     {
-        $etapes = $this->etapeTraitements()->count();
-        if ($etapes === 0) return 0;
-        $terminees = $this->etapeTraitements()->whereNotNull('date_fin')->count();
-        return (int) round(($terminees / 6) * 100); // 6 étapes max
+        $circuit = EtapeTraitement::CIRCUITS[$this->filiere_finale] ?? array_keys(EtapeTraitement::ORDRE);
+        $terminees = $this->etapeTraitements
+            ->whereNotNull('date_fin')
+            ->whereIn('type', $circuit)
+            ->count();
+
+        return (int) round($terminees / count($circuit) * 100);
+    }
+
+    /**
+     * Statut automatique : EN_TRAITEMENT dès la première étape, TRAITE quand
+     * toutes les étapes du circuit sont terminées. Un lot certifié n'est jamais rétrogradé.
+     */
+    public function actualiserStatut(): void
+    {
+        if ($this->statut === self::STATUT_CERTIFIE) {
+            return;
+        }
+        $this->load('etapeTraitements');
+
+        if ($this->etapeTraitements->isEmpty()) {
+            $statut = self::STATUT_EN_ATTENTE;
+        } elseif ($this->progression === 100) {
+            $statut = self::STATUT_TRAITE;
+        } else {
+            $statut = self::STATUT_EN_TRAITEMENT;
+        }
+
+        if ($statut !== $this->statut) {
+            $ancien = $this->statut;
+            $this->update(['statut' => $statut]);
+            LotHistorique::enregistrer(
+                $this,
+                LotHistorique::STATUT_CHANGE,
+                "Statut mis à jour automatiquement : {$ancien} → {$statut}",
+                'statut', $ancien, $statut
+            );
+        }
     }
 
     /**

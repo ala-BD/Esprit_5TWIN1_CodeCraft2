@@ -102,6 +102,7 @@ class PasseportNumeriqueController extends Controller
         $passeport = $lot->passeportNumerique;
 
         $pdf = Pdf::loadView('recyclage.passeport.pdf', compact('lot', 'passeport'))
+                  ->setOption('isFontSubsettingEnabled', true)
                   ->setPaper('a4', 'portrait');
 
         return $pdf->download("passeport-{$lot->reference}.pdf");

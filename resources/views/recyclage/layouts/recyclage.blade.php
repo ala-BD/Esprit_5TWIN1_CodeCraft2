@@ -61,6 +61,13 @@
                     <i class="fas fa-chart-bar w-4 text-center"></i>
                     Statistiques
                 </a>
+
+                <a href="{{ route('recyclage.ia.index') }}"
+                   class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
+                          {{ request()->routeIs('recyclage.ia.*') ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white' }}">
+                    <i class="fas fa-brain w-4 text-center"></i>
+                    IA filière
+                </a>
             </nav>
 
             {{-- Profil bas --}}

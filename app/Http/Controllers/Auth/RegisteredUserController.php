@@ -35,7 +35,7 @@ class RegisteredUserController extends Controller
             'prenom'    => ['nullable', 'string', 'max:255'],
             'email'     => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'telephone' => ['nullable', 'string', 'max:20'],
-            'role'      => ['nullable', 'in:DONATEUR,CLIENT,COLLECTEUR,ATELIER,RECYCLEUR,ADMIN'],
+            'role'      => ['nullable', 'in:DONATEUR,CLIENT,COLLECTEUR,ATELIER,RECYCLEUR'],   // ADMIN : jamais en auto-inscription
             'password'  => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 

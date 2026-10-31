@@ -35,6 +35,12 @@ return [
         'timeout' => env('GEMINI_TIMEOUT', 45),
     ],
 
+    // IA M4 Recyclage (micro-service Python ai-recyclage) — s'il est arrêté, les règles métier prennent le relais
+    'ai_recyclage' => [
+        'url'     => env('AI_RECYCLAGE_URL', 'http://127.0.0.1:8001'),
+        'timeout' => env('AI_RECYCLAGE_TIMEOUT', 5),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

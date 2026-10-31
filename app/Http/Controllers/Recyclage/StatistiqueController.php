@@ -52,7 +52,7 @@ class StatistiqueController extends Controller
         // Labels des 12 derniers mois
         $labelsM = collect();
         for ($i = 11; $i >= 0; $i--) {
-            $labelsM->push(now()->subMonths($i)->translatedFormat('M Y'));
+            $labelsM->push(now()->startOfMonth()->subMonths($i)->translatedFormat('M Y'));
         }
 
         // Construire les séries indexées par mois
@@ -95,7 +95,7 @@ class StatistiqueController extends Controller
         return DB::table('lot_textiles')
             ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as mois, {$aggregate} as {$alias}")
             ->where('recycleur_id', $recycleurId)
-            ->where('created_at', '>=', now()->subMonths(12)->startOfMonth())
+            ->where('created_at', '>=', now()->startOfMonth()->subMonths(11))
             ->groupBy('mois')
             ->orderBy('mois')
             ->get()
@@ -107,7 +107,7 @@ class StatistiqueController extends Controller
     {
         $serie = [];
         for ($i = 11; $i >= 0; $i--) {
-            $key   = now()->subMonths($i)->format('Y-m');
+            $key   = now()->startOfMonth()->subMonths($i)->format('Y-m');
             $serie[] = (float) ($data->get($key)?->$field ?? 0);
         }
         return $serie;
