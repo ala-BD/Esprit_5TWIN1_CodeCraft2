@@ -117,9 +117,24 @@ class Estimation extends Model
      */
     public function getSourceBadgeAttribute(): array
     {
-        return $this->source === self::SOURCE_IA
-            ? ['label' => 'IA Hybride', 'class' => 'bg-purple-100 text-purple-700 border-purple-200', 'icon' => 'fa-sparkles']
-            : ['label' => 'Règles métier', 'class' => 'bg-blue-100 text-blue-700 border-blue-200', 'icon' => 'fa-calculator'];
+        $details = is_array($this->details_calcul) ? $this->details_calcul : [];
+        $depuisCache = !empty($details['depuis_cache']);
+        $raisonLabel = $details['raison_label'] ?? null;
+
+        if ($this->source === self::SOURCE_IA) {
+            return [
+                'label' => "✨ Estimation par l'IA (Gemini)" . ($depuisCache ? ' (cache)' : ''),
+                'class' => 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                'icon'  => 'fa-sparkles',
+            ];
+        }
+
+        $label = "⚙️ Règles métier (plan B)" . ($raisonLabel ? " : {$raisonLabel}" : '');
+        return [
+            'label' => $label,
+            'class' => 'bg-slate-100 text-slate-700 border-slate-300',
+            'icon'  => 'fa-gears',
+        ];
     }
 }
 

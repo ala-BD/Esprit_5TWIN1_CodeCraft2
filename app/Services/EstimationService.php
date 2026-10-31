@@ -83,6 +83,13 @@ class EstimationService
         $prixMin       = $iaResult['prix_min'];
         $prixMax       = $iaResult['prix_max'];
 
+        // Informations de provenance et métadonnées IA / plan B
+        $source         = $iaResult['source'];
+        $raisonFallback = $iaResult['raison_fallback'] ?? null;
+        $raisonLabel    = $iaResult['raison_label'] ?? null;
+        $depuisCache    = (bool) ($iaResult['depuis_cache'] ?? false);
+        $modele         = $iaResult['modele'] ?? null;
+
         // Prix retenu pour l'analyse de rentabilité (prix manuel choisi par l'atelier ou prix conseillé)
         $prixPourRentabilite = $prixManuel ?? $prixConseille;
 
@@ -118,7 +125,11 @@ class EstimationService
             'prix_actuel'          => $prixPourRentabilite,
             'rentabilite'          => $rentabilite,
             'quantite'             => $quantiteData,
-            'source'               => $iaResult['source'],
+            'source'               => $source,
+            'raison_fallback'      => $raisonFallback,
+            'raison_label'         => $raisonLabel,
+            'depuis_cache'         => $depuisCache,
+            'modele'               => $modele,
             'confiance'            => $iaResult['confiance'],
             'explication'          => $iaResult['explication'],
             'parametres'           => [
@@ -144,13 +155,18 @@ class EstimationService
                 'niveau_alerte'  => $rentabilite['niveau_alerte'],
                 'confiance'      => $iaResult['confiance'],
                 'explication'    => $iaResult['explication'],
-                'source'         => $iaResult['source'],
+                'source'         => $source,
                 'details_calcul' => [
-                    'recyclage'   => $recyclage,
-                    'upcycling'   => $upcycling,
-                    'rentabilite' => $rentabilite,
-                    'quantite'    => $quantiteData,
-                    'filiere'     => $filiereOrientation,
+                    'recyclage'       => $recyclage,
+                    'upcycling'       => $upcycling,
+                    'rentabilite'     => $rentabilite,
+                    'quantite'        => $quantiteData,
+                    'filiere'         => $filiereOrientation,
+                    'source'          => $source,
+                    'raison_fallback' => $raisonFallback,
+                    'raison_label'    => $raisonLabel,
+                    'depuis_cache'    => $depuisCache,
+                    'modele'          => $modele,
                 ],
             ]);
 

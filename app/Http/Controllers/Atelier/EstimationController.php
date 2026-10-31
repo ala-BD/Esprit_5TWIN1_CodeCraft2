@@ -55,8 +55,13 @@ class EstimationController extends Controller
         );
 
         return response()->json([
-            'success' => true,
-            'data'    => $resultat,
+            'success'         => true,
+            'data'            => $resultat,
+            'source'          => $resultat['source'] ?? null,
+            'raison_fallback' => $resultat['raison_fallback'] ?? null,
+            'raison_label'    => $resultat['raison_label'] ?? null,
+            'depuis_cache'    => $resultat['depuis_cache'] ?? false,
+            'modele'          => $resultat['modele'] ?? null,
         ]);
     }
 
@@ -66,13 +71,19 @@ class EstimationController extends Controller
     public function recalculerMarge(Request $request): JsonResponse
     {
         $request->validate([
-            'prix'           => ['required', 'numeric', 'min:0'],
-            'cout_revient'   => ['required', 'numeric', 'min:0'],
-            'cout_recyclage' => ['nullable', 'numeric', 'min:0'],
-            'matiere'        => ['nullable', 'string'],
-            'quantite'       => ['nullable', 'integer', 'min:1', 'max:5000'],
-            'heures_travail' => ['nullable', 'numeric', 'min:0'],
-            'poids_kg'       => ['nullable', 'numeric', 'min:0'],
+            'prix'            => ['required', 'numeric', 'min:0'],
+            'cout_revient'    => ['required', 'numeric', 'min:0'],
+            'cout_recyclage'  => ['nullable', 'numeric', 'min:0'],
+            'matiere'         => ['nullable', 'string'],
+            'quantite'        => ['nullable', 'integer', 'min:1', 'max:5000'],
+            'heures_travail'  => ['nullable', 'numeric', 'min:0'],
+            'poids_kg'        => ['nullable', 'numeric', 'min:0'],
+            'article_id'      => ['nullable', 'integer'],
+            'source'          => ['nullable', 'string'],
+            'raison_fallback' => ['nullable', 'string'],
+            'raison_label'    => ['nullable', 'string'],
+            'depuis_cache'    => ['nullable', 'boolean'],
+            'modele'          => ['nullable', 'string'],
         ]);
 
         $parametre = ParametreCout::pourMatiere($request->input('matiere'));
@@ -90,10 +101,41 @@ class EstimationController extends Controller
             $parametre
         );
 
+        // Déterminer la dernière source connue sans appeler l'IA
+        $source         = $request->input('source');
+        $raisonFallback = $request->input('raison_fallback');
+        $raisonLabel    = $request->input('raison_label');
+        $depuisCache    = $request->has('depuis_cache') ? $request->boolean('depuis_cache') : false;
+        $modele         = $request->input('modele');
+
+        if (!$source && $request->filled('article_id')) {
+            $derniere = Estimation::where('article_id', $request->input('article_id'))->latest()->first();
+            if ($derniere) {
+                $source         = $derniere->source;
+                $details        = is_array($derniere->details_calcul) ? $derniere->details_calcul : [];
+                $raisonFallback = $details['raison_fallback'] ?? null;
+                $raisonLabel    = $details['raison_label'] ?? null;
+                $depuisCache    = !empty($details['depuis_cache']);
+                $modele         = $details['modele'] ?? null;
+            }
+        }
+
+        // Intégrer également dans data (unitaire) pour cohérence
+        $analyse['unitaire']['source']          = $source;
+        $analyse['unitaire']['raison_fallback'] = $raisonFallback;
+        $analyse['unitaire']['raison_label']    = $raisonLabel;
+        $analyse['unitaire']['depuis_cache']    = $depuisCache;
+        $analyse['unitaire']['modele']          = $modele;
+
         return response()->json([
-            'success'  => true,
-            'data'     => $analyse['unitaire'],
-            'quantite' => $analyse['quantite'],
+            'success'         => true,
+            'data'            => $analyse['unitaire'],
+            'quantite'        => $analyse['quantite'],
+            'source'          => $source,
+            'raison_fallback' => $raisonFallback,
+            'raison_label'    => $raisonLabel,
+            'depuis_cache'    => $depuisCache,
+            'modele'          => $modele,
         ]);
     }
 

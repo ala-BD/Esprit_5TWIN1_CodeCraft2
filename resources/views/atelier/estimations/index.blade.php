@@ -102,12 +102,12 @@
         <div class="flex items-center gap-2">
             <span class="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">Source :</span>
             <a href="{{ route('atelier.estimations.historique', ['niveau' => $currentNiveau, 'source' => 'ia']) }}"
-               class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all {{ $currentSource === 'ia' ? 'bg-purple-600 text-white' : 'bg-purple-50 text-purple-700 hover:bg-purple-100' }}">
+               class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all {{ $currentSource === 'ia' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100' }}">
                 <i class="fas fa-sparkles mr-1"></i> IA
             </a>
             <a href="{{ route('atelier.estimations.historique', ['niveau' => $currentNiveau, 'source' => 'regles']) }}"
-               class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all {{ $currentSource === 'regles' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100' }}">
-                <i class="fas fa-calculator mr-1"></i> Règles
+               class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all {{ $currentSource === 'regles' ? 'bg-slate-700 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200' }}">
+                <i class="fas fa-gears mr-1"></i> Règles
             </a>
         </div>
     </div>

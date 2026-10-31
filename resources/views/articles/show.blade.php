@@ -304,14 +304,18 @@
                             'coutRecyclage'      => (float)($estimationDon['cout_recyclage'] ?? 2.0),
                             'fraisPlateformePct' => (float)($estimationDon['parametres']['frais_plateforme_pct'] ?? 5.0),
                             'margeCiblePct'      => (float)($estimationDon['parametres']['marge_cible_pourcent'] ?? 20.0),
-                            'alerte'             => $estimationDon['rentabilite']['niveau_alerte'] ?? 'VERT',
+                            'alerte'             => strtoupper($estimationDon['rentabilite']['niveau_alerte'] ?? 'VERT'),
                             'titreAlerte'        => $estimationDon['rentabilite']['titre_alerte'] ?? 'Article gagnant',
                             'badgeClass'         => $estimationDon['rentabilite']['badge_class'] ?? '',
                             'margeNette'         => (float)($estimationDon['rentabilite']['marge_nette'] ?? 0.0),
                             'margePct'           => (float)($estimationDon['rentabilite']['marge_pourcent'] ?? 0.0),
                             'explication'        => $estimationDon['explication'] ?? '',
                             'conseil'            => $estimationDon['rentabilite']['conseil'] ?? '',
-                            'source'             => $estimationDon['source'] ?? 'regles',
+                            'source'             => $estimationDon['source'] ?? null,
+                            'raisonFallback'     => $estimationDon['raison_fallback'] ?? null,
+                            'raisonLabel'        => $estimationDon['raison_label'] ?? null,
+                            'depuisCache'        => (bool)($estimationDon['depuis_cache'] ?? false),
+                            'modele'             => $estimationDon['modele'] ?? null,
                             'quantite'           => (int)($estimationDon['quantite']['nombre_pieces'] ?? ($article->stock > 0 ? $article->stock : 1)),
                             'caTotal'            => (float)($estimationDon['quantite']['chiffre_affaires_total'] ?? 0.0),
                             'coutTotal'          => (float)($estimationDon['quantite']['cout_total'] ?? 0.0),
@@ -334,33 +338,43 @@
                                     fraisPlateformePct: config.fraisPlateformePct || 5.0,
                                     margeCiblePct: config.margeCiblePct || 20.0,
 
-                                    mode: 'quantite',
+                                    mode: 'unitaire',
                                     quantite: config.quantite || 1,
-                                    prixVente: config.prixConseille || 35.0,
-                                    prixConseille: config.prixConseille || 35.0,
-                                    prixMin: config.prixMin || 20.0,
-                                    prixMax: config.prixMax || 60.0,
-                                    coutRevient: typeof config.coutRevient === 'number' ? config.coutRevient.toFixed(2) : config.coutRevient,
-                                    coutRecyclage: config.coutRecyclage || 2.0,
+                                    prixVente: parseFloat(config.prixConseille) || 35.0,
+                                    prixConseille: parseFloat(config.prixConseille) || 35.0,
+                                    prixMin: parseFloat(config.prixMin) || 20.0,
+                                    prixMax: parseFloat(config.prixMax) || 60.0,
+                                    coutRevient: parseFloat(config.coutRevient) ? parseFloat(config.coutRevient).toFixed(2) : '0.00',
+                                    coutRecyclage: parseFloat(config.coutRecyclage) || 2.0,
 
-                                    alerte: config.alerte || 'VERT',
+                                    alerte: (config.alerte || 'VERT').toUpperCase(),
                                     titreAlerte: config.titreAlerte || 'Article gagnant',
                                     badgeClass: config.badgeClass || '',
-                                    margeNette: (config.margeNette || 0).toFixed(2),
-                                    margePct: (config.margePct || 0).toFixed(1),
+                                    margeNette: parseFloat(config.margeNette || 0).toFixed(2),
+                                    margePct: parseFloat(config.margePct || 0).toFixed(1),
                                     explication: config.explication || '',
                                     conseil: config.conseil || '',
-                                    source: config.source || 'regles',
+                                    source: config.source || null,
+                                    raisonFallback: config.raisonFallback || null,
+                                    raisonLabel: config.raisonLabel || null,
+                                    depuisCache: !!config.depuisCache,
+                                    modele: config.modele || null,
 
-                                    caTotal: (config.caTotal || 0).toFixed(2),
-                                    coutTotal: (config.coutTotal || 0).toFixed(2),
-                                    margeTotale: (config.margeTotale || 0).toFixed(2),
-                                    heuresTotales: (config.heuresTotales || 0).toFixed(1),
-                                    gainHoraire: (config.gainHoraire || 0).toFixed(2),
+                                    caTotal: parseFloat(config.caTotal || 0).toFixed(2),
+                                    coutTotal: parseFloat(config.coutTotal || 0).toFixed(2),
+                                    margeTotale: parseFloat(config.margeTotale || 0).toFixed(2),
+                                    heuresTotales: parseFloat(config.heuresTotales || 0).toFixed(1),
+                                    gainHoraire: parseFloat(config.gainHoraire || 0).toFixed(2),
                                     conseilQuantite: config.conseilQuantite || '',
 
                                     chargement: false,
                                     sauvegardeFaite: false,
+
+                                    init() {
+                                        // Recalcule immédiatement pour que les onglets Pièce et Quantité
+                                        // affichent des valeurs cohérentes dès le chargement de la page.
+                                        this.recalculerLive();
+                                    },
 
                                     recalculerLive() {
                                         let q = Math.max(1, parseInt(this.quantite) || 1);
@@ -426,6 +440,22 @@
                                             });
                                             let json = await res.json();
                                             if (json.success) {
+                                                let payload = json.data || json;
+                                                if (json.source !== undefined) this.source = json.source;
+                                                else if (payload.source !== undefined) this.source = payload.source;
+
+                                                if (json.raison_fallback !== undefined) this.raisonFallback = json.raison_fallback;
+                                                else if (payload.raison_fallback !== undefined) this.raisonFallback = payload.raison_fallback;
+
+                                                if (json.raison_label !== undefined) this.raisonLabel = json.raison_label;
+                                                else if (payload.raison_label !== undefined) this.raisonLabel = payload.raison_label;
+
+                                                if (json.depuis_cache !== undefined) this.depuisCache = json.depuis_cache;
+                                                else if (payload.depuis_cache !== undefined) this.depuisCache = payload.depuis_cache;
+
+                                                if (json.modele !== undefined) this.modele = json.modele;
+                                                else if (payload.modele !== undefined) this.modele = payload.modele;
+
                                                 this.sauvegardeFaite = true;
                                                 if (typeof retissToast === 'function') {
                                                     retissToast({
@@ -470,9 +500,12 @@
                             </div>
 
                             {{-- Source badge --}}
-                            <div class="flex items-center gap-2">
-                                <span class="text-[11px] font-semibold text-slate-500" x-text="source === 'ia' ? 'IA Gemini' : 'Règles métier'">{{ ($estimationDon['source'] ?? 'regles') === 'ia' ? 'IA Gemini' : 'Règles métier' }}</span>
-                                <span class="w-2 h-2 rounded-full" :class="source === 'ia' ? 'bg-indigo-500' : 'bg-slate-400'"></span>
+                            <div class="flex items-center gap-2" x-show="source" style="display: none;">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border"
+                                      :class="source === 'ia' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-slate-700 border-slate-300'">
+                                    <span x-show="source === 'ia'">✨ Estimation par l'IA<span x-show="depuisCache"></span></span>
+                                    <span x-show="source === 'regles'">⚙️ Règles métier (plan B) : <span x-text="raisonLabel"></span></span>
+                                </span>
                             </div>
                         </div>
 
@@ -533,10 +566,19 @@
                                 <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
                                     <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Prix de revente conseillé</span>
                                     <div class="flex items-baseline gap-1">
-                                        <span class="font-display font-black text-2xl text-slate-900" x-text="prixVente">{{ number_format($estimationDon['prix_conseille'] ?? 0, 2) }}</span>
+                                        <span class="font-display font-black text-2xl text-slate-900" x-text="parseFloat(prixVente).toFixed(2)">{{ number_format($estimationDon['prix_conseille'] ?? 0, 2) }}</span>
                                         <span class="text-xs font-bold text-slate-500">DT</span>
                                     </div>
-                                    <span class="text-[10px] text-slate-500 block mt-1">Fourchette : <span x-text="prixMin">{{ number_format($estimationDon['prix_min'] ?? 0, 2) }}</span> - <span x-text="prixMax">{{ number_format($estimationDon['prix_max'] ?? 0, 2) }}</span> DT</span>
+                                    <div class="mt-2 pt-2 border-t border-slate-200/60 space-y-1">
+                                        <span class="text-[10px] text-slate-500 block">Fourchette : <span class="font-semibold text-slate-700"><span x-text="parseFloat(prixMin).toFixed(2)">{{ number_format($estimationDon['prix_min'] ?? 0, 2) }}</span> - <span x-text="parseFloat(prixMax).toFixed(2)">{{ number_format($estimationDon['prix_max'] ?? 0, 2) }}</span> DT</span></span>
+                                        <div x-show="source" style="display: none;" class="pt-0.5">
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border"
+                                                  :class="source === 'ia' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-slate-700 border-slate-300'">
+                                                <span x-show="source === 'ia'">✨ Estimation par l'IA (Gemini)<span x-show="depuisCache"> (cache)</span></span>
+                                                <span x-show="source === 'regles'">⚙️ Règles métier (plan B) : <span x-text="raisonLabel"></span></span>
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
@@ -654,15 +696,26 @@
                                 <div>
                                     <div class="flex justify-between items-center text-xs mb-1">
                                         <label class="font-semibold text-slate-700">Prix de vente unitaire visé</label>
-                                        <span class="font-black text-slate-900 bg-white border border-slate-200 px-2 py-0.5 rounded-md"><span x-text="prixVente">{{ number_format($estimationDon['prix_conseille'] ?? 0, 2) }}</span> DT</span>
+                                        <span class="font-black text-slate-900 bg-white border border-slate-200 px-2 py-0.5 rounded-md"><span x-text="parseFloat(prixVente).toFixed(2)">{{ number_format($estimationDon['prix_conseille'] ?? 0, 2) }}</span> DT</span>
                                     </div>
                                     <input type="range" :min="Math.max(5, prixMin * 0.7)" :max="prixMax * 1.5" step="0.5" x-model.number="prixVente" @input="recalculerLive()"
                                            value="{{ (float)($estimationDon['prix_conseille'] ?? 35.0) }}"
                                            class="w-full accent-teal-600">
-                                    <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
-                                        <span>Min : <span x-text="prixMin">{{ number_format($estimationDon['prix_min'] ?? 0, 2) }}</span> DT</span>
-                                        <span class="font-bold text-teal-700">Conseillé : <span x-text="prixConseille">{{ number_format($estimationDon['prix_conseille'] ?? 0, 2) }}</span> DT</span>
-                                        <span>Max : <span x-text="prixMax">{{ number_format($estimationDon['prix_max'] ?? 0, 2) }}</span> DT</span>
+                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between text-[10px] text-slate-400 mt-0.5 gap-1">
+                                        <div>
+                                            <span>Min : <span x-text="parseFloat(prixMin).toFixed(2)">{{ number_format($estimationDon['prix_min'] ?? 0, 2) }}</span> DT</span>
+                                            <span class="mx-1">·</span>
+                                            <span class="font-bold text-teal-700">Conseillé : <span x-text="parseFloat(prixConseille).toFixed(2)">{{ number_format($estimationDon['prix_conseille'] ?? 0, 2) }}</span> DT</span>
+                                            <span class="mx-1">·</span>
+                                            <span>Max : <span x-text="parseFloat(prixMax).toFixed(2)">{{ number_format($estimationDon['prix_max'] ?? 0, 2) }}</span> DT</span>
+                                        </div>
+                                        <div x-show="source" style="display: none;">
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border"
+                                                  :class="source === 'ia' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-slate-700 border-slate-300'">
+                                                <span x-show="source === 'ia'">✨ Estimation par l'IA (Gemini)<span x-show="depuisCache"> (cache)</span></span>
+                                                <span x-show="source === 'regles'">⚙️ Règles métier (plan B) : <span x-text="raisonLabel"></span></span>
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

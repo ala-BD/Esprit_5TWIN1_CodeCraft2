@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\Estimation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class EstimationSecurityTest extends TestCase
@@ -19,6 +22,31 @@ class EstimationSecurityTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Cache::flush();
+        config(['services.ai.api_key' => 'fake-key']);
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    [
+                        'finishReason' => 'STOP',
+                        'content'      => [
+                            'parts' => [
+                                [
+                                    'text' => json_encode([
+                                        'prix_min'       => 25.0,
+                                        'prix_conseille' => 35.0,
+                                        'prix_max'       => 45.0,
+                                        'confiance'      => 'eleve',
+                                        'explication'    => 'Estimation validée pour test.',
+                                    ]),
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
 
         $this->atelier = User::factory()->create(['role' => User::ROLE_ATELIER]);
         $this->admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
@@ -43,20 +71,31 @@ class EstimationSecurityTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonStructure([
             'success',
+            'source',
+            'raison_fallback',
+            'raison_label',
+            'depuis_cache',
+            'modele',
             'data' => [
                 'cout_recyclage',
                 'cout_upcycling',
                 'prix_conseille',
+                'source',
+                'raison_fallback',
+                'raison_label',
+                'depuis_cache',
+                'modele',
                 'rentabilite' => [
                     'niveau_alerte',
                     'marge_nette',
                     'marge_pourcent',
                     'conseil',
                 ],
-                'source',
                 'confiance',
             ],
         ]);
+        $this->assertEquals('ia', $response->json('source'));
+        $this->assertNull($response->json('raison_fallback'));
     }
 
     public function test_admin_peut_calculer_une_estimation(): void
@@ -138,17 +177,36 @@ class EstimationSecurityTest extends TestCase
             'success' => true,
         ]);
         $response->assertJsonStructure([
+            'source',
+            'raison_fallback',
+            'raison_label',
+            'depuis_cache',
+            'modele',
             'data' => [
+                'source',
+                'raison_fallback',
+                'raison_label',
+                'depuis_cache',
+                'modele',
                 'rentabilite' => ['niveau_alerte', 'marge_nette', 'marge_pourcent'],
                 'quantite'    => ['nombre_pieces', 'chiffre_affaires_total', 'cout_total', 'marge_totale'],
             ],
         ]);
 
-        // Vérifier que l'estimation a été enregistrée pour cet atelier
+        // Vérifier que l'estimation a été enregistrée pour cet atelier avec ses métadonnées dans details_calcul
         $this->assertDatabaseHas('estimations', [
             'article_id' => $don->id,
             'user_id'    => $this->atelier->id,
         ]);
+
+        $estimation = Estimation::where('article_id', $don->id)->where('user_id', $this->atelier->id)->first();
+        $this->assertNotNull($estimation);
+        $this->assertIsArray($estimation->details_calcul);
+        $this->assertArrayHasKey('source', $estimation->details_calcul);
+        $this->assertArrayHasKey('raison_fallback', $estimation->details_calcul);
+        $this->assertArrayHasKey('raison_label', $estimation->details_calcul);
+        $this->assertArrayHasKey('depuis_cache', $estimation->details_calcul);
+        $this->assertArrayHasKey('modele', $estimation->details_calcul);
     }
 
     public function test_atelier_peut_consulter_le_catalogue_des_dons(): void
