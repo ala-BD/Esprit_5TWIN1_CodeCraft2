@@ -9,7 +9,6 @@ use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\DonVetementController;
 use App\Http\Controllers\Logistique\MissionController;
 use App\Http\Controllers\Logistique\TourneeController;
-use App\Http\Controllers\PointCollecteController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureCollecteur;
@@ -52,17 +51,7 @@ Route::middleware(['auth'])->group(function () {
         return view('dashboard');
     })->name('dashboard');
 
-    /*
-    |----------------------------------------------------------------------
-    | Module M1 — Collecte / Points de collecte (Wassim)
-    |----------------------------------------------------------------------
-    */
-    Route::get('/collecte', [PointCollecteController::class, 'dashboard'])
-        ->name('collecte.dashboard');
-
     Route::prefix('collecte')->name('collecte.')->group(function () {
-        Route::resource('points', PointCollecteController::class);
-
         Route::get('dons',              [DonVetementController::class, 'index'])->name('dons.index');
         Route::get('dons/create',       [DonVetementController::class, 'create'])->name('dons.create');
         Route::post('dons',             [DonVetementController::class, 'store'])->name('dons.store');

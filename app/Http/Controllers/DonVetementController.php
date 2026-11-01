@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\DonVetement;
-use App\Models\PointCollecte;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,7 +16,7 @@ class DonVetementController extends Controller
     public function index(): View
     {
         $user = $this->currentUser();
-        $donsQuery = DonVetement::with(['pointCollecte', 'user'])->latest('date_depot');
+        $donsQuery = DonVetement::with('user')->latest('date_depot');
 
         if ($user->hasRole(User::ROLE_DONATEUR)) {
             $donsQuery->where('user_id', $user->id);
@@ -34,12 +33,7 @@ class DonVetementController extends Controller
     {
         $this->authorizeDonor();
 
-        $points = PointCollecte::where('statut', 'ACTIF')
-            ->orderBy('ville')
-            ->orderBy('nom')
-            ->get();
-
-        return view('collecte.dons.create', compact('points'));
+        return view('collecte.dons.create');
     }
 
     public function store(Request $request): RedirectResponse
@@ -47,11 +41,6 @@ class DonVetementController extends Controller
         $this->authorizeDonor();
 
         $validated = $request->validate([
-            'point_collecte_id' => [
-                'required',
-                'integer',
-                Rule::exists('point_collectes', 'id')->where('statut', 'ACTIF'),
-            ],
             'type' => ['required', 'string', 'max:100'],
             'matiere' => ['required', 'string', 'max:100'],
             'taille' => ['required', 'string', 'max:50'],
@@ -82,7 +71,7 @@ class DonVetementController extends Controller
             403
         );
 
-        $don->load(['pointCollecte', 'user']);
+        $don->load('user');
 
         return view('collecte.dons.show', compact('don', 'canManage'));
     }

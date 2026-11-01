@@ -28,12 +28,8 @@
         </section>
 
         <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 class="text-lg font-semibold text-slate-900">Dépôt</h2>
+            <h2 class="text-lg font-semibold text-slate-900">Suivi</h2>
             <dl class="mt-5 space-y-4 text-sm">
-                <div><dt class="text-slate-500">Point de collecte</dt><dd class="mt-1 font-medium text-slate-900">{{ $don->pointCollecte?->nom ?? 'Point supprimé' }}</dd></div>
-                @if($don->pointCollecte)
-                    <div><dt class="text-slate-500">Adresse</dt><dd class="mt-1 font-medium text-slate-900">{{ $don->pointCollecte->adresse }}, {{ $don->pointCollecte->ville }}</dd></div>
-                @endif
                 <div><dt class="text-slate-500">Référence QR</dt><dd class="mt-1 break-all font-mono text-xs text-slate-700">{{ $don->qr_code }}</dd></div>
                 @if($canManage)
                     <div><dt class="text-slate-500">Donateur</dt><dd class="mt-1 font-medium text-slate-900">{{ $don->user?->full_name ?: ($don->user?->name ?? 'Compte supprimé') }}</dd></div>

@@ -199,10 +199,6 @@
                         </a>
                     @endif
 
-                    <a href="{{ route('collecte.dashboard') }}"
-                       class="nav-link {{ request()->routeIs('collecte.*') ? 'font-semibold' : '' }}">
-                        <i class="fas fa-map-marker-alt mr-1.5"></i> Collecte
-                    </a>
                     @if(Auth::user()->role === 'DONATEUR')
                         <a href="{{ route('collecte.dons.index') }}" class="nav-link {{ request()->routeIs('collecte.dons.*') ? 'font-semibold' : '' }}">
                             <i class="fas fa-box-open mr-1.5"></i> Mes dons
@@ -280,11 +276,6 @@
                             <i class="fas fa-box-open w-4 text-center" style="color:#0d9488"></i> Mes dons
                         </a>
                     @endif
-                    <a href="{{ route('collecte.dashboard') }}"
-                       class="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50">
-                        <i class="fas fa-map-marker-alt text-xs"></i> Points de collecte
-                    </a>
-
                     <a href="{{ route('articles.index') }}"
                        class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors {{ request()->routeIs('articles.*') ? 'bg-teal-50 text-teal-700 font-bold' : '' }}"
                        style="text-decoration:none">

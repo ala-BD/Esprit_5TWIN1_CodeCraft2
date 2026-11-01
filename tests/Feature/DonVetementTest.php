@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\DonVetement;
-use App\Models\PointCollecte;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -12,13 +11,11 @@ class DonVetementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_donor_can_submit_a_donation_for_an_active_collection_point(): void
+    public function test_donor_can_submit_a_donation_without_a_collection_point(): void
     {
         $donor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
-        $point = PointCollecte::factory()->create(['statut' => 'ACTIF']);
 
         $response = $this->actingAs($donor)->post(route('collecte.dons.store'), [
-            'point_collecte_id' => $point->id,
             'type' => 'Chemise',
             'matiere' => 'Coton',
             'taille' => 'M',
@@ -31,7 +28,7 @@ class DonVetementTest extends TestCase
         $this->assertDatabaseHas('don_vetements', [
             'id' => $don->id,
             'user_id' => $donor->id,
-            'point_collecte_id' => $point->id,
+            'point_collecte_id' => null,
             'statut' => 'DEPOSE',
         ]);
         $this->assertNotEmpty($don->qr_code);
@@ -41,10 +38,8 @@ class DonVetementTest extends TestCase
     {
         $donor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
         $otherDonor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
-        $point = PointCollecte::factory()->create();
         $don = DonVetement::create([
             'user_id' => $otherDonor->id,
-            'point_collecte_id' => $point->id,
             'type' => 'Manteau privé',
             'matiere' => 'Laine',
             'taille' => 'L',
@@ -62,12 +57,10 @@ class DonVetementTest extends TestCase
     {
         $donor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
         $otherDonor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
-        $point = PointCollecte::factory()->create();
 
         foreach ([[$donor, 'Mon don privé'], [$otherDonor, 'Don d’un autre']] as [$owner, $type]) {
             DonVetement::create([
                 'user_id' => $owner->id,
-                'point_collecte_id' => $point->id,
                 'type' => $type,
                 'matiere' => 'Coton',
                 'taille' => 'M',
@@ -84,32 +77,22 @@ class DonVetementTest extends TestCase
             ->assertDontSee('Don d’un autre');
     }
 
-    public function test_donor_cannot_submit_to_an_inactive_collection_point(): void
+    public function test_donation_creation_form_does_not_require_a_collection_point(): void
     {
         $donor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
-        $point = PointCollecte::factory()->create(['statut' => 'INACTIF']);
 
         $this->actingAs($donor)
-            ->from(route('collecte.dons.create'))
-            ->post(route('collecte.dons.store'), [
-                'point_collecte_id' => $point->id,
-                'type' => 'Chemise',
-                'matiere' => 'Coton',
-                'taille' => 'M',
-                'etat' => 'Bon',
-            ])
-            ->assertRedirect(route('collecte.dons.create'))
-            ->assertSessionHasErrors('point_collecte_id');
+            ->get(route('collecte.dons.create'))
+            ->assertOk()
+            ->assertDontSee('Point de dépôt');
     }
 
     public function test_collector_can_update_a_donation_status(): void
     {
         $collector = User::factory()->create(['role' => User::ROLE_COLLECTEUR]);
         $donor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
-        $point = PointCollecte::factory()->create();
         $don = DonVetement::create([
             'user_id' => $donor->id,
-            'point_collecte_id' => $point->id,
             'type' => 'Pantalon',
             'matiere' => 'Denim',
             'taille' => '40',

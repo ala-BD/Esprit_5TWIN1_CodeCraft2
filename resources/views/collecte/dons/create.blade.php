@@ -9,25 +9,8 @@
         <h1 class="mt-2 text-3xl font-bold text-slate-900">Déclarer un don de vêtement</h1>
     </div>
 
-    @if($points->isEmpty())
-        <div class="rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
-            Aucun point de collecte actif n’accepte actuellement de dons.
-            <a href="{{ route('collecte.points.index') }}" class="ml-1 font-semibold underline">Voir les points</a>
-        </div>
-    @else
         <form action="{{ route('collecte.dons.store') }}" method="POST" class="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             @csrf
-            <div>
-                <label for="point_collecte_id" class="mb-2 block text-sm font-medium text-slate-700">Point de dépôt</label>
-                <select id="point_collecte_id" name="point_collecte_id" required class="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
-                    <option value="">Choisir un point actif</option>
-                    @foreach($points as $point)
-                        <option value="{{ $point->id }}" @selected(old('point_collecte_id') == $point->id)>{{ $point->nom }} · {{ $point->ville }} — {{ $point->adresse }}</option>
-                    @endforeach
-                </select>
-                @error('point_collecte_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-            </div>
-
             <div class="grid gap-5 sm:grid-cols-2">
                 <div>
                     <label for="type" class="mb-2 block text-sm font-medium text-slate-700">Type de vêtement</label>
@@ -66,6 +49,5 @@
                 <button type="submit" class="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark">Enregistrer le don</button>
             </div>
         </form>
-    @endif
 </div>
 @endsection

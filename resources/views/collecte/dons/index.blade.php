@@ -22,7 +22,6 @@
                 <thead class="bg-slate-50">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Vêtement</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Point de collecte</th>
                         @if(Auth::user()->role !== 'DONATEUR')
                             <th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Donateur</th>
                         @endif
@@ -39,10 +38,6 @@
                                 <p class="font-semibold text-slate-900">{{ $don->type }}</p>
                                 <p class="text-sm text-slate-500">{{ $don->matiere }} · taille {{ $don->taille }}</p>
                             </td>
-                            <td class="px-6 py-4 text-sm text-slate-700">
-                                {{ $don->pointCollecte?->nom ?? 'Point supprimé' }}
-                                @if($don->pointCollecte)<p class="text-xs text-slate-500">{{ $don->pointCollecte->ville }}</p>@endif
-                            </td>
                             @if(Auth::user()->role !== 'DONATEUR')
                                 <td class="px-6 py-4 text-sm text-slate-700">{{ $don->user?->full_name ?: ($don->user?->name ?? 'Compte supprimé') }}</td>
                             @endif
@@ -54,7 +49,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ Auth::user()->role === 'DONATEUR' ? 5 : 6 }}" class="px-6 py-12 text-center text-slate-500">
+                            <td colspan="{{ Auth::user()->role === 'DONATEUR' ? 4 : 5 }}" class="px-6 py-12 text-center text-slate-500">
                                 Aucun don enregistré pour le moment.
                             </td>
                         </tr>
