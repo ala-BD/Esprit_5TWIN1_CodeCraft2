@@ -6,11 +6,18 @@ use App\Services\Upcycling\GeminiClient;
 
 class DonVetementImageService
 {
-    public function __construct(private GeminiClient $gemini) {}
+    public function __construct(
+        private GeminiClient $gemini,
+        private ComfyUiImageClient $comfyUi
+    ) {}
 
     public function estConfigure(): bool
     {
-        return $this->gemini->estConfigure() && filled(config('services.gemini.image_model'));
+        return match (config('services.donation_images.provider')) {
+            'comfyui' => $this->comfyUi->estConfigure(),
+            'gemini' => $this->gemini->estConfigure() && filled(config('services.gemini.image_model')),
+            default => false,
+        };
     }
 
     /**
@@ -18,14 +25,14 @@ class DonVetementImageService
      */
     public function ameliorer(string $chemin): array
     {
-        return $this->gemini->genererImage(
-            "Create a clean, realistic e-commerce product photograph of the exact garment shown in the input image. "
-            . "Preserve the garment's identity and all visible details: its type, color, cut, material, pattern, "
-            . "stitching, labels, logos, and actual wear, stains, or damage. Do not repair, redesign, recolor, "
-            . "remove defects, add accessories, add text, or invent details. Only improve the lighting and use "
-            . "a simple neutral studio background. Show the complete garment centered, with no person or mannequin. "
-            . "The result must accurately represent the donated item, not an idealized replacement.",
-            $chemin
-        );
+        $instruction = "Extract the garment from this photo. Keep the exact same garment: same color, shape, fabric, "
+            . "print, text, logo, seams, and signs of wear. Remove the person and the background. Show only the garment, "
+            . "centered on a plain light background. Do not redesign it or add anything.";
+
+        return match (config('services.donation_images.provider')) {
+            'comfyui' => $this->comfyUi->generer($instruction, $chemin),
+            'gemini' => $this->gemini->genererImage($instruction, $chemin),
+            default => throw new \RuntimeException('Aucun fournisseur de génération d’image valide n’est configuré.'),
+        };
     }
 }

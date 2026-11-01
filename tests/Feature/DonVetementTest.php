@@ -390,6 +390,7 @@ class DonVetementTest extends TestCase
     public function test_donor_can_generate_and_preview_an_enhanced_image(): void
     {
         config([
+            'services.donation_images.provider' => 'gemini',
             'services.gemini.key' => 'test-key',
             'services.gemini.image_model' => 'gemini-test-image',
         ]);
@@ -421,9 +422,126 @@ class DonVetementTest extends TestCase
             && ($request->data()['generationConfig']['responseModalities'] ?? null) === ['TEXT', 'IMAGE']);
     }
 
+    public function test_donor_can_generate_an_enhanced_image_with_local_comfyui(): void
+    {
+        config([
+            'services.donation_images.provider' => 'comfyui',
+            'services.donation_images.comfyui.url' => 'http://127.0.0.1:8188',
+            'services.donation_images.comfyui.checkpoint' => 'textilecycle-test.safetensors',
+            'services.donation_images.comfyui.timeout' => 5,
+            'services.donation_images.comfyui.denoise' => 0.5,
+        ]);
+        $imageBytes = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0eUAAAAASUVORK5CYII=');
+        Http::fake(function ($request) use ($imageBytes) {
+            $path = parse_url($request->url(), PHP_URL_PATH);
+            if ($path === '/upload/image') {
+                return Http::response(['name' => 'textilecycle-test-input.png', 'subfolder' => '', 'type' => 'input']);
+            }
+            if ($path === '/prompt') {
+                return Http::response(['prompt_id' => 'test-prompt-id']);
+            }
+            if ($path === '/history/test-prompt-id') {
+                return Http::response([
+                    'test-prompt-id' => [
+                        'status' => ['status_str' => 'success', 'completed' => true],
+                        'outputs' => [
+                            '8' => ['images' => [[
+                                'filename' => 'textilecycle-output.png',
+                                'subfolder' => '',
+                                'type' => 'output',
+                            ]]],
+                        ],
+                    ],
+                ]);
+            }
+            if ($path === '/view') {
+                return Http::response($imageBytes, 200, ['Content-Type' => 'image/png']);
+            }
+
+            return Http::response([], 404);
+        });
+        Storage::fake('local');
+        $donor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
+
+        $response = $this->actingAs($donor)
+            ->postJson(route('collecte.dons.ameliorer-photo'), [
+                'photo' => UploadedFile::fake()->image('blazer.webp'),
+            ])
+            ->assertOk()
+            ->assertJsonPath('preview', 'data:image/png;base64,' . base64_encode($imageBytes));
+
+        Storage::disk('local')->assertExists("don-enhancements/{$donor->id}/{$response->json('token')}.png");
+        Http::assertSent(fn ($request) => parse_url($request->url(), PHP_URL_PATH) === '/upload/image');
+        Http::assertSent(fn ($request) => parse_url($request->url(), PHP_URL_PATH) === '/prompt'
+            && ($request->data()['prompt']['6']['inputs']['denoise'] ?? null) === 0.5
+            && ($request->data()['prompt']['3']['inputs']['text'] ?? null)
+                === 'Extract the garment from this photo. Keep the exact same garment: same color, shape, fabric, '
+                    . 'print, text, logo, seams, and signs of wear. Remove the person and the background. Show only '
+                    . 'the garment, centered on a plain light background. Do not redesign it or add anything.'
+            && ($request->data()['prompt']['4']['inputs']['text'] ?? null)
+                === 'person, human, face, hands, mannequin, model, background clutter, extra garments, '
+                    . 'accessories, watermark, blurry, deformed');
+        Http::assertSent(fn ($request) => parse_url($request->url(), PHP_URL_PATH) === '/view'
+            && ($request['filename'] ?? null) === 'textilecycle-output.png');
+    }
+
+    public function test_local_image_enhancement_does_not_require_a_gemini_key(): void
+    {
+        config([
+            'services.gemini.key' => null,
+            'services.donation_images.provider' => 'comfyui',
+            'services.donation_images.comfyui.url' => 'http://127.0.0.1:8188',
+            'services.donation_images.comfyui.checkpoint' => '',
+        ]);
+        $donor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
+
+        $this->actingAs($donor)
+            ->postJson(route('collecte.dons.ameliorer-photo'), [
+                'photo' => UploadedFile::fake()->image('blazer.jpg'),
+            ])
+            ->assertStatus(503)
+            ->assertJsonPath('message', "L'amélioration d'image IA est indisponible pour le moment.");
+    }
+
+    public function test_gemini_image_generation_is_available_when_selected_explicitly(): void
+    {
+        config([
+            'services.donation_images.provider' => 'gemini',
+            'services.gemini.key' => 'test-key',
+            'services.gemini.image_model' => 'gemini-test-image',
+        ]);
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [[
+                    'content' => ['parts' => [[
+                        'inlineData' => [
+                            'mimeType' => 'image/png',
+                            'data' => 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0eUAAAAASUVORK5CYII=',
+                        ],
+                    ]]],
+                ]],
+            ]),
+        ]);
+        Storage::fake('local');
+        $donor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
+
+        $this->actingAs($donor)
+            ->postJson(route('collecte.dons.ameliorer-photo'), [
+                'photo' => UploadedFile::fake()->image('blazer.jpg'),
+            ])
+            ->assertOk();
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'gemini-test-image'));
+    }
+
     public function test_image_enhancement_requires_a_configured_provider(): void
     {
-        config(['services.gemini.key' => null]);
+        config([
+            'services.donation_images.provider' => 'comfyui',
+            'services.donation_images.comfyui.url' => null,
+            'services.donation_images.comfyui.checkpoint' => null,
+            'services.gemini.key' => null,
+        ]);
         $donor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
 
         $this->actingAs($donor)
@@ -594,6 +712,7 @@ class DonVetementTest extends TestCase
             ->assertSee('duplicate-check-token', false)
             ->assertSee('Continuer malgré tout')
             ->assertSee('detecter-doublon', false)
+            ->assertSee('serveur ComfyUI local')
             ->assertSee('enctype="multipart/form-data"', false)
             ->assertDontSee('Point de dépôt');
     }

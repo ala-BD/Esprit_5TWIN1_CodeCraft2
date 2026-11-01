@@ -67,7 +67,14 @@
                     <button id="ameliorer-photo" type="button" disabled class="mt-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50">
                         <span data-label>Créer une photo style catalogue avec l’IA</span>
                     </button>
-                    <p class="mt-1 text-xs text-slate-500">Votre photo sera envoyée à Gemini qui génère une version à fond neutre. Comparez les deux photos et choisissez celle qui représentera le don. Vérifiez que l’image améliorée montre fidèlement l’article.</p>
+                    <p class="mt-1 text-xs text-slate-500">
+                        @if(config('services.donation_images.provider') === 'comfyui')
+                            Votre photo est envoyée au serveur ComfyUI local pour générer une version à fond neutre.
+                        @else
+                            Votre photo est envoyée à Gemini pour générer une version à fond neutre.
+                        @endif
+                        Comparez les deux photos et choisissez celle qui représentera le don. Vérifiez que l’image améliorée montre fidèlement l’article.
+                    </p>
                     <p id="erreur-amelioration" role="alert" class="mt-2 hidden text-sm text-red-600"></p>
                     <input type="hidden" name="enhanced_token" id="enhanced-token">
                     <fieldset id="comparaison-photos" class="mt-4 hidden rounded-xl border border-slate-200 p-4">
