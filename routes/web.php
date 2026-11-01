@@ -19,6 +19,7 @@ use App\Http\Controllers\Recyclage\IAFiliereController;
 use App\Http\Controllers\Recyclage\LotTextileController;
 use App\Http\Controllers\Recyclage\PasseportNumeriqueController;
 use App\Http\Controllers\Recyclage\StatistiqueController;
+use App\Http\Controllers\Upcycling\AccesApiController;
 use App\Http\Controllers\Upcycling\AtelierController;
 use App\Http\Controllers\Upcycling\DevisController;
 use App\Http\Controllers\Upcycling\MessageProjetController;
@@ -117,8 +118,8 @@ Route::middleware(['auth'])->group(function () {
             ->parameters(['projets' => 'projet']);
 
         // IA
-        Route::post('analyse-photo', [ProjetUpcyclingController::class, 'analyserPhoto'])->name('analyse-photo');
-        Route::post('projets/{projet}/idees', [ProjetUpcyclingController::class, 'regenererIdees'])->name('projets.idees');
+        Route::post('analyse-photo', [ProjetUpcyclingController::class, 'analyserPhoto'])->middleware('throttle:ia')->name('analyse-photo');
+        Route::post('projets/{projet}/idees', [ProjetUpcyclingController::class, 'regenererIdees'])->middleware('throttle:ia')->name('projets.idees');
         Route::patch('projets/{projet}/idee', [ProjetUpcyclingController::class, 'choisirIdee'])->name('projets.idee');
 
         // Matching atelier
@@ -137,7 +138,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('devis/{devis}/pdf',          [DevisController::class, 'pdf'])->name('devis.pdf');
 
         // Messagerie client / atelier + assistant styliste IA
-        Route::post('projets/{projet}/messages', [MessageProjetController::class, 'store'])->name('messages.store');
+        Route::post('projets/{projet}/messages', [MessageProjetController::class, 'store'])->middleware('throttle:ia')->name('messages.store');
+
+        // Accès à l'API REST : documentation et tokens personnels (Sanctum)
+        Route::get('api', [AccesApiController::class, 'index'])->name('api.index');
+        Route::post('api/tokens', [AccesApiController::class, 'store'])->name('api.tokens.store');
+        Route::delete('api/tokens/{token}', [AccesApiController::class, 'destroy'])->name('api.tokens.destroy');
 
         // IA : contrôle qualité avant / après
         Route::post('projets/{projet}/controle-qualite', [ProjetUpcyclingController::class, 'controleQualite'])->name('projets.controle-qualite');
