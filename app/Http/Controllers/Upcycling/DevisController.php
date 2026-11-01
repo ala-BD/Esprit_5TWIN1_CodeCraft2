@@ -7,7 +7,10 @@ use App\Http\Controllers\Upcycling\Concerns\AccesUpcycling;
 use App\Http\Requests\Upcycling\DevisRequest;
 use App\Models\Devis;
 use App\Models\ProjetUpcycling;
+use App\Notifications\UpcyclingNotification;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 
 class DevisController extends Controller
@@ -30,7 +33,7 @@ class DevisController extends Controller
             return back()->with('error', 'Un devis est déjà en attente de réponse du client.');
         }
 
-        Devis::create([
+        $devis = Devis::create([
             'projet_upcycling_id' => $projet->id,
             'montant'             => $request->montant,
             'delai_jours'         => $request->delai_jours,
@@ -38,6 +41,13 @@ class DevisController extends Controller
             'statut'              => Devis::STATUT_EN_ATTENTE,
             'date_emission'       => now(),
         ]);
+
+        $projet->client->notify(new UpcyclingNotification(
+            $projet,
+            "{$projet->atelier->nom} vous propose un devis de " . number_format($devis->montant, 0, ',', ' ')
+                . " DT ({$devis->delai_jours} jours) pour « {$projet->produit_final} ».",
+            'fa-file-invoice-dollar'
+        ));
 
         return back()->with('success', 'Devis envoyé au client.');
     }
@@ -61,6 +71,12 @@ class DevisController extends Controller
             ]);
         });
 
+        $projet->atelier->user->notify(new UpcyclingNotification(
+            $projet,
+            "{$projet->client->full_name} a accepté votre devis pour « {$projet->produit_final} ». Les travaux peuvent commencer !",
+            'fa-handshake'
+        ));
+
         return back()->with('success', "Devis accepté ! L'atelier peut commencer les travaux.");
     }
 
@@ -77,6 +93,30 @@ class DevisController extends Controller
 
         $devis->update(['statut' => Devis::STATUT_REFUSE]);
 
+        $projet->atelier->user->notify(new UpcyclingNotification(
+            $projet,
+            "{$projet->client->full_name} a refusé votre devis de " . number_format($devis->montant, 0, ',', ' ')
+                . " DT. Vous pouvez en proposer un nouveau.",
+            'fa-file-circle-xmark'
+        ));
+
         return back()->with('success', "Devis refusé. L'atelier peut vous en proposer un nouveau, ou vous pouvez changer d'atelier.");
+    }
+
+    /*
+    |------------------------------------------------------------------
+    | GET /upcycling/devis/{devis}/pdf — Devis PDF (client ou atelier)
+    |------------------------------------------------------------------
+    */
+    public function pdf(Devis $devis): Response
+    {
+        $projet = $devis->projetUpcycling->load(['client', 'atelier.user']);
+        abort_unless($this->estProprietaire($projet) || $this->estAtelierDuProjet($projet), 403);
+
+        $numero = 'DEV-' . $devis->date_emission->format('Y') . '-' . str_pad($devis->id, 4, '0', STR_PAD_LEFT);
+
+        return Pdf::loadView('upcycling.devis.pdf', compact('devis', 'projet', 'numero'))
+            ->setPaper('a4', 'portrait')
+            ->download("devis-{$numero}.pdf");
     }
 }
