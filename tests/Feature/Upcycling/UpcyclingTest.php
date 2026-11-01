@@ -177,7 +177,7 @@ class UpcyclingTest extends TestCase
             ->get(route('upcycling.projets.matching', $projet))
             ->assertOk()
             ->assertViewHas('classement', fn ($classement) => $classement->first()['atelier']->is($sac)
-                && $classement->first()['details']['specialite'] === 40);
+                && $classement->first()['details']['specialite'] === \App\Services\Upcycling\MatchingAtelierService::POIDS_SPECIALITE);
     }
 
     public function test_parcours_complet_devis_suivi_photo_resultat_et_note(): void
