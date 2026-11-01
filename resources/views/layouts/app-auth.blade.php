@@ -133,10 +133,8 @@
                     </a>
                 @endif
 
-                {{-- Notifications placeholder --}}
-                {{-- <button class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors relative">
-                    <i class="fas fa-bell text-sm"></i>
-                </button> --}}
+                {{-- Notifications (commandes, upcycling...) --}}
+                @include('components.notifications-cloche')
 
                 {{-- Avatar dropdown --}}
                 <div class="relative" id="user-menu-wrapper">

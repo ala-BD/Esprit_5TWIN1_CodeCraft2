@@ -9,6 +9,7 @@ use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\DonVetementController;
 use App\Http\Controllers\Logistique\MissionController;
 use App\Http\Controllers\Logistique\TourneeController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PointCollecteController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Middleware\EnsureAdmin;
@@ -20,6 +21,7 @@ use App\Http\Controllers\Recyclage\PasseportNumeriqueController;
 use App\Http\Controllers\Recyclage\StatistiqueController;
 use App\Http\Controllers\Upcycling\AtelierController;
 use App\Http\Controllers\Upcycling\DevisController;
+use App\Http\Controllers\Upcycling\MessageProjetController;
 use App\Http\Controllers\Upcycling\ProjetUpcyclingController;
 use Illuminate\Support\Facades\Route;
 
@@ -132,7 +134,25 @@ Route::middleware(['auth'])->group(function () {
         Route::post('projets/{projet}/devis',    [DevisController::class, 'store'])->name('devis.store');
         Route::patch('devis/{devis}/accepter',   [DevisController::class, 'accepter'])->name('devis.accepter');
         Route::patch('devis/{devis}/refuser',    [DevisController::class, 'refuser'])->name('devis.refuser');
+        Route::get('devis/{devis}/pdf',          [DevisController::class, 'pdf'])->name('devis.pdf');
+
+        // Messagerie client / atelier + assistant styliste IA
+        Route::post('projets/{projet}/messages', [MessageProjetController::class, 'store'])->name('messages.store');
+
+        // IA : contrôle qualité avant / après
+        Route::post('projets/{projet}/controle-qualite', [ProjetUpcyclingController::class, 'controleQualite'])->name('projets.controle-qualite');
+
+        // Revente du produit fini sur la marketplace (M2)
+        Route::post('projets/{projet}/publier', [ProjetUpcyclingController::class, 'publier'])->name('projets.publier');
     });
+
+    /*
+    |----------------------------------------------------------------------
+    | Notifications in-app (tous modules)
+    |----------------------------------------------------------------------
+    */
+    Route::get('notifications/{id}', [NotificationController::class, 'lire'])->name('notifications.lire');
+    Route::post('notifications/tout-lire', [NotificationController::class, 'toutLire'])->name('notifications.tout-lire');
 
     /*
     |----------------------------------------------------------------------
