@@ -64,7 +64,7 @@
                             <i class="fas fa-star"></i> {{ number_format($atelier->note_moyenne, 1) }}
                         </span>
                     @else
-                        <span class="absolute top-3 right-3 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-accent text-navy shadow-sm">Nouveau</span>
+                        <span class="absolute top-3 right-3 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-secondary text-navy shadow-sm">Nouveau</span>
                     @endif
                 </div>
                 <div class="p-5 flex-1 flex flex-col">

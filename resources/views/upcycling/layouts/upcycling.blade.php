@@ -8,6 +8,11 @@
         . ($actif ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white');
 @endphp
 
+@section('styles')
+    @include('upcycling.partials.styles')
+    @yield('upcycling-styles')
+@endsection
+
 @section('content')
 <div class="min-h-[calc(100vh-56px)] bg-gray-50">
 
@@ -20,7 +25,7 @@
             <div class="px-6 mb-8">
                 <div class="flex items-center gap-2 mb-1">
                     <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center">
-                        <i class="fas fa-cut text-accent text-sm"></i>
+                        <i class="fas fa-cut text-secondary text-sm"></i>
                     </div>
                     <span class="font-bold text-white text-sm">Module Upcycling</span>
                 </div>

@@ -17,6 +17,11 @@
             ])
         </div>
         <span class="absolute top-3 left-3 px-2.5 py-1 rounded-lg text-[11px] font-bold shadow-sm {{ $badge['class'] }}">{{ $badge['label'] }}</span>
+        @if($projet->en_retard)
+            <span class="absolute bottom-3 left-3 px-2.5 py-1 rounded-lg text-[11px] font-bold shadow-sm bg-red-500 text-white">
+                <i class="fas fa-triangle-exclamation"></i> En retard
+            </span>
+        @endif
         @if($projet->source_ia === 'GEMINI')
             <span class="absolute top-3 right-3 px-2 py-1 rounded-lg text-[10px] font-bold bg-white/90 text-violet-600 shadow-sm">
                 <i class="fas fa-wand-magic-sparkles"></i> IA
@@ -48,7 +53,7 @@
                 <span>Progression</span><span class="font-semibold text-gray-600">{{ $projet->progression }}%</span>
             </div>
             <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div class="h-full rounded-full bg-gradient-to-r from-primary to-accent" style="width: {{ $projet->progression }}%"></div>
+                <div class="h-full rounded-full bg-gradient-to-r from-primary to-secondary" style="width: {{ $projet->progression }}%"></div>
             </div>
         </div>
     </div>

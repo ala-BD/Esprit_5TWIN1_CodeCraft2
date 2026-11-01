@@ -56,7 +56,7 @@
 
 @if($projets->isEmpty())
     <div class="bg-white rounded-3xl border border-dashed border-gray-200 text-center py-20">
-        <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/10 to-accent/20 flex items-center justify-center mx-auto mb-5">
+        <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/10 to-secondary/20 flex items-center justify-center mx-auto mb-5">
             <i class="fas fa-tshirt text-primary text-3xl"></i>
         </div>
         <h3 class="font-display font-bold text-gray-800 text-lg">Aucun projet</h3>
