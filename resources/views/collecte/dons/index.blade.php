@@ -6,7 +6,7 @@
 <div class="max-w-7xl mx-auto px-4 py-10">
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary">M1 · Collecte</p>
+
             <h1 class="mt-2 text-3xl font-bold text-slate-900">{{ Auth::user()->role === 'DONATEUR' ? 'Mes dons' : 'Dons reçus' }}</h1>
         </div>
         @if(Auth::user()->role === 'DONATEUR')
@@ -36,7 +36,7 @@
                         <tr>
                             <td class="px-6 py-4">
                                 <p class="font-semibold text-slate-900">{{ $don->type }}</p>
-                                <p class="text-sm text-slate-500">{{ $don->matiere }} · taille {{ $don->taille }}</p>
+                                <p class="text-sm text-slate-500">{{ $don->matiere }}{{ $don->couleur ? ' · ' . $don->couleur : '' }} · taille {{ $don->taille }}</p>
                             </td>
                             @if(Auth::user()->role !== 'DONATEUR')
                                 <td class="px-6 py-4 text-sm text-slate-700">{{ $don->user?->full_name ?: ($don->user?->name ?? 'Compte supprimé') }}</td>

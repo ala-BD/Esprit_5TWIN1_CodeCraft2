@@ -16,9 +16,13 @@ class DonVetement extends Model
         'user_id',
         'type',
         'matiere',
+        'couleur',
         'taille',
         'etat',
         'photo_url',
+        'photo_originale_url',
+        'photo_amelioree_url',
+        'photo_hashes',
         'qr_code',
         'statut',
         'date_depot',
@@ -31,6 +35,7 @@ class DonVetement extends Model
         return [
             'date_depot'         => 'date',
             'score_confiance_ia' => 'float',
+            'photo_hashes'       => 'array',
         ];
     }
 
