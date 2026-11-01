@@ -19,11 +19,12 @@
     @endif
 </div>
 
-{{-- Filtres --}}
-<form method="GET" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 mb-4 flex flex-col sm:flex-row gap-3">
+{{-- Filtres (recherche live) --}}
+<form method="GET" action="{{ route('upcycling.ateliers.index') }}" data-recherche-live role="search"
+      class="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 mb-4 flex flex-col sm:flex-row gap-3">
     <div class="relative flex-1">
         <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><i class="fas fa-search text-sm"></i></span>
-        <input type="text" name="q" value="{{ request('q') }}" placeholder="Nom de l'atelier ou ville…"
+        <input type="text" name="q" value="{{ request('q') }}" placeholder="Nom de l'atelier ou ville…" autocomplete="off"
                class="w-full pl-11 pr-4 py-2.5 rounded-xl border-0 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary text-sm">
     </div>
     <input type="hidden" name="specialite" value="{{ request('specialite') }}">
@@ -32,7 +33,7 @@
     </button>
 </form>
 
-<div class="flex gap-2 overflow-x-auto pb-2 mb-6">
+<div id="pastilles-ateliers" data-live-region data-live-liens class="flex gap-2 overflow-x-auto pb-2 mb-6">
     @foreach(['' => ['Toutes', 'fa-border-all']] + collect(\App\Models\Atelier::SPECIALITES)->map(fn ($l, $c) => [$l, \App\Models\Atelier::ICONS[$c]])->all() as $code => [$label, $icone])
         <a href="{{ route('upcycling.ateliers.index', array_filter(['specialite' => $code, 'q' => request('q')])) }}"
            class="flex-shrink-0 text-xs font-semibold px-4 py-2 rounded-full border transition-colors
@@ -42,6 +43,7 @@
     @endforeach
 </div>
 
+<div id="resultats-ateliers" data-live-region>
 @if($ateliers->isEmpty())
     <div class="bg-white rounded-3xl border border-dashed border-gray-200 text-center py-16">
         <i class="fas fa-store-slash text-gray-300 text-3xl mb-3 block"></i>
@@ -81,8 +83,9 @@
     </div>
 
     @if($ateliers->hasPages())
-        <div class="mt-8">{{ $ateliers->links() }}</div>
+        <div class="mt-8" data-live-liens>{{ $ateliers->links() }}</div>
     @endif
 @endif
+</div>
 
 @endsection
