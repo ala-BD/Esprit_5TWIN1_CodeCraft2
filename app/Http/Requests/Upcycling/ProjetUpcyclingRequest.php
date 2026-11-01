@@ -35,6 +35,11 @@ class ProjetUpcyclingRequest extends FormRequest
             $regles['don_vetement_id'] = ['nullable', Rule::in(self::donsDisponibles()->pluck('id')->all())];
         }
 
+        // PATCH (API) : mise à jour partielle, seuls les champs envoyés sont validés
+        if ($this->isMethod('patch')) {
+            $regles = array_map(fn ($r) => array_merge(['sometimes'], $r), $regles);
+        }
+
         return $regles;
     }
 

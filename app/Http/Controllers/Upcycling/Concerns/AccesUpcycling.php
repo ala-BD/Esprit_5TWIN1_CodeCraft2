@@ -5,19 +5,19 @@ namespace App\Http\Controllers\Upcycling\Concerns;
 use App\Models\Atelier;
 use App\Models\ProjetUpcycling;
 use App\Models\User;
+use App\Policies\ProjetUpcyclingPolicy;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 /**
- * Contrôles d'accès communs au module Upcycling.
+ * Raccourcis d'accès du module Upcycling (site web et API).
+ * Les règles elles-mêmes sont dans App\Policies\ProjetUpcyclingPolicy.
  */
 trait AccesUpcycling
 {
-    /** Rôles autorisés à demander un upcycling */
-    protected array $rolesClient = [User::ROLE_CLIENT, User::ROLE_DONATEUR];
-
     protected function estClient(): bool
     {
-        return in_array(Auth::user()->role, $this->rolesClient, true);
+        return in_array(Auth::user()->role, ProjetUpcyclingPolicy::ROLES_CLIENT, true);
     }
 
     protected function estAtelier(): bool
@@ -33,32 +33,27 @@ trait AccesUpcycling
 
     protected function estProprietaire(ProjetUpcycling $projet): bool
     {
-        return $projet->client_id === Auth::id();
+        return Gate::allows('gererClient', $projet);
     }
 
     protected function estAtelierDuProjet(ProjetUpcycling $projet): bool
     {
-        $atelier = $this->atelierConnecte();
-        return $atelier !== null && $projet->atelier_id === $atelier->id;
+        return Gate::allows('gererAtelier', $projet);
     }
 
     /** Client propriétaire, atelier assigné ou admin */
     protected function autoriserLecture(ProjetUpcycling $projet): void
     {
-        abort_unless(
-            $this->estProprietaire($projet) || $this->estAtelierDuProjet($projet) || Auth::user()->isAdmin(),
-            403,
-            'Accès non autorisé.'
-        );
+        Gate::authorize('view', $projet);
     }
 
     protected function autoriserClient(ProjetUpcycling $projet): void
     {
-        abort_unless($this->estProprietaire($projet), 403, 'Seul le client du projet peut effectuer cette action.');
+        Gate::authorize('gererClient', $projet);
     }
 
     protected function autoriserAtelier(ProjetUpcycling $projet): void
     {
-        abort_unless($this->estAtelierDuProjet($projet), 403, "Seul l'atelier du projet peut effectuer cette action.");
+        Gate::authorize('gererAtelier', $projet);
     }
 }

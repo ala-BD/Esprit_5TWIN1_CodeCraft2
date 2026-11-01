@@ -212,7 +212,8 @@ class UpcyclingTest extends TestCase
         $projet->refresh();
         $this->assertSame('TERMINE', $projet->statut);
         Storage::disk('public')->assertExists($projet->photo_resultat);
-        $this->actingAs($atelier->user)->patch(route('upcycling.projets.avancer', $projet))->assertStatus(422);
+        $this->actingAs($atelier->user)->patch(route('upcycling.projets.avancer', $projet))
+            ->assertSessionHas('error', 'Aucune étape suivante pour ce projet.');
 
         // 4. Le client note l'atelier : la moyenne est recalculée
         $this->actingAs($client)->patch(route('upcycling.projets.noter', $projet), ['note_client' => 4, 'commentaire_client' => 'Top']);
