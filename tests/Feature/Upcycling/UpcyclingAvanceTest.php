@@ -245,7 +245,7 @@ class UpcyclingAvanceTest extends TestCase
 
     public function test_le_client_revend_son_produit_fini_sur_la_marketplace(): void
     {
-        Storage::fake('public');
+        $disque = Storage::fake('public');
         $projet = $this->projetEnCours();
         $projet->update([
             'statut'         => 'TERMINE',
@@ -262,7 +262,7 @@ class UpcyclingAvanceTest extends TestCase
         $this->assertSame('Textile Upcyclé', $article->categorie);
         $this->assertEquals(65, $article->prix);
         $this->assertSame($projet->client_id, $article->user_id);
-        Storage::disk('public')->assertExists($article->images[0]);
+        $disque->assertExists($article->images[0]);
         $this->assertSame($article->id, $projet->fresh()->article_id);
 
         // Une seule publication possible
