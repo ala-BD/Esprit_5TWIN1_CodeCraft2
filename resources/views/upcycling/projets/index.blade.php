@@ -17,21 +17,26 @@
         <h1 class="font-display text-3xl font-extrabold text-gray-900">{{ $estAtelier ? 'Projets reçus' : 'Mes projets' }}</h1>
         <p class="text-gray-500 mt-1">
             {{ $estAtelier ? 'Chiffrez les demandes et faites avancer vos créations' : 'Suivez vos transformations, de la photo au produit fini' }}
-            · <span class="font-semibold text-gray-700">{{ $projets->total() }}</span> projet(s)
+            · <span id="total-projets" data-live-region><span class="font-semibold text-gray-700">{{ $projets->total() }}</span> projet(s)</span>
         </p>
     </div>
-    @unless($estAtelier)
+    @if($estAtelier)
+        <a href="{{ route('upcycling.projets.kanban') }}" class="btn-primary">
+            <i class="fas fa-table-columns"></i> Tableau de production
+        </a>
+    @else
         <a href="{{ route('upcycling.projets.create') }}" class="btn-primary">
             <i class="fas fa-camera"></i> Nouvelle demande
         </a>
-    @endunless
+    @endif
 </div>
 
-{{-- Filtres --}}
-<form method="GET" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 mb-4 flex flex-col sm:flex-row gap-3">
+{{-- Filtres (recherche live : les résultats se mettent à jour pendant la saisie) --}}
+<form method="GET" action="{{ route('upcycling.projets.index') }}" data-recherche-live role="search"
+      class="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 mb-4 flex flex-col sm:flex-row gap-3">
     <div class="relative flex-1">
         <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><i class="fas fa-search text-sm"></i></span>
-        <input type="text" name="q" value="{{ request('q') }}" placeholder="Rechercher un vêtement ou un produit…"
+        <input type="text" name="q" value="{{ request('q') }}" placeholder="Rechercher un vêtement ou un produit…" autocomplete="off"
                class="w-full pl-11 pr-4 py-2.5 rounded-xl border-0 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary text-sm">
     </div>
     <input type="hidden" name="statut" value="{{ request('statut') }}">
@@ -41,7 +46,7 @@
 </form>
 
 {{-- Statuts en pastilles --}}
-<div class="flex gap-2 overflow-x-auto pb-2 mb-6">
+<div id="pastilles-projets" data-live-region data-live-liens class="flex gap-2 overflow-x-auto pb-2 mb-6">
     @php
         $pastilles = ['' => 'Tous'] + collect(\App\Models\ProjetUpcycling::ETAPES)->map(fn ($e) => $e['label'])->all() + ['ANNULE' => 'Annulés'];
     @endphp
@@ -54,18 +59,24 @@
     @endforeach
 </div>
 
+<div id="resultats-projets" data-live-region>
 @if($projets->isEmpty())
     <div class="bg-white rounded-3xl border border-dashed border-gray-200 text-center py-20">
-        <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/10 to-accent/20 flex items-center justify-center mx-auto mb-5">
+        <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/10 to-secondary/20 flex items-center justify-center mx-auto mb-5">
             <i class="fas fa-tshirt text-primary text-3xl"></i>
         </div>
-        <h3 class="font-display font-bold text-gray-800 text-lg">Aucun projet</h3>
-        <p class="text-gray-500 text-sm mt-1 mb-6 max-w-sm mx-auto">
-            {{ $estAtelier ? 'Les demandes des clients qui vous choisissent apparaîtront ici.' : "Prenez un vêtement en photo et laissez l'IA vous inspirer." }}
-        </p>
-        @unless($estAtelier)
-            <a href="{{ route('upcycling.projets.create') }}" class="btn-primary"><i class="fas fa-camera"></i> Nouvelle demande</a>
-        @endunless
+        @if(request()->filled('q') || request()->filled('statut'))
+            <h3 class="font-display font-bold text-gray-800 text-lg">Aucun résultat</h3>
+            <p class="text-gray-500 text-sm mt-1 max-w-sm mx-auto">Aucun projet ne correspond à ces critères. Essayez un autre mot ou un autre statut.</p>
+        @else
+            <h3 class="font-display font-bold text-gray-800 text-lg">Aucun projet</h3>
+            <p class="text-gray-500 text-sm mt-1 mb-6 max-w-sm mx-auto">
+                {{ $estAtelier ? 'Les demandes des clients qui vous choisissent apparaîtront ici.' : "Prenez un vêtement en photo et laissez l'IA vous inspirer." }}
+            </p>
+            @unless($estAtelier)
+                <a href="{{ route('upcycling.projets.create') }}" class="btn-primary"><i class="fas fa-camera"></i> Nouvelle demande</a>
+            @endunless
+        @endif
     </div>
 @else
     <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -75,8 +86,9 @@
     </div>
 
     @if($projets->hasPages())
-        <div class="mt-8">{{ $projets->links() }}</div>
+        <div class="mt-8" data-live-liens>{{ $projets->links() }}</div>
     @endif
 @endif
+</div>
 
 @endsection

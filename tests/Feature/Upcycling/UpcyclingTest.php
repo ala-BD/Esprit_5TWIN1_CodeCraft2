@@ -74,7 +74,7 @@ class UpcyclingTest extends TestCase
 
     public function test_la_demande_avec_photo_utilise_gemini(): void
     {
-        Storage::fake('public');
+        $disque = Storage::fake('public');
         $this->fakeGemini([
             'defauts' => ['Trou au genou'],
             'idees'   => [$this->ideeGemini('Sac banane', 'SAC'), $this->ideeGemini('Coussin', 'DECORATION'), $this->ideeGemini('Short', 'VETEMENT')],
@@ -90,7 +90,7 @@ class UpcyclingTest extends TestCase
         $this->assertSame('GEMINI', $projet->source_ia);
         $this->assertSame('Sac banane', $projet->idee_generee_ia[0]['titre']);
         $this->assertSame(['Trou au genou'], $projet->analyse_ia['defauts']);
-        Storage::disk('public')->assertExists($projet->photo);
+        $disque->assertExists($projet->photo);
 
         // La photo est bien envoyée à Gemini
         Http::assertSent(fn ($request) => str_contains($request->body(), 'inline_data'));
@@ -177,12 +177,12 @@ class UpcyclingTest extends TestCase
             ->get(route('upcycling.projets.matching', $projet))
             ->assertOk()
             ->assertViewHas('classement', fn ($classement) => $classement->first()['atelier']->is($sac)
-                && $classement->first()['details']['specialite'] === 40);
+                && $classement->first()['details']['specialite'] === \App\Services\Upcycling\MatchingAtelierService::POIDS_SPECIALITE);
     }
 
     public function test_parcours_complet_devis_suivi_photo_resultat_et_note(): void
     {
-        Storage::fake('public');
+        $disque = Storage::fake('public');
         $client  = $this->client();
         $atelier = Atelier::factory()->specialite('SAC')->create();
         $projet  = ProjetUpcycling::factory()->vetement(0)->for($client, 'client')->create();
@@ -211,8 +211,9 @@ class UpcyclingTest extends TestCase
         ]);
         $projet->refresh();
         $this->assertSame('TERMINE', $projet->statut);
-        Storage::disk('public')->assertExists($projet->photo_resultat);
-        $this->actingAs($atelier->user)->patch(route('upcycling.projets.avancer', $projet))->assertStatus(422);
+        $disque->assertExists($projet->photo_resultat);
+        $this->actingAs($atelier->user)->patch(route('upcycling.projets.avancer', $projet))
+            ->assertSessionHas('error', 'Aucune étape suivante pour ce projet.');
 
         // 4. Le client note l'atelier : la moyenne est recalculée
         $this->actingAs($client)->patch(route('upcycling.projets.noter', $projet), ['note_client' => 4, 'commentaire_client' => 'Top']);
@@ -253,7 +254,7 @@ class UpcyclingTest extends TestCase
 
     public function test_la_suppression_d_une_demande_supprime_sa_photo(): void
     {
-        Storage::fake('public');
+        $disque = Storage::fake('public');
         $client = $this->client();
         $chemin = UploadedFile::fake()->image('robe.jpg')->store('upcycling/projets', 'public');
         $projet = ProjetUpcycling::factory()->for($client, 'client')->create(['photo' => $chemin]);
@@ -261,12 +262,12 @@ class UpcyclingTest extends TestCase
         $this->actingAs($client)->delete(route('upcycling.projets.destroy', $projet))->assertRedirect();
 
         $this->assertModelMissing($projet);
-        Storage::disk('public')->assertMissing($chemin);
+        $disque->assertMissing($chemin);
     }
 
     public function test_un_atelier_gere_son_profil_avec_photo(): void
     {
-        Storage::fake('public');
+        $disque = Storage::fake('public');
         $user = User::factory()->create(['role' => 'ATELIER']);
 
         $this->actingAs($user)->post(route('upcycling.ateliers.store'), [
@@ -275,7 +276,7 @@ class UpcyclingTest extends TestCase
         ])->assertRedirect();
 
         $atelier = Atelier::where('user_id', $user->id)->firstOrFail();
-        Storage::disk('public')->assertExists($atelier->photo);
+        $disque->assertExists($atelier->photo);
 
         $this->actingAs($user)->put(route('upcycling.ateliers.update', $atelier), [
             'nom' => 'Mon Atelier', 'specialite' => 'DECORATION', 'tarif_horaire' => 25, 'localisation' => 'Nabeul', 'actif' => '1',

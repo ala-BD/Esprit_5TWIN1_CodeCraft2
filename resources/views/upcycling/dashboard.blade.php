@@ -14,19 +14,19 @@
 
 {{-- ===== HERO ===== --}}
 <section class="relative overflow-hidden rounded-[2rem] hero-gradient text-white mb-8 noise">
-    <div class="absolute -right-24 -top-24 w-80 h-80 rounded-full bg-accent/20 blur-3xl"></div>
+    <div class="absolute -right-24 -top-24 w-80 h-80 rounded-full bg-secondary/20 blur-3xl"></div>
     <div class="absolute -left-10 -bottom-24 w-72 h-72 rounded-full bg-teal-light/20 blur-3xl"></div>
 
     <div class="relative grid lg:grid-cols-5 gap-8 items-center p-8 lg:p-10">
         <div class="lg:col-span-3">
             <span class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest bg-white/10 border border-white/15 px-3 py-1.5 rounded-full">
-                <i class="fas fa-wand-magic-sparkles text-accent"></i> Upcycling assisté par IA
+                <i class="fas fa-wand-magic-sparkles text-secondary"></i> Upcycling assisté par IA
             </span>
             <h1 class="font-display text-3xl lg:text-4xl font-extrabold mt-5 leading-tight">
                 @if($estAtelier && $atelier)
-                    {{ $atelier->nom }}, <span class="text-accent">vos créations</span> donnent une seconde vie au textile.
+                    {{ $atelier->nom }}, <span class="text-secondary">vos créations</span> donnent une seconde vie au textile.
                 @else
-                    Bonjour {{ Auth::user()->prenom ?? Auth::user()->name }}, <span class="text-accent">transformez</span> au lieu de jeter.
+                    Bonjour {{ Auth::user()->prenom ?? Auth::user()->name }}, <span class="text-secondary">transformez</span> au lieu de jeter.
                 @endif
             </h1>
             <p class="text-white/70 mt-4 max-w-xl">
@@ -143,6 +143,25 @@
     </div>
 </div>
 
+{{-- ===== GRAPHIQUES ===== --}}
+<div class="grid lg:grid-cols-3 gap-5 mb-10">
+    <div class="lg:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="font-display font-bold text-gray-900">{{ $graphiques['titre'] }}</h2>
+            <span class="text-xs text-gray-400">6 derniers mois</span>
+        </div>
+        <div class="h-56"><canvas id="graphique-evolution"></canvas></div>
+    </div>
+    <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+        <h2 class="font-display font-bold text-gray-900 mb-4">Par catégorie</h2>
+        @if(count($graphiques['categories']))
+            <div class="h-56"><canvas id="graphique-categories"></canvas></div>
+        @else
+            <div class="h-56 flex items-center justify-center text-sm text-gray-400 text-center">Aucune idée retenue pour le moment.</div>
+        @endif
+    </div>
+</div>
+
 {{-- ===== PROJETS RÉCENTS ===== --}}
 <div class="flex items-end justify-between mb-5">
     <div>
@@ -171,6 +190,58 @@
         @endforeach
     </div>
 @endif
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const graphiques = @json($graphiques);
+    Chart.defaults.font.family = 'Inter, sans-serif';
+    Chart.defaults.color = '#64748b';
+
+    new Chart(document.getElementById('graphique-evolution'), {
+        type: 'bar',
+        data: {
+            labels: graphiques.mois,
+            datasets: [{
+                label: graphiques.titre,
+                data: graphiques.valeurs,
+                backgroundColor: 'rgba(13, 148, 136, 0.85)',
+                hoverBackgroundColor: '#0f766e',
+                borderRadius: 8,
+                maxBarThickness: 42,
+            }],
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#f1f5f9' } },
+                x: { grid: { display: false } },
+            },
+        },
+    });
+
+    const categories = document.getElementById('graphique-categories');
+    if (categories) {
+        new Chart(categories, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(graphiques.categories),
+                datasets: [{
+                    data: Object.values(graphiques.categories),
+                    backgroundColor: ['#0d9488', '#4ade80', '#8b5cf6', '#f59e0b', '#0ea5e9'],
+                    borderWidth: 0,
+                }],
+            },
+            options: {
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
+            },
+        });
+    }
+});
+</script>
 @endif
 
 @endsection

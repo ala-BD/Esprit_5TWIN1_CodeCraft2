@@ -10,6 +10,7 @@ use App\Models\ProjetUpcycling;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 class AtelierController extends Controller
@@ -81,8 +82,7 @@ class AtelierController extends Controller
     */
     public function store(AtelierRequest $request): RedirectResponse
     {
-        abort_unless($this->estAtelier(), 403, 'Réservé aux comptes Atelier.');
-        abort_if($this->atelierConnecte() !== null, 422, 'Vous avez déjà un profil atelier.');
+        Gate::authorize('create', Atelier::class);
 
         $atelier = Atelier::create($this->donnees($request) + [
             'user_id' => Auth::id(),
@@ -101,7 +101,7 @@ class AtelierController extends Controller
     */
     public function edit(Atelier $atelier): View
     {
-        abort_if($atelier->user_id !== Auth::id(), 403);
+        Gate::authorize('update', $atelier);
 
         return view('upcycling.ateliers.form', compact('atelier'));
     }
@@ -113,7 +113,7 @@ class AtelierController extends Controller
     */
     public function update(AtelierRequest $request, Atelier $atelier): RedirectResponse
     {
-        abort_if($atelier->user_id !== Auth::id(), 403);
+        Gate::authorize('update', $atelier);
 
         $atelier->update($this->donnees($request, $atelier) + [
             'actif' => $request->boolean('actif'),
@@ -131,7 +131,7 @@ class AtelierController extends Controller
     */
     public function destroy(Atelier $atelier): RedirectResponse
     {
-        abort_if($atelier->user_id !== Auth::id(), 403);
+        Gate::authorize('delete', $atelier);
 
         $enCours = $atelier->projetUpcyclings()->whereIn('statut', ProjetUpcycling::STATUTS_EN_COURS)->exists();
         if ($enCours) {

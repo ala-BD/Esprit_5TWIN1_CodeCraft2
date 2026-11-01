@@ -37,6 +37,7 @@ class ProjetUpcyclingFactory extends Factory
             'atelier_id' => null,
             'budget_max' => fake()->optional(0.7)->numberBetween(30, 150),
             'statut'     => ProjetUpcycling::STATUT_DEMANDE,
+            'created_at' => now()->subDays(fake()->numberBetween(0, 20)),
         ];
     }
 
@@ -84,11 +85,13 @@ class ProjetUpcyclingFactory extends Factory
     public function termine(?int $note = null, ?string $commentaire = null): static
     {
         return $this->state(function () use ($note, $commentaire) {
-            $fin = now()->subDays(fake()->numberBetween(2, 40));
+            $fin   = now()->subDays(fake()->numberBetween(2, 150));
+            $debut = $fin->copy()->subDays(fake()->numberBetween(5, 15));
 
             return [
                 'statut'             => ProjetUpcycling::STATUT_TERMINE,
-                'date_debut'         => $fin->copy()->subDays(fake()->numberBetween(5, 15)),
+                'created_at'         => $debut->copy()->subDays(fake()->numberBetween(2, 7)),
+                'date_debut'         => $debut,
                 'date_fin'           => $fin,
                 'note_client'        => $note ?? fake()->numberBetween(3, 5),
                 'commentaire_client' => $commentaire ?? fake()->randomElement([

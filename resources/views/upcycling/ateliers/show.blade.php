@@ -15,13 +15,13 @@
 
 {{-- ===== Bandeau ===== --}}
 <section class="relative overflow-hidden rounded-[2rem] hero-gradient text-white mb-8">
-    <div class="absolute -right-20 -top-20 w-72 h-72 rounded-full bg-accent/20 blur-3xl"></div>
+    <div class="absolute -right-20 -top-20 w-72 h-72 rounded-full bg-secondary/20 blur-3xl"></div>
     <div class="relative flex flex-col md:flex-row gap-6 md:items-center p-8">
         <div class="w-28 h-28 rounded-3xl bg-white p-3 shadow-2xl flex-shrink-0">
             @include('upcycling.partials.photo', ['url' => $atelier->couverture_url, 'alt' => $atelier->nom, 'icone' => $atelier->icone])
         </div>
         <div class="flex-1">
-            <span class="text-xs font-semibold uppercase tracking-widest text-accent"><i class="fas {{ $atelier->icone }}"></i> {{ $atelier->specialite_label }}</span>
+            <span class="text-xs font-semibold uppercase tracking-widest text-secondary"><i class="fas {{ $atelier->icone }}"></i> {{ $atelier->specialite_label }}</span>
             <h1 class="font-display text-3xl font-extrabold mt-1">{{ $atelier->nom }}</h1>
             <p class="text-white/70 text-sm mt-2"><i class="fas fa-map-marker-alt mr-1"></i> {{ $atelier->localisation }} · Contact : {{ $atelier->user->full_name }}</p>
             @unless($atelier->actif)
@@ -68,7 +68,7 @@
                 <i class="fas fa-pen w-4"></i> Modifier mon profil
             </a>
             <form method="POST" action="{{ route('upcycling.ateliers.destroy', $atelier) }}"
-                  onsubmit="return confirm('Supprimer définitivement votre profil atelier ?')">
+                  data-confirm="Votre portfolio et votre fiche disparaîtront du catalogue. Cette action est irréversible." data-confirm-titre="Supprimer votre profil atelier ?" data-confirm-bouton="Supprimer">
                 @csrf @method('DELETE')
                 <button class="flex items-center gap-3 w-full bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-4 py-3 rounded-2xl transition-all text-sm">
                     <i class="fas fa-trash-alt w-4"></i> Supprimer mon profil
@@ -91,6 +91,15 @@
             <div class="grid sm:grid-cols-2 gap-5">
                 @foreach($realisations as $projet)
                     <article class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                        @if($projet->photo_url && $projet->photo_resultat_url)
+                            @include('upcycling.partials.avant-apres', [
+                                'avant'        => $projet->photo_url,
+                                'apres'        => $projet->photo_resultat_url,
+                                'legendeAvant' => 'Avant : ' . $projet->type_vetement,
+                                'legendeApres' => 'Après',
+                                'hauteur'      => 'h-56',
+                            ])
+                        @else
                         <div class="grid {{ $projet->photo_resultat_url ? 'grid-cols-2 divide-x divide-gray-100' : 'grid-cols-1' }} bg-gradient-to-br from-slate-50 to-slate-100">
                             <div class="relative h-44 p-3">
                                 @include('upcycling.partials.photo', ['url' => $projet->photo_url, 'alt' => $projet->type_vetement])
@@ -103,6 +112,7 @@
                                 </div>
                             @endif
                         </div>
+                        @endif
                         <div class="p-5">
                             <div class="flex items-start justify-between gap-2">
                                 <p class="font-display font-bold text-gray-900 leading-snug"><i class="fas fa-arrow-right text-primary text-xs mr-1"></i>{{ $projet->produit_final }}</p>
@@ -111,6 +121,16 @@
                                 @endif
                             </div>
                             <p class="text-xs text-gray-400 mt-1">Livré le {{ $projet->date_fin?->format('d/m/Y') }} · ≈ {{ number_format($projet->co2_evite_kg ?? 0, 0) }} kg CO₂ évités</p>
+                            @if($controle = $projet->controle_qualite_ia)
+                                <p class="mt-3 text-xs">
+                                    <span class="font-bold px-2 py-0.5 rounded-full {{ $controle['conforme'] ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' }}">
+                                        <i class="fas fa-clipboard-check"></i> Contrôle qualité IA : {{ $controle['score'] }}/100
+                                    </span>
+                                </p>
+                                @if($controle['description_portfolio'])
+                                    <p class="text-sm text-gray-600 mt-2">{{ $controle['description_portfolio'] }}</p>
+                                @endif
+                            @endif
                             @if($projet->commentaire_client)
                                 <p class="text-sm text-gray-600 italic mt-3">« {{ $projet->commentaire_client }} »
                                     <span class="not-italic text-gray-400">— {{ $projet->client->prenom ?? $projet->client->name }}</span></p>

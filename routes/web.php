@@ -9,6 +9,7 @@ use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\DonVetementController;
 use App\Http\Controllers\Logistique\MissionController;
 use App\Http\Controllers\Logistique\TourneeController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PointCollecteController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Middleware\EnsureAdmin;
@@ -18,8 +19,10 @@ use App\Http\Controllers\Recyclage\IAFiliereController;
 use App\Http\Controllers\Recyclage\LotTextileController;
 use App\Http\Controllers\Recyclage\PasseportNumeriqueController;
 use App\Http\Controllers\Recyclage\StatistiqueController;
+use App\Http\Controllers\Upcycling\AccesApiController;
 use App\Http\Controllers\Upcycling\AtelierController;
 use App\Http\Controllers\Upcycling\DevisController;
+use App\Http\Controllers\Upcycling\MessageProjetController;
 use App\Http\Controllers\Upcycling\ProjetUpcyclingController;
 use Illuminate\Support\Facades\Route;
 
@@ -110,13 +113,16 @@ Route::middleware(['auth'])->group(function () {
         // CRUD Ateliers
         Route::resource('ateliers', AtelierController::class);
 
+        // Tableau de production (Kanban) de l'atelier — avant la ressource pour ne pas être pris pour {projet}
+        Route::get('projets/kanban', [ProjetUpcyclingController::class, 'kanban'])->name('projets.kanban');
+
         // CRUD Projets
         Route::resource('projets', ProjetUpcyclingController::class)
             ->parameters(['projets' => 'projet']);
 
         // IA
-        Route::post('analyse-photo', [ProjetUpcyclingController::class, 'analyserPhoto'])->name('analyse-photo');
-        Route::post('projets/{projet}/idees', [ProjetUpcyclingController::class, 'regenererIdees'])->name('projets.idees');
+        Route::post('analyse-photo', [ProjetUpcyclingController::class, 'analyserPhoto'])->middleware('throttle:ia')->name('analyse-photo');
+        Route::post('projets/{projet}/idees', [ProjetUpcyclingController::class, 'regenererIdees'])->middleware('throttle:ia')->name('projets.idees');
         Route::patch('projets/{projet}/idee', [ProjetUpcyclingController::class, 'choisirIdee'])->name('projets.idee');
 
         // Matching atelier
@@ -132,7 +138,32 @@ Route::middleware(['auth'])->group(function () {
         Route::post('projets/{projet}/devis',    [DevisController::class, 'store'])->name('devis.store');
         Route::patch('devis/{devis}/accepter',   [DevisController::class, 'accepter'])->name('devis.accepter');
         Route::patch('devis/{devis}/refuser',    [DevisController::class, 'refuser'])->name('devis.refuser');
+        Route::get('devis/{devis}/pdf',          [DevisController::class, 'pdf'])->name('devis.pdf');
+
+        // Messagerie client / atelier + assistant styliste IA
+        Route::get('projets/{projet}/messages', [MessageProjetController::class, 'index'])->name('messages.index');
+        Route::post('projets/{projet}/messages', [MessageProjetController::class, 'store'])->middleware('throttle:ia')->name('messages.store');
+
+        // Accès à l'API REST : documentation et tokens personnels (Sanctum)
+        Route::get('api', [AccesApiController::class, 'index'])->name('api.index');
+        Route::post('api/tokens', [AccesApiController::class, 'store'])->name('api.tokens.store');
+        Route::delete('api/tokens/{token}', [AccesApiController::class, 'destroy'])->name('api.tokens.destroy');
+
+        // IA : contrôle qualité avant / après
+        Route::post('projets/{projet}/controle-qualite', [ProjetUpcyclingController::class, 'controleQualite'])->name('projets.controle-qualite');
+
+        // Revente du produit fini sur la marketplace (M2)
+        Route::post('projets/{projet}/publier', [ProjetUpcyclingController::class, 'publier'])->name('projets.publier');
     });
+
+    /*
+    |----------------------------------------------------------------------
+    | Notifications in-app (tous modules)
+    |----------------------------------------------------------------------
+    */
+    Route::get('notifications/resume', [NotificationController::class, 'resume'])->name('notifications.resume');
+    Route::get('notifications/{id}', [NotificationController::class, 'lire'])->name('notifications.lire');
+    Route::post('notifications/tout-lire', [NotificationController::class, 'toutLire'])->name('notifications.tout-lire');
 
     /*
     |----------------------------------------------------------------------

@@ -1,0 +1,112 @@
+{
+  "info": {
+    "name": "RETISS — API Upcycling (M3)",
+    "description": "API REST v1 du module Upcycling. 1) Lancez « Obtenir un token » : le token est enregistré automatiquement dans la variable {{token}}. 2) Appelez les autres requêtes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000/api/v1" },
+    { "key": "token", "value": "" },
+    { "key": "projet_id", "value": "1" },
+    { "key": "atelier_id", "value": "1" },
+    { "key": "devis_id", "value": "1" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Authentification",
+      "item": [
+        {
+          "name": "Obtenir un token",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "if (pm.response.code === 201) { pm.collectionVariables.set('token', pm.response.json().token); }"
+            ] }
+          }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/token",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"client@retiss.tn\",\n  \"password\": \"Password123!\",\n  \"nom_appareil\": \"postman\"\n}" }
+          }
+        },
+        { "name": "Moi", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{base_url}}/auth/moi" } },
+        { "name": "Révoquer le token", "request": { "method": "DELETE", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{base_url}}/auth/token" } }
+      ]
+    },
+    {
+      "name": "Ateliers",
+      "item": [
+        { "name": "Catalogue (filtré)", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{base_url}}/ateliers?specialite=SAC&par_page=5" } },
+        { "name": "Détail", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{base_url}}/ateliers/{{atelier_id}}" } }
+      ]
+    },
+    {
+      "name": "Projets",
+      "item": [
+        { "name": "Mes projets", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{base_url}}/projets" } },
+        {
+          "name": "Nouvelle demande",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/projets",
+            "body": { "mode": "formdata", "formdata": [
+              { "key": "type_vetement", "value": "Jean", "type": "text" },
+              { "key": "matiere", "value": "Denim", "type": "text" },
+              { "key": "etat", "value": "USE", "type": "text" },
+              { "key": "description", "value": "Jean slim délavé, je voudrais un sac.", "type": "text" },
+              { "key": "photo", "type": "file", "src": "" }
+            ] }
+          }
+        },
+        { "name": "Détail", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{base_url}}/projets/{{projet_id}}" } },
+        {
+          "name": "Retenir une idée",
+          "request": { "method": "PATCH", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/projets/{{projet_id}}/idee", "body": { "mode": "raw", "raw": "{ \"index\": 0 }" } }
+        },
+        { "name": "Matching ateliers", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{base_url}}/projets/{{projet_id}}/matching" } },
+        {
+          "name": "Choisir l'atelier",
+          "request": { "method": "PATCH", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/projets/{{projet_id}}/atelier", "body": { "mode": "raw", "raw": "{ \"atelier_id\": {{atelier_id}} }" } }
+        }
+      ]
+    },
+    {
+      "name": "Devis",
+      "item": [
+        { "name": "Devis du projet", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{base_url}}/projets/{{projet_id}}/devis" } },
+        { "name": "Accepter", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{base_url}}/devis/{{devis_id}}/acceptation" } },
+        { "name": "Refuser", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{base_url}}/devis/{{devis_id}}/refus" } }
+      ]
+    },
+    {
+      "name": "Discussion et IA",
+      "item": [
+        { "name": "Messages", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{base_url}}/projets/{{projet_id}}/messages" } },
+        {
+          "name": "Question au styliste IA",
+          "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/projets/{{projet_id}}/styliste", "body": { "mode": "raw", "raw": "{ \"contenu\": \"Quelle doublure me conseillez-vous ?\" }" } }
+        },
+        {
+          "name": "Nouvelles idées (consigne)",
+          "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/projets/{{projet_id}}/idees", "body": { "mode": "raw", "raw": "{ \"consigne\": \"pour un enfant\" }" } }
+        },
+        {
+          "name": "Analyse de photo",
+          "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/analyse-photo", "body": { "mode": "formdata", "formdata": [{ "key": "photo", "type": "file", "src": "" }] } }
+        }
+      ]
+    }
+  ]
+}
