@@ -18,11 +18,16 @@ class Atelier extends Model
         'description',
         'portfolio_url',
         'photo',
+        'embedding_ia',
+        'embedding_empreinte',
         'tarif_horaire',
         'localisation',
         'note_moyenne',
         'actif',
     ];
+
+    /** Le vecteur d'embedding est volumineux : jamais sérialisé */
+    protected $hidden = ['embedding_ia'];
 
     protected function casts(): array
     {
@@ -30,6 +35,7 @@ class Atelier extends Model
             'tarif_horaire' => 'float',
             'note_moyenne'  => 'float',
             'actif'         => 'boolean',
+            'embedding_ia'  => 'array',
         ];
     }
 

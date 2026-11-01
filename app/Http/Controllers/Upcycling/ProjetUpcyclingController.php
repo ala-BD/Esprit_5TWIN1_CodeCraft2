@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Upcycling;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Upcycling\Concerns\AccesUpcycling;
 use App\Http\Requests\Upcycling\ProjetUpcyclingRequest;
+use App\Models\Article;
 use App\Models\Atelier;
 use App\Models\Devis;
 use App\Models\DonVetement;
 use App\Models\ProjetUpcycling;
+use App\Notifications\UpcyclingNotification;
+use App\Services\Upcycling\ControleQualiteService;
 use App\Services\Upcycling\IdeeUpcyclingService;
 use App\Services\Upcycling\MatchingAtelierService;
 use Illuminate\Http\JsonResponse;
@@ -29,6 +32,7 @@ class ProjetUpcyclingController extends Controller
     public function __construct(
         private IdeeUpcyclingService $ideeService,
         private MatchingAtelierService $matchingService,
+        private ControleQualiteService $controleQualite,
     ) {}
 
     /*
@@ -78,8 +82,40 @@ class ProjetUpcyclingController extends Controller
         ];
 
         $projets = (clone $base)->with(['atelier', 'client'])->latest('updated_at')->take(6)->get();
+        $graphiques = $this->graphiques((clone $base)->with('devis')->get(), $atelier !== null);
 
-        return view('upcycling.dashboard', compact('atelier', 'stats', 'projets', 'impact'));
+        return view('upcycling.dashboard', compact('atelier', 'stats', 'projets', 'impact', 'graphiques'));
+    }
+
+    /**
+     * Données des graphiques du dashboard (calculées en PHP : indépendant du SGBD).
+     *  - atelier : chiffre d'affaires des projets terminés sur 6 mois
+     *  - client  : projets créés sur 6 mois
+     *  - tous    : répartition par catégorie de produit
+     */
+    private function graphiques($projets, bool $vueAtelier): array
+    {
+        $mois = collect(range(5, 0))->map(fn ($i) => now()->startOfMonth()->subMonths($i));
+
+        $valeurs = $mois->map(function ($debut) use ($projets, $vueAtelier) {
+            $fin = $debut->copy()->endOfMonth();
+
+            return $vueAtelier
+                ? $projets->filter(fn ($p) => $p->statut === ProjetUpcycling::STATUT_TERMINE && $p->date_fin?->between($debut, $fin))
+                          ->sum(fn ($p) => $p->devis_accepte?->montant ?? 0)
+                : $projets->filter(fn ($p) => $p->created_at->between($debut, $fin))->count();
+        });
+
+        $categories = $projets->whereNotNull('categorie_produit')
+            ->countBy('categorie_produit')
+            ->mapWithKeys(fn ($nb, $code) => [Atelier::SPECIALITES[$code] ?? $code => $nb]);
+
+        return [
+            'titre'      => $vueAtelier ? "Chiffre d'affaires (DT)" : 'Projets créés',
+            'mois'       => $mois->map(fn ($d) => ucfirst($d->translatedFormat('M Y')))->all(),
+            'valeurs'    => $valeurs->values()->all(),
+            'categories' => $categories->all(),
+        ];
     }
 
     /*
@@ -207,12 +243,13 @@ class ProjetUpcyclingController extends Controller
     {
         $this->autoriserLecture($projet);
 
-        $projet->load(['atelier', 'client', 'donVetement', 'devis']);
+        $projet->load(['atelier.user', 'client', 'donVetement', 'devis', 'messages.user', 'article']);
 
         return view('upcycling.projets.show', [
             'projet'           => $projet,
             'estProprietaire'  => $this->estProprietaire($projet),
             'estAtelierProjet' => $this->estAtelierDuProjet($projet),
+            'prixSuggere'      => $this->prixSuggere($projet),
         ]);
     }
 
@@ -380,8 +417,9 @@ class ProjetUpcyclingController extends Controller
         }
 
         $classement = $this->matchingService->classer($projet);
+        $methodeAffinite = $this->matchingService->methodeAffinite;
 
-        return view('upcycling.projets.matching', compact('projet', 'classement'));
+        return view('upcycling.projets.matching', compact('projet', 'classement', 'methodeAffinite'));
     }
 
     /*
@@ -412,6 +450,12 @@ class ProjetUpcyclingController extends Controller
         });
 
         $atelier = Atelier::find($request->integer('atelier_id'));
+        $atelier->user->notify(new UpcyclingNotification(
+            $projet,
+            "Nouvelle demande de devis : « {$projet->produit_final} » ({$projet->type_vetement}) de {$projet->client->full_name}.",
+            'fa-file-invoice-dollar'
+        ));
+
         return redirect()
             ->route('upcycling.projets.show', $projet)
             ->with('success', "Demande de devis envoyée à l'atelier {$atelier->nom}.");
@@ -447,9 +491,112 @@ class ProjetUpcyclingController extends Controller
         }
 
         $projet->update($data);
-
         $label = ProjetUpcycling::ETAPES[$suivante]['label'];
-        return back()->with('success', "Projet passé à l'étape « {$label} ».");
+        $message = "Projet passé à l'étape « {$label} ».";
+
+        // Fin des travaux : l'IA compare le produit fini au vêtement d'origine
+        if ($suivante === ProjetUpcycling::STATUT_TERMINE && $projet->photo_resultat) {
+            if ($controle = $this->controleQualite->verifier($projet)) {
+                $projet->update(['controle_qualite_ia' => $controle]);
+                $message .= " Contrôle qualité IA : {$controle['score']}/100.";
+            }
+        }
+
+        $projet->client->notify(new UpcyclingNotification(
+            $projet,
+            $suivante === ProjetUpcycling::STATUT_TERMINE
+                ? "Votre « {$projet->produit_final} » est terminé ! Découvrez le résultat et laissez un avis."
+                : "Votre projet « {$projet->produit_final} » avance : étape « {$label} ».",
+            $suivante === ProjetUpcycling::STATUT_TERMINE ? 'fa-gift' : ProjetUpcycling::ETAPES[$suivante]['icon']
+        ));
+
+        return back()->with('success', $message);
+    }
+
+    /*
+    |------------------------------------------------------------------
+    | POST /upcycling/projets/{projet}/controle-qualite — Relancer l'IA
+    |------------------------------------------------------------------
+    */
+    public function controleQualite(ProjetUpcycling $projet): RedirectResponse
+    {
+        $this->autoriserAtelier($projet);
+        abort_unless($projet->statut === ProjetUpcycling::STATUT_TERMINE && $projet->photo_resultat, 422,
+            'Le contrôle qualité nécessite un projet terminé avec la photo du produit fini.');
+
+        $controle = $this->controleQualite->verifier($projet);
+        if (!$controle) {
+            return back()->with('error', "Le contrôle qualité IA est indisponible pour le moment (clé Gemini absente ou service injoignable).");
+        }
+
+        $projet->update(['controle_qualite_ia' => $controle]);
+
+        return back()->with('success', "Contrôle qualité IA effectué : {$controle['score']}/100.");
+    }
+
+    /*
+    |------------------------------------------------------------------
+    | POST /upcycling/projets/{projet}/publier — Revente sur la marketplace (M2)
+    |------------------------------------------------------------------
+    */
+    public function publier(Request $request, ProjetUpcycling $projet): RedirectResponse
+    {
+        $this->autoriserClient($projet);
+        abort_unless($projet->estPubliable(), 422, 'Ce produit ne peut pas (ou plus) être publié.');
+
+        $request->validate([
+            'prix'        => ['required', 'numeric', 'min:1', 'max:10000'],
+            'description' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'prix.required' => 'Indiquez un prix de vente.',
+            'prix.numeric'  => 'Le prix doit être un nombre.',
+            'prix.min'      => 'Le prix minimum est 1 DT.',
+        ]);
+
+        // Copie de la photo : l'article reste valable même si le projet est supprimé
+        $source = $this->cheminPhoto($projet->photo_resultat);
+        $image  = 'articles/upcycling-' . $projet->id . '-' . uniqid() . '.' . pathinfo($source, PATHINFO_EXTENSION);
+        Storage::disk('public')->put($image, file_get_contents($source));
+
+        $article = DB::transaction(function () use ($request, $projet, $image) {
+            $article = Article::create([
+                'user_id'         => $projet->client_id,
+                'don_vetement_id' => $projet->don_vetement_id,
+                'titre'           => $projet->produit_final,
+                'description'     => $request->description ?: $this->descriptionArticle($projet),
+                'prix'            => $request->prix,
+                'prix_estime_ia'  => $this->prixSuggere($projet),
+                'stock'           => 1,
+                'categorie'       => 'Textile Upcyclé',
+                'statut'          => Article::STATUT_DISPONIBLE,
+                'images'          => [$image],
+            ]);
+            $projet->update(['article_id' => $article->id]);
+
+            return $article;
+        });
+
+        return redirect()
+            ->route('upcycling.projets.show', $projet)
+            ->with('success', "« {$article->titre} » est en vente sur la marketplace à " . number_format($article->prix, 2, ',', ' ') . ' DT.');
+    }
+
+    /** Prix de revente suggéré : coût de la transformation + 30 % (arrondi à 5 DT) */
+    public function prixSuggere(ProjetUpcycling $projet): float
+    {
+        $base = $projet->devis_accepte?->montant ?? $projet->prix_estime_max ?? 30;
+
+        return (float) (ceil($base * 1.3 / 5) * 5);
+    }
+
+    private function descriptionArticle(ProjetUpcycling $projet): string
+    {
+        $description = $projet->controle_qualite_ia['description_portfolio']
+            ?? ($projet->idee_retenue['description'] ?? $projet->produit_final);
+
+        return $description . " Pièce unique upcyclée par {$projet->atelier?->nom} à partir d'un(e) "
+            . mb_strtolower($projet->type_vetement) . " en " . mb_strtolower($projet->matiere)
+            . ($projet->co2_evite_kg ? ' — environ ' . number_format($projet->co2_evite_kg, 0) . ' kg de CO₂ évités.' : '.');
     }
 
     /*
@@ -495,6 +642,12 @@ class ProjetUpcyclingController extends Controller
 
         $projet->update($request->only(['note_client', 'commentaire_client']));
         $projet->atelier?->recalculerNote();
+
+        $projet->atelier?->user->notify(new UpcyclingNotification(
+            $projet,
+            "{$projet->client->full_name} a noté « {$projet->produit_final} » : {$projet->note_client}/5.",
+            'fa-star'
+        ));
 
         return back()->with('success', 'Merci pour votre avis !');
     }

@@ -15,6 +15,7 @@
     $m = \App\Services\Upcycling\MatchingAtelierService::class;
     $criteres = [
         'specialite'    => ['Spécialité',    $m::POIDS_SPECIALITE,    'fa-bullseye'],
+        'affinite'      => ['Affinité IA',   $m::POIDS_AFFINITE,     'fa-wand-magic-sparkles'],
         'note'          => ['Avis clients',  $m::POIDS_NOTE,          'fa-star'],
         'tarif'         => ['Tarif',         $m::POIDS_TARIF,         'fa-coins'],
         'disponibilite' => ['Disponibilité', $m::POIDS_DISPONIBILITE, 'fa-calendar-check'],
@@ -29,7 +30,12 @@
         @include('upcycling.partials.photo', ['url' => $projet->photo_url, 'alt' => $projet->type_vetement])
     </div>
     <div class="flex-1">
-        <p class="text-xs font-semibold uppercase tracking-wider text-primary">Matching atelier</p>
+        <p class="text-xs font-semibold uppercase tracking-wider text-primary">Matching atelier
+            <span class="ml-2 normal-case tracking-normal text-[11px] font-semibold px-2 py-0.5 rounded-full {{ $methodeAffinite === 'GEMINI' ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500' }}"
+                  title="Affinité entre votre idée et le savoir-faire de chaque atelier">
+                {{ $methodeAffinite === 'GEMINI' ? 'Affinité : embeddings Gemini' : 'Affinité : analyse lexicale' }}
+            </span>
+        </p>
         <h1 class="font-display text-2xl font-extrabold text-gray-900">{{ $projet->produit_final }}</h1>
         <p class="text-sm text-gray-500 mt-1">
             {{ \App\Models\Atelier::SPECIALITES[$projet->categorie_produit] ?? 'Catégorie libre' }}
@@ -54,7 +60,7 @@
         @php $atelier = $resultat['atelier']; $estActuel = $projet->atelier_id === $atelier->id; $premier = $rang === 0; @endphp
         <div class="relative bg-white rounded-3xl border-2 overflow-hidden transition-all {{ $premier ? 'border-primary shadow-xl shadow-primary/10' : 'border-gray-100 shadow-sm hover:shadow-md' }}">
             @if($premier)
-                <span class="absolute top-0 right-0 text-[11px] font-bold text-white bg-gradient-to-r from-primary to-accent-dark px-4 py-1.5 rounded-bl-2xl">
+                <span class="absolute top-0 right-0 text-[11px] font-bold text-white bg-gradient-to-r from-primary to-secondary-dark px-4 py-1.5 rounded-bl-2xl">
                     <i class="fas fa-crown"></i> Meilleur choix
                 </span>
             @endif
@@ -84,7 +90,7 @@
                             · {{ $atelier->charge_en_cours }} projet(s) en cours
                         </p>
 
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4">
                             @foreach($criteres as $cle => [$label, $max, $icone])
                                 <div>
                                     <div class="flex justify-between text-[11px] text-gray-500 mb-1">
@@ -92,7 +98,7 @@
                                         <span class="font-semibold">{{ $resultat['details'][$cle] }}/{{ $max }}</span>
                                     </div>
                                     <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                        <div class="h-full rounded-full bg-gradient-to-r from-primary to-accent" style="width: {{ $max ? $resultat['details'][$cle] / $max * 100 : 0 }}%"></div>
+                                        <div class="h-full rounded-full bg-gradient-to-r from-primary to-secondary" style="width: {{ $max ? $resultat['details'][$cle] / $max * 100 : 0 }}%"></div>
                                     </div>
                                 </div>
                             @endforeach

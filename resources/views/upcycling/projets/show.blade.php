@@ -60,6 +60,15 @@
         <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex-1">
             <div class="flex flex-wrap items-center gap-2 mb-3">
                 <span class="px-3 py-1 rounded-lg text-xs font-bold {{ $badge['class'] }}">{{ $badge['label'] }}</span>
+                @if($projet->en_retard)
+                    <span class="px-3 py-1 rounded-lg text-xs font-bold bg-red-100 text-red-700" title="Livraison promise le {{ $projet->date_livraison_prevue->format('d/m/Y') }}">
+                        <i class="fas fa-triangle-exclamation"></i> En retard de {{ (int) $projet->date_livraison_prevue->diffInDays(now()) }} j
+                    </span>
+                @elseif($projet->date_livraison_prevue && in_array($projet->statut, \App\Models\ProjetUpcycling::STATUTS_EN_COURS))
+                    <span class="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600">
+                        <i class="far fa-calendar"></i> Livraison prévue le {{ $projet->date_livraison_prevue->format('d/m/Y') }}
+                    </span>
+                @endif
                 @if($projet->categorie_produit)
                     <span class="px-3 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600">
                         <i class="fas {{ \App\Models\Atelier::ICONS[$projet->categorie_produit] }} mr-1"></i>{{ \App\Models\Atelier::SPECIALITES[$projet->categorie_produit] }}
@@ -157,10 +166,10 @@
             <div class="flex flex-col items-center text-center">
                 <div class="relative w-full flex items-center justify-center">
                     @unless($loop->first)
-                        <div class="absolute right-1/2 w-full h-1 rounded {{ $faite || $courante ? 'bg-gradient-to-r from-primary to-accent' : 'bg-gray-100' }}"></div>
+                        <div class="absolute right-1/2 w-full h-1 rounded {{ $faite || $courante ? 'bg-gradient-to-r from-primary to-secondary' : 'bg-gray-100' }}"></div>
                     @endunless
                     <div class="relative z-10 w-11 h-11 rounded-2xl flex items-center justify-center transition-all
-                        {{ $faite ? 'bg-gradient-to-br from-primary to-accent-dark shadow-md' : ($courante ? 'bg-white border-2 border-primary shadow-lg ring-4 ring-primary/10' : 'bg-gray-50 border border-gray-200') }}">
+                        {{ $faite ? 'bg-gradient-to-br from-primary to-secondary-dark shadow-md' : ($courante ? 'bg-white border-2 border-primary shadow-lg ring-4 ring-primary/10' : 'bg-gray-50 border border-gray-200') }}">
                         <i class="fas {{ $faite ? 'fa-check' : $etape['icon'] }} text-sm {{ $faite ? 'text-white' : ($courante ? 'text-primary' : 'text-gray-300') }}"></i>
                     </div>
                 </div>
@@ -195,6 +204,11 @@
     <i class="fas fa-ban"></i> Ce projet a été annulé.
 </div>
 @endunless
+
+{{-- ===================== RÉSULTAT : CONTRÔLE QUALITÉ IA + REVENTE ===================== --}}
+@if($projet->statut === 'TERMINE')
+    @include('upcycling.projets.partials.resultat')
+@endif
 
 {{-- ===================== IDÉES DE L'IA ===================== --}}
 <section class="mb-6">
@@ -245,7 +259,7 @@
                 @endif
 
                 <div class="flex items-start justify-between mb-4">
-                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/20 flex items-center justify-center">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/10 to-secondary/20 flex items-center justify-center">
                         <i class="fas {{ \App\Models\Atelier::ICONS[$idee['categorie']] ?? 'fa-cut' }} text-primary text-lg"></i>
                     </div>
                     <div class="text-right">
@@ -442,6 +456,10 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <span class="px-2.5 py-1 rounded-lg text-xs font-bold {{ $badgeDevis['class'] }}">{{ $badgeDevis['label'] }}</span>
+                                <a href="{{ route('upcycling.devis.pdf', $devis) }}" title="Télécharger le devis PDF"
+                                   class="text-xs font-bold bg-white border border-gray-200 hover:border-primary hover:text-primary text-gray-600 px-3 py-2 rounded-xl transition-colors">
+                                    <i class="fas fa-file-pdf"></i> PDF
+                                </a>
                                 @if($estProprietaire && $devis->statut === 'EN_ATTENTE')
                                     <form method="POST" action="{{ route('upcycling.devis.accepter', $devis) }}">
                                         @csrf @method('PATCH')
@@ -508,5 +526,10 @@
         @endif
     </div>
 </div>
+
+{{-- ===================== DISCUSSION + STYLISTE IA ===================== --}}
+@if($estProprietaire || $estAtelierProjet)
+    @include('upcycling.projets.partials.discussion')
+@endif
 
 @endsection

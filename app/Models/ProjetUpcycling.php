@@ -32,6 +32,8 @@ class ProjetUpcycling extends Model
         'idee_generee_ia',
         'source_ia',
         'analyse_ia',
+        'controle_qualite_ia',
+        'article_id',
         'statut',
         'date_debut',
         'date_fin',
@@ -49,6 +51,7 @@ class ProjetUpcycling extends Model
             'eau_economisee_l' => 'integer',
             'idee_generee_ia'  => 'array',
             'analyse_ia'       => 'array',
+            'controle_qualite_ia' => 'array',
             'date_debut'       => 'date',
             'date_fin'         => 'date',
             'note_client'      => 'integer',
@@ -124,6 +127,18 @@ class ProjetUpcycling extends Model
         return $this->hasMany(Devis::class)->latest('id');
     }
 
+    /** Fil de discussion client / atelier / styliste IA */
+    public function messages(): HasMany
+    {
+        return $this->hasMany(MessageProjet::class)->oldest('id');
+    }
+
+    /** Article de la marketplace créé à partir du produit fini (module M2) */
+    public function article(): BelongsTo
+    {
+        return $this->belongsTo(Article::class);
+    }
+
     /*
     |------------------------------------------------------------------
     | Helpers
@@ -150,9 +165,8 @@ class ProjetUpcycling extends Model
     {
         if (!$chemin) return null;
 
-        return str_starts_with($chemin, 'images/')
-            ? asset($chemin)
-            : \Illuminate\Support\Facades\Storage::disk('public')->url($chemin);
+        // asset() suit l'hôte de la requête : fonctionne quel que soit le port (APP_URL)
+        return asset(str_starts_with($chemin, 'images/') ? $chemin : 'storage/' . $chemin);
     }
 
     /** Supprime un fichier envoyé par un utilisateur (jamais les photos de démo) */
@@ -227,5 +241,30 @@ class ProjetUpcycling extends Model
     public function estAnnulable(): bool
     {
         return in_array($this->statut, [self::STATUT_DEMANDE, self::STATUT_ATELIER_CHOISI, self::STATUT_DEVIS_ACCEPTE], true);
+    }
+
+    /** Date de livraison promise par l'atelier (début des travaux + délai du devis accepté) */
+    public function getDateLivraisonPrevueAttribute(): ?\Illuminate\Support\Carbon
+    {
+        $devis = $this->devis_accepte;
+        if (!$devis || !$this->date_debut) return null;
+
+        return $this->date_debut->copy()->addDays($devis->delai_jours);
+    }
+
+    /** Travaux en cours alors que le délai promis est dépassé */
+    public function getEnRetardAttribute(): bool
+    {
+        $prevue = $this->date_livraison_prevue;
+
+        return $prevue !== null
+            && in_array($this->statut, self::STATUTS_EN_COURS, true)
+            && $prevue->isPast();
+    }
+
+    /** Le client peut revendre le produit fini sur la marketplace (M2) */
+    public function estPubliable(): bool
+    {
+        return $this->statut === self::STATUT_TERMINE && $this->photo_resultat && !$this->article_id;
     }
 }

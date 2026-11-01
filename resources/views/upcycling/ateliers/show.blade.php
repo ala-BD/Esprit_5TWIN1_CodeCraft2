@@ -15,13 +15,13 @@
 
 {{-- ===== Bandeau ===== --}}
 <section class="relative overflow-hidden rounded-[2rem] hero-gradient text-white mb-8">
-    <div class="absolute -right-20 -top-20 w-72 h-72 rounded-full bg-accent/20 blur-3xl"></div>
+    <div class="absolute -right-20 -top-20 w-72 h-72 rounded-full bg-secondary/20 blur-3xl"></div>
     <div class="relative flex flex-col md:flex-row gap-6 md:items-center p-8">
         <div class="w-28 h-28 rounded-3xl bg-white p-3 shadow-2xl flex-shrink-0">
             @include('upcycling.partials.photo', ['url' => $atelier->couverture_url, 'alt' => $atelier->nom, 'icone' => $atelier->icone])
         </div>
         <div class="flex-1">
-            <span class="text-xs font-semibold uppercase tracking-widest text-accent"><i class="fas {{ $atelier->icone }}"></i> {{ $atelier->specialite_label }}</span>
+            <span class="text-xs font-semibold uppercase tracking-widest text-secondary"><i class="fas {{ $atelier->icone }}"></i> {{ $atelier->specialite_label }}</span>
             <h1 class="font-display text-3xl font-extrabold mt-1">{{ $atelier->nom }}</h1>
             <p class="text-white/70 text-sm mt-2"><i class="fas fa-map-marker-alt mr-1"></i> {{ $atelier->localisation }} · Contact : {{ $atelier->user->full_name }}</p>
             @unless($atelier->actif)
@@ -111,6 +111,16 @@
                                 @endif
                             </div>
                             <p class="text-xs text-gray-400 mt-1">Livré le {{ $projet->date_fin?->format('d/m/Y') }} · ≈ {{ number_format($projet->co2_evite_kg ?? 0, 0) }} kg CO₂ évités</p>
+                            @if($controle = $projet->controle_qualite_ia)
+                                <p class="mt-3 text-xs">
+                                    <span class="font-bold px-2 py-0.5 rounded-full {{ $controle['conforme'] ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' }}">
+                                        <i class="fas fa-clipboard-check"></i> Contrôle qualité IA : {{ $controle['score'] }}/100
+                                    </span>
+                                </p>
+                                @if($controle['description_portfolio'])
+                                    <p class="text-sm text-gray-600 mt-2">{{ $controle['description_portfolio'] }}</p>
+                                @endif
+                            @endif
                             @if($projet->commentaire_client)
                                 <p class="text-sm text-gray-600 italic mt-3">« {{ $projet->commentaire_client }} »
                                     <span class="not-italic text-gray-400">— {{ $projet->client->prenom ?? $projet->client->name }}</span></p>
