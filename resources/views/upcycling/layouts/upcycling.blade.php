@@ -112,6 +112,12 @@
                     <i class="fas fa-user-circle w-4 text-center"></i>
                     Mon profil
                 </a>
+
+                <a href="{{ route('upcycling.api.index') }}"
+                   class="{{ $lien(request()->routeIs('upcycling.api.*')) }}">
+                    <i class="fas fa-code w-4 text-center"></i>
+                    Accès API
+                </a>
             </nav>
 
             {{-- Profil bas --}}
