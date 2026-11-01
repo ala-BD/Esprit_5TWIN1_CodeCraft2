@@ -113,7 +113,7 @@
                             · {{ $token->expires_at ? 'expire le ' . $token->expires_at->format('d/m/Y') : 'sans expiration' }}
                         </p>
                     </div>
-                    <form method="POST" action="{{ route('upcycling.api.tokens.destroy', $token->id) }}" onsubmit="return confirm('Révoquer ce token ?')">
+                    <form method="POST" action="{{ route('upcycling.api.tokens.destroy', $token->id) }}" data-confirm="Les applications qui utilisent ce token perdront immédiatement l'accès à l'API." data-confirm-titre="Révoquer ce token ?" data-confirm-bouton="Révoquer">
                         @csrf @method('DELETE')
                         <button class="text-xs font-bold px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600"><i class="fas fa-ban"></i> Révoquer</button>
                     </form>

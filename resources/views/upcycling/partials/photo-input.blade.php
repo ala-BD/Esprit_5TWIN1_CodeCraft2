@@ -24,6 +24,8 @@
             <p class="text-[11px] text-gray-400 mt-3">JPG, PNG ou WEBP · 5 Mo max</p>
         </div>
 
+        <span data-taille class="hidden absolute bottom-3 left-3 text-[11px] font-semibold bg-emerald-500/90 text-white px-2.5 py-1 rounded-lg shadow-sm"></span>
+
         <span data-changer class="absolute bottom-3 right-3 text-xs font-semibold bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg shadow-sm text-gray-700 {{ $actuelle ? '' : 'hidden' }}">
             <i class="fas fa-sync-alt mr-1"></i> Changer
         </span>
@@ -35,18 +37,31 @@
 
 @once
 <script>
-    // Aperçu + glisser-déposer pour toutes les zones photo de la page
+    // Aperçu + glisser-déposer + compression dans le navigateur, pour toutes les zones photo de la page
     document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('[data-zone-photo]').forEach((zone) => {
             const input = zone.querySelector('input[type=file]');
             const apercu = zone.querySelector('[data-apercu]');
+            const taille = zone.querySelector('[data-taille]');
 
-            const afficher = (fichier) => {
+            const afficher = async (fichier) => {
                 if (!fichier || !fichier.type.startsWith('image/')) return;
                 apercu.src = URL.createObjectURL(fichier);
                 apercu.classList.remove('hidden');
                 zone.querySelector('[data-invite]').classList.add('hidden');
                 zone.querySelector('[data-changer]').classList.remove('hidden');
+                taille.classList.add('hidden');
+
+                // Photo de smartphone (4-8 Mo) → ~300 Ko : envoi et analyse IA plus rapides
+                if (window.Upcycling) {
+                    const compresse = await Upcycling.compresserImage(fichier);
+                    if (compresse !== fichier) {
+                        Upcycling.remplacerFichier(input, compresse);
+                        taille.innerHTML = `<i class="fas fa-compress"></i> ${Upcycling.formaterTaille(fichier.size)} → ${Upcycling.formaterTaille(compresse.size)}`;
+                        taille.classList.remove('hidden');
+                        fichier = compresse;
+                    }
+                }
                 zone.dispatchEvent(new CustomEvent('photo-choisie', { detail: fichier, bubbles: true }));
             };
 

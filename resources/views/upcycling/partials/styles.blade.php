@@ -59,4 +59,27 @@
     .points-ia span { animation: upcycling-points 1.2s infinite; }
     .points-ia span:nth-child(2) { animation-delay: .2s; }
     .points-ia span:nth-child(3) { animation-delay: .4s; }
+
+    /* Toasts, modales et chargements AJAX (public/js/upcycling.js) */
+    @keyframes upcycling-entree { from { opacity: 0; transform: translateY(10px) scale(.98) } to { opacity: 1; transform: none } }
+    .toast-upcycling, .modale-boite, .message-nouveau { animation: upcycling-entree .25s ease-out; }
+    .toast-sortie { opacity: 0; transform: translateX(20px); transition: all .25s; }
+    .chargement-live { opacity: .45; pointer-events: none; transition: opacity .2s; }
+
+    /* Comparateur avant / après */
+    .comparateur { --position: 50%; isolation: isolate; touch-action: pan-y; }
+    .comparateur .calque-avant { clip-path: inset(0 calc(100% - var(--position)) 0 0); }
+    .comparateur .poignee { left: var(--position); }
+    .comparateur input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; cursor: ew-resize; }
+    .comparateur input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 44px; height: 100vh; }
+    .comparateur input[type=range]::-moz-range-thumb { width: 44px; height: 100vh; border: 0; background: transparent; }
+    .comparateur input[type=range]:focus-visible + .poignee .bouton-poignee { outline: 3px solid #2DD4BF; outline-offset: 2px; }
+
+    /* Tableau Kanban de l'atelier */
+    .kanban-colonne.cible-autorisee { box-shadow: 0 0 0 2px #0d9488 inset; background: rgba(13, 148, 136, .06); }
+    .kanban-colonne.cible-interdite { opacity: .55; }
+    .carte-fantome { opacity: .35; }
+    .carte-deplacable { cursor: grab; }
+    .carte-deplacable:active { cursor: grabbing; }
+    .carte-choisie { transform: rotate(2deg); box-shadow: 0 18px 40px rgba(15, 23, 42, .18); }
 </style>

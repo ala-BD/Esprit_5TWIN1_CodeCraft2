@@ -13,6 +13,10 @@
     @yield('upcycling-styles')
 @endsection
 
+@push('scripts')
+    <script src="{{ asset('js/upcycling.js') }}?v={{ filemtime(public_path('js/upcycling.js')) }}"></script>
+@endpush
+
 @section('content')
 <div class="min-h-[calc(100vh-56px)] bg-gray-50">
 
@@ -41,10 +45,17 @@
                 </a>
 
                 <a href="{{ route('upcycling.projets.index') }}"
-                   class="{{ $lien(request()->routeIs('upcycling.projets.*') && !request()->routeIs('upcycling.projets.create')) }}">
+                   class="{{ $lien(request()->routeIs('upcycling.projets.*') && !request()->routeIs('upcycling.projets.create', 'upcycling.projets.kanban')) }}">
                     <i class="fas fa-layer-group w-4 text-center"></i>
                     {{ $estAtelier ? 'Projets reçus' : 'Mes projets' }}
                 </a>
+
+                @if($estAtelier)
+                <a href="{{ route('upcycling.projets.kanban') }}" class="{{ $lien(request()->routeIs('upcycling.projets.kanban')) }}">
+                    <i class="fas fa-table-columns w-4 text-center"></i>
+                    Tableau de production
+                </a>
+                @endif
 
                 @unless($estAtelier)
                 <a href="{{ route('upcycling.projets.create') }}" class="{{ $lien(request()->routeIs('upcycling.projets.create')) }}">
@@ -141,6 +152,9 @@
             <div class="lg:hidden flex gap-2 overflow-x-auto pb-4 mb-2 -mx-1 px-1">
                 <a href="{{ route('upcycling.dashboard') }}" class="flex-shrink-0 text-xs font-semibold px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700">Dashboard</a>
                 <a href="{{ route('upcycling.projets.index') }}" class="flex-shrink-0 text-xs font-semibold px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700">Projets</a>
+                @if($estAtelier)
+                <a href="{{ route('upcycling.projets.kanban') }}" class="flex-shrink-0 text-xs font-semibold px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700">Production</a>
+                @endif
                 @unless($estAtelier)
                 <a href="{{ route('upcycling.projets.create') }}" class="flex-shrink-0 text-xs font-semibold px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700">Nouvelle demande</a>
                 @endunless

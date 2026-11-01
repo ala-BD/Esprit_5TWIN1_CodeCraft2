@@ -73,7 +73,7 @@
             @endif
             @if(in_array($projet->statut, ['DEMANDE', 'ANNULE']))
                 <form method="POST" action="{{ route('upcycling.projets.destroy', $projet) }}"
-                      onsubmit="return confirm('Supprimer définitivement cette demande ?')">
+                      data-confirm="La demande, sa photo et les idées de l'IA seront supprimées. Cette action est irréversible." data-confirm-titre="Supprimer cette demande ?" data-confirm-bouton="Supprimer">
                     @csrf @method('DELETE')
                     <button type="submit" title="Supprimer"
                             class="w-9 h-full flex items-center justify-center rounded-xl bg-red-50 hover:bg-red-500 hover:text-white text-red-500 transition-colors">
