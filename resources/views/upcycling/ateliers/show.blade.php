@@ -68,7 +68,7 @@
                 <i class="fas fa-pen w-4"></i> Modifier mon profil
             </a>
             <form method="POST" action="{{ route('upcycling.ateliers.destroy', $atelier) }}"
-                  onsubmit="return confirm('Supprimer définitivement votre profil atelier ?')">
+                  data-confirm="Votre portfolio et votre fiche disparaîtront du catalogue. Cette action est irréversible." data-confirm-titre="Supprimer votre profil atelier ?" data-confirm-bouton="Supprimer">
                 @csrf @method('DELETE')
                 <button class="flex items-center gap-3 w-full bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-4 py-3 rounded-2xl transition-all text-sm">
                     <i class="fas fa-trash-alt w-4"></i> Supprimer mon profil
@@ -91,6 +91,15 @@
             <div class="grid sm:grid-cols-2 gap-5">
                 @foreach($realisations as $projet)
                     <article class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                        @if($projet->photo_url && $projet->photo_resultat_url)
+                            @include('upcycling.partials.avant-apres', [
+                                'avant'        => $projet->photo_url,
+                                'apres'        => $projet->photo_resultat_url,
+                                'legendeAvant' => 'Avant : ' . $projet->type_vetement,
+                                'legendeApres' => 'Après',
+                                'hauteur'      => 'h-56',
+                            ])
+                        @else
                         <div class="grid {{ $projet->photo_resultat_url ? 'grid-cols-2 divide-x divide-gray-100' : 'grid-cols-1' }} bg-gradient-to-br from-slate-50 to-slate-100">
                             <div class="relative h-44 p-3">
                                 @include('upcycling.partials.photo', ['url' => $projet->photo_url, 'alt' => $projet->type_vetement])
@@ -103,6 +112,7 @@
                                 </div>
                             @endif
                         </div>
+                        @endif
                         <div class="p-5">
                             <div class="flex items-start justify-between gap-2">
                                 <p class="font-display font-bold text-gray-900 leading-snug"><i class="fas fa-arrow-right text-primary text-xs mr-1"></i>{{ $projet->produit_final }}</p>

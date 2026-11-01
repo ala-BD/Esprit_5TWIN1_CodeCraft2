@@ -63,7 +63,7 @@ class ProjetUpcyclingController extends Controller
             ];
         } else {
             $atelier = null;
-            $base = Auth::user()->isAdmin()
+            $base = $this->utilisateur()->isAdmin()
                 ? ProjetUpcycling::query()
                 : ProjetUpcycling::where('client_id', Auth::id());
 
@@ -131,7 +131,7 @@ class ProjetUpcyclingController extends Controller
 
         if ($this->estAtelier()) {
             $query->where('atelier_id', $this->atelierConnecte()?->id ?? 0);
-        } elseif (!Auth::user()->isAdmin()) {
+        } elseif (!$this->utilisateur()->isAdmin()) {
             $query->where('client_id', Auth::id());
         }
 
@@ -146,6 +146,52 @@ class ProjetUpcyclingController extends Controller
             ->withQueryString();
 
         return view('upcycling.projets.index', compact('projets'));
+    }
+
+    /*
+    |------------------------------------------------------------------
+    | GET /upcycling/projets/kanban — Tableau de production de l'atelier
+    | Une colonne par étape ; glisser une carte vers l'étape suivante
+    | appelle PATCH projets/{projet}/avancer en AJAX.
+    |------------------------------------------------------------------
+    */
+    public function kanban(): View|RedirectResponse
+    {
+        abort_unless($this->estAtelier(), 403, 'Réservé aux ateliers.');
+
+        $atelier = $this->atelierConnecte();
+        if (!$atelier) {
+            return redirect()->route('upcycling.ateliers.create')
+                ->with('error', "Créez d'abord le profil de votre atelier.");
+        }
+
+        $statuts = [ProjetUpcycling::STATUT_ATELIER_CHOISI, ...ProjetUpcycling::ETAPES_ATELIER, ProjetUpcycling::STATUT_TERMINE];
+
+        $projets = $atelier->projetUpcyclings()
+            ->with(['client', 'devis'])
+            ->whereIn('statut', $statuts)
+            ->where(fn ($q) => $q->where('statut', '!=', ProjetUpcycling::STATUT_TERMINE)
+                ->orWhere('date_fin', '>=', now()->subDays(30)))
+            ->latest('updated_at')
+            ->get()
+            ->groupBy('statut');
+
+        $colonnes = collect($statuts)->mapWithKeys(fn ($statut) => [$statut => [
+            'label'   => match ($statut) {
+                ProjetUpcycling::STATUT_ATELIER_CHOISI => 'À chiffrer',
+                ProjetUpcycling::STATUT_DEVIS_ACCEPTE  => 'À démarrer',
+                ProjetUpcycling::STATUT_TERMINE        => 'Terminés (30 j)',
+                default                                => ProjetUpcycling::ETAPES[$statut]['label'],
+            },
+            'icon'    => ProjetUpcycling::ETAPES[$statut]['icon'],
+            'projets' => $projets->get($statut, collect()),
+        ]]);
+
+        return view('upcycling.projets.kanban', [
+            'colonnes'        => $colonnes,
+            'enRetard'        => $projets->flatten()->filter->en_retard->count(),
+            'chiffreAffaires' => $projets->flatten()->sum(fn ($p) => $p->devis_accepte?->montant ?? 0),
+        ]);
     }
 
     /*
@@ -346,7 +392,7 @@ class ProjetUpcyclingController extends Controller
     | PATCH /upcycling/projets/{projet}/avancer — Étape suivante (atelier)
     |------------------------------------------------------------------
     */
-    public function avancer(ActionProjetRequest $request, ProjetUpcycling $projet): RedirectResponse
+    public function avancer(ActionProjetRequest $request, ProjetUpcycling $projet): RedirectResponse|JsonResponse
     {
         $this->autoriserAtelier($projet);
 
@@ -355,6 +401,19 @@ class ProjetUpcyclingController extends Controller
         $message = "Projet passé à l'étape « " . ProjetUpcycling::ETAPES[$suivante]['label'] . ' ».';
         if ($controle = $projet->controle_qualite_ia) {
             $message .= " Contrôle qualité IA : {$controle['score']}/100.";
+        }
+
+        // Glisser-déposer du tableau Kanban : on renvoie la carte mise à jour
+        if ($request->expectsJson()) {
+            $projet->load(['client', 'devis']);
+
+            return response()->json([
+                'message'     => $message,
+                'statut'      => $projet->statut,
+                'progression' => $projet->progression,
+                'controle_qualite_ia' => $projet->controle_qualite_ia,
+                'carte'       => view('upcycling.projets.partials.kanban-carte', compact('projet'))->render(),
+            ]);
         }
 
         return back()->with('success', $message);

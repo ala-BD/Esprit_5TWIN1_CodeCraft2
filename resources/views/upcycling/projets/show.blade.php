@@ -31,14 +31,21 @@
     {{-- Photos avant / après --}}
     <div class="lg:col-span-2">
         <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-            @if($projet->photo_resultat_url)
-                <div class="grid grid-cols-2 divide-x divide-gray-100">
-                    @foreach([['Avant', $projet->photo_url, 'bg-gray-900/70'], ['Après', $projet->photo_resultat_url, 'bg-primary']] as [$label, $url, $couleur])
-                        <div class="relative aspect-[3/4] bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-                            @include('upcycling.partials.photo', ['url' => $url, 'alt' => $label])
-                            <span class="absolute top-3 left-3 text-[11px] font-bold text-white px-2.5 py-1 rounded-lg {{ $couleur }}">{{ $label }}</span>
-                        </div>
-                    @endforeach
+            @if($projet->photo_resultat_url && $projet->photo_url)
+                @include('upcycling.partials.avant-apres', [
+                    'avant'        => $projet->photo_url,
+                    'apres'        => $projet->photo_resultat_url,
+                    'legendeAvant' => 'Avant',
+                    'legendeApres' => 'Après',
+                    'hauteur'      => 'aspect-square',
+                ])
+                <p class="text-center text-[11px] text-gray-400 py-2 border-t border-gray-100">
+                    <i class="fas fa-arrows-left-right"></i> Faites glisser pour comparer
+                </p>
+            @elseif($projet->photo_resultat_url)
+                <div class="relative aspect-square bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+                    @include('upcycling.partials.photo', ['url' => $projet->photo_resultat_url, 'alt' => $projet->produit_final])
+                    <span class="absolute top-4 left-4 text-[11px] font-bold text-white px-2.5 py-1 rounded-lg bg-primary">Après</span>
                 </div>
             @else
                 <div class="relative aspect-square bg-gradient-to-br from-slate-50 to-slate-100 p-6">
@@ -188,9 +195,15 @@
                 <p class="text-sm font-semibold text-gray-800">Étape suivante : {{ $libelle }}</p>
                 @if($projet->etape_suivante === 'TERMINE')
                     <p class="text-xs text-gray-500 mt-0.5">Ajoutez une photo du produit fini : elle apparaîtra dans votre portfolio (avant / après).</p>
-                    <input type="file" name="photo_resultat" accept="image/jpeg,image/png,image/webp"
-                           class="mt-2 block text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-primary/10 file:text-primary file:font-semibold">
-                    @error('photo_resultat')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
+                    <div class="mt-3 max-w-sm">
+                        @include('upcycling.partials.photo-input', [
+                            'nom'      => 'photo_resultat',
+                            'actuelle' => null,
+                            'titre'    => 'Photo du produit fini',
+                            'aide'     => 'Glissez-la ici ou cliquez',
+                            'hauteur'  => 'h-44',
+                        ])
+                    </div>
                 @endif
             </div>
             <button type="submit" class="btn-primary">
@@ -377,7 +390,7 @@
                 </a>
             @endif
             @if($projet->estAnnulable())
-                <form method="POST" action="{{ route('upcycling.projets.annuler', $projet) }}" onsubmit="return confirm('Annuler ce projet ?')">
+                <form method="POST" action="{{ route('upcycling.projets.annuler', $projet) }}" data-confirm="Les devis en attente seront refusés et l'atelier ne pourra plus travailler sur ce projet." data-confirm-titre="Annuler ce projet ?" data-confirm-bouton="Annuler le projet">
                     @csrf @method('PATCH')
                     <button class="flex items-center gap-3 w-full bg-gray-50 hover:bg-gray-100 text-gray-600 font-semibold px-4 py-3 rounded-2xl transition-all text-sm">
                         <i class="fas fa-ban w-4"></i> Annuler le projet
@@ -385,7 +398,7 @@
                 </form>
             @endif
             @if(in_array($projet->statut, ['DEMANDE', 'ANNULE']))
-                <form method="POST" action="{{ route('upcycling.projets.destroy', $projet) }}" onsubmit="return confirm('Supprimer définitivement cette demande ?')">
+                <form method="POST" action="{{ route('upcycling.projets.destroy', $projet) }}" data-confirm="La demande, sa photo et les idées de l'IA seront supprimées. Cette action est irréversible." data-confirm-titre="Supprimer cette demande ?" data-confirm-bouton="Supprimer">
                     @csrf @method('DELETE')
                     <button class="flex items-center gap-3 w-full bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-4 py-3 rounded-2xl transition-all text-sm">
                         <i class="fas fa-trash-alt w-4"></i> Supprimer
@@ -399,7 +412,7 @@
     <div class="{{ $colonneDroite ? 'lg:col-span-2 space-y-5' : 'hidden' }}">
         {{-- Devis --}}
         @if($projet->atelier_id || $projet->devis->isNotEmpty())
-        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+        <div id="devis" class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 scroll-mt-20">
             <h2 class="font-display font-bold text-gray-900 mb-5 flex items-center gap-2">
                 <i class="fas fa-file-invoice-dollar text-primary"></i> Devis
             </h2>
@@ -465,7 +478,7 @@
                                         @csrf @method('PATCH')
                                         <button class="text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl transition-colors"><i class="fas fa-check"></i> Accepter</button>
                                     </form>
-                                    <form method="POST" action="{{ route('upcycling.devis.refuser', $devis) }}" onsubmit="return confirm('Refuser ce devis ?')">
+                                    <form method="POST" action="{{ route('upcycling.devis.refuser', $devis) }}" data-confirm="L'atelier sera prévenu et pourra vous proposer un nouveau devis." data-confirm-titre="Refuser ce devis ?" data-confirm-bouton="Refuser">
                                         @csrf @method('PATCH')
                                         <button class="text-xs font-bold bg-white border border-red-200 hover:bg-red-50 text-red-600 px-4 py-2 rounded-xl transition-colors"><i class="fas fa-times"></i> Refuser</button>
                                     </form>

@@ -15,6 +15,13 @@ use Illuminate\Support\Facades\Gate;
  */
 trait AccesUpcycling
 {
+    /** Utilisateur connecté, typé (les routes du module exigent l'authentification) */
+    protected function utilisateur(): User
+    {
+        /** @var User */
+        return Auth::user();
+    }
+
     protected function estClient(): bool
     {
         return in_array(Auth::user()->role, ProjetUpcyclingPolicy::ROLES_CLIENT, true);
