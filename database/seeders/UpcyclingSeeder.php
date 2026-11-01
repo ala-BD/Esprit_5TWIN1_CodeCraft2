@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Atelier;
 use App\Models\Devis;
+use App\Models\MessageProjet;
 use App\Models\ProjetUpcycling;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -75,10 +76,23 @@ class UpcyclingSeeder extends Seeder
         // Idée choisie, atelier pas encore choisi
         ProjetUpcycling::factory()->vetement(7)->avecIdee()->for($client, 'client')->create();
 
-        // Atelier choisi + devis en attente de réponse
-        ProjetUpcycling::factory()->vetement(5)->pourAtelier($filDor)->for($client, 'client')
+        // Atelier choisi + devis en attente de réponse, avec une discussion (client, atelier, styliste IA)
+        $chemise = ProjetUpcycling::factory()->vetement(5)->pourAtelier($filDor)->for($client, 'client')
             ->has(Devis::factory()->state(['montant' => 35, 'delai_jours' => 5, 'date_emission' => now()]), 'devis')
             ->create();
+
+        MessageProjet::factory()->for($chemise, 'projetUpcycling')->create([
+            'contenu' => "Bonjour ! C'était la chemise de mon père, est-ce possible de garder le col contrasté sur le sac ?",
+        ]);
+        MessageProjet::factory()->for($chemise, 'projetUpcycling')->parAtelier()->create([
+            'contenu' => "Bonjour Sarra, oui : je peux utiliser le col comme rabat du sac. Je l'ai inclus dans le devis.",
+        ]);
+        MessageProjet::factory()->for($chemise, 'projetUpcycling')->create([
+            'contenu' => 'Quelle doublure me conseillez-vous pour que le sac dure longtemps ?',
+        ]);
+        MessageProjet::factory()->for($chemise, 'projetUpcycling')->parIa()->create([
+            'contenu' => "Pour un tote bag en coton du quotidien :\n- une doublure en toile de coton épaisse (canvas), solide et lavable\n- une couleur unie reprenant le bleu du col pour un rendu harmonieux\n- des anses doublées et surpiquées aux points de tension\nLavage à 30 °C, à l'envers, pour préserver les couleurs.",
+        ]);
 
         // Atelier choisi, un premier devis refusé, en attente d'un nouveau
         ProjetUpcycling::factory()->vetement(3)->pourAtelier($filDor)->for($client, 'client')
@@ -86,8 +100,10 @@ class UpcyclingSeeder extends Seeder
             ->create(['budget_max' => 50]);
 
         // Travaux en cours
+        // En retard : délai de 7 jours promis, travaux commencés il y a 12 jours
         ProjetUpcycling::factory()->vetement(6)->pourAtelier($patch)->enCours('CONFECTION')->for($client, 'client')
-            ->has(Devis::factory()->accepte(), 'devis')
+            ->state(['date_debut' => now()->subDays(12)])
+            ->has(Devis::factory()->accepte()->state(['delai_jours' => 7]), 'devis')
             ->create();
 
         ProjetUpcycling::factory()->vetement(8)->pourAtelier($neo)->enCours('CONCEPTION')->for($client, 'client')
