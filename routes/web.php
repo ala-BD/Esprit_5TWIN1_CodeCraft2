@@ -113,6 +113,9 @@ Route::middleware(['auth'])->group(function () {
         // CRUD Ateliers
         Route::resource('ateliers', AtelierController::class);
 
+        // Tableau de production (Kanban) de l'atelier — avant la ressource pour ne pas être pris pour {projet}
+        Route::get('projets/kanban', [ProjetUpcyclingController::class, 'kanban'])->name('projets.kanban');
+
         // CRUD Projets
         Route::resource('projets', ProjetUpcyclingController::class)
             ->parameters(['projets' => 'projet']);
@@ -138,6 +141,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('devis/{devis}/pdf',          [DevisController::class, 'pdf'])->name('devis.pdf');
 
         // Messagerie client / atelier + assistant styliste IA
+        Route::get('projets/{projet}/messages', [MessageProjetController::class, 'index'])->name('messages.index');
         Route::post('projets/{projet}/messages', [MessageProjetController::class, 'store'])->middleware('throttle:ia')->name('messages.store');
 
         // Accès à l'API REST : documentation et tokens personnels (Sanctum)
@@ -157,6 +161,7 @@ Route::middleware(['auth'])->group(function () {
     | Notifications in-app (tous modules)
     |----------------------------------------------------------------------
     */
+    Route::get('notifications/resume', [NotificationController::class, 'resume'])->name('notifications.resume');
     Route::get('notifications/{id}', [NotificationController::class, 'lire'])->name('notifications.lire');
     Route::post('notifications/tout-lire', [NotificationController::class, 'toutLire'])->name('notifications.tout-lire');
 
