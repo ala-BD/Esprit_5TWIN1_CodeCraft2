@@ -97,14 +97,15 @@
   <p class="resume">
     Plateforme d’économie circulaire du textile (collecte, marketplace, upcycling, recyclage, logistique).
     Ce dossier présente la démarche DevOps appliquée au projet : le cycle suivi par l’équipe, le pipeline
-    automatisé qui mène une modification du poste du développeur jusqu’au serveur, l’architecture conteneurisée
-    et la supervision de la plateforme en fonctionnement.
+    automatisé qui mène une modification du poste du développeur jusqu’à la production sur Railway,
+    l’architecture conteneurisée et la supervision de la plateforme en fonctionnement.
+    Application en ligne : <span class="mono">https://retiss-production.up.railway.app</span>.
   </p>
   <div class="bloc-bas">
     <div><span class="etiquette">Modules et membres</span>
       M1 Collecte — Wassim<br>M2 Marketplace — Yahya<br>M3 Upcycling — Walid<br>M4 Recyclage — Ala (intégration)<br>M5 Administration et logistique — Imem</div>
     <div><span class="etiquette">Outils</span>
-      Git / GitHub · GitHub Actions · Docker / Docker Compose · GHCR · PHPUnit · Pint · Trivy · Prometheus · Grafana<br><br>
+      Git / GitHub · GitHub Actions · Docker / Docker Compose · GHCR · Railway · PHPUnit · Pint · Trivy · Prometheus · Grafana<br><br>
       <span class="etiquette">Date</span>Novembre 2026</div>
   </div>
 </section>
@@ -148,12 +149,12 @@
         <text x="373" y="78">Grille de validation</text><text x="373" y="93" fill="#5b6573">1 module = 1 membre</text>
         <text x="187" y="78">Laravel 12 · PHP 8.4</text><text x="187" y="93" fill="#5b6573">1 branche Git par membre</text>
         <text x="527" y="78">Images Docker versionnées</text><text x="527" y="93" fill="#5b6573">registre GHCR (tag = commit)</text>
-        <text x="713" y="78">GitHub Actions</text><text x="713" y="93" fill="#5b6573">SSH + Docker Compose</text>
+        <text x="713" y="78">Railway (CLI figée)</text><text x="713" y="93" fill="#5b6573">GitHub Actions → railway up</text>
 
         <text x="187" y="318">Composer · Docker</text><text x="187" y="333" fill="#5b6573">build multi-étapes</text>
-        <text x="373" y="318">PHPUnit (360 tests) · Python</text><text x="373" y="333" fill="#5b6573">Pint · tests de fumée · Trivy</text>
+        <text x="373" y="318">PHPUnit (409 tests) · Python</text><text x="373" y="333" fill="#5b6573">Pint · tests de fumée · Trivy</text>
         <text x="527" y="318">Prometheus · Grafana</text><text x="527" y="333" fill="#5b6573">6 règles d’alerte</text>
-        <text x="713" y="318">Docker Compose</text><text x="713" y="333" fill="#5b6573">6 services + supervision</text>
+        <text x="713" y="318">Railway · Docker Compose</text><text x="713" y="333" fill="#5b6573">santé, redémarrage, volumes</text>
       </g>
       <text x="450" y="362" text-anchor="middle" font-size="11" fill="#5b6573">Les métriques et alertes de la phase 8 alimentent la planification suivante (phase 1).</text>
     </svg>
@@ -165,10 +166,10 @@
     <tr><td><span class="pastille p-dev">Planifier</span></td><td>Découpage en 5 modules (M1 à M5) d’après la grille de validation ; chaque membre est responsable d’un module et de sa branche.</td></tr>
     <tr><td><span class="pastille p-dev">Coder</span></td><td>Laravel 12 et PHP 8.4, micro-service IA en Python (FastAPI). Le code est poussé sur la branche du membre puis intégré par fusion dans <code>integration</code>.</td></tr>
     <tr><td><span class="pastille p-ci">Construire</span></td><td>Installation reproductible des dépendances (<code>composer.lock</code>) ; trois images Docker construites à partir d’un même <code>Dockerfile</code> multi-étapes.</td></tr>
-    <tr><td><span class="pastille p-ci">Tester</span></td><td>360 tests PHPUnit, tests unitaires du modèle IA, contrôle de style Pint, tests de fumée sur la pile complète, scan de vulnérabilités Trivy.</td></tr>
+    <tr><td><span class="pastille p-ci">Tester</span></td><td>409 tests PHPUnit, tests unitaires du modèle IA, contrôle de style Pint, tests de fumée sur la pile complète, scan de vulnérabilités Trivy.</td></tr>
     <tr><td><span class="pastille p-cd">Livrer</span></td><td>Chaque version validée est publiée sur GitHub Container Registry, étiquetée par l’identifiant du commit : la même image passe des tests à la production.</td></tr>
-    <tr><td><span class="pastille p-cd">Déployer</span></td><td>Le serveur télécharge les nouvelles images et redémarre la pile (<code>docker compose pull</code> puis <code>up -d</code>), puis une vérification HTTP confirme le déploiement.</td></tr>
-    <tr><td><span class="pastille p-ops">Exploiter</span></td><td>Conteneurs avec contrôles de santé et redémarrage automatique ; migrations appliquées au démarrage ; file de tâches dans un conteneur dédié.</td></tr>
+    <tr><td><span class="pastille p-cd">Déployer</span></td><td>Après une CI verte, GitHub Actions déploie sur Railway avec la CLI officielle (<code>railway up --ci</code>) le service IA puis l’application ; une vérification HTTP confirme le déploiement.</td></tr>
+    <tr><td><span class="pastille p-ops">Exploiter</span></td><td>Sur Railway : MySQL géré, volume pour les photos, contrôle de santé et redémarrage automatique ; migrations appliquées au démarrage ; file de tâches relancée par supervisord.</td></tr>
     <tr><td><span class="pastille p-ops">Superviser</span></td><td>Prometheus collecte les métriques de Laravel, Nginx et MySQL ; Grafana les affiche ; six règles d’alerte détectent les pannes.</td></tr>
   </table>
 </section>
@@ -179,7 +180,7 @@
   <p>
     Chaque membre développe son module sur sa propre branche. Les branches sont fusionnées (fusion sans
     avance rapide, pour garder l’historique de chaque module) dans <code>integration</code>, où la CI valide l’ensemble.
-    La branche <code>main</code> reçoit la version finale : c’est elle qui déclenche le déploiement.
+    La branche <code>main</code> reçoit la version finale ; <code>main</code> et <code>integration</code> déclenchent le déploiement sur Railway.
   </p>
   <div class="figure">
     <svg viewBox="0 0 720 300" role="img" aria-label="Branches Git de l'équipe et leurs fusions">
@@ -256,7 +257,7 @@
         <text x="117" y="27">DÉVELOPPEMENT</text><text x="359" y="27">INTÉGRATION CONTINUE</text><text x="601" y="27">LIVRAISON / DÉPLOIEMENT</text>
       </g>
       <g fill="#fff" font-size="10" text-anchor="middle" opacity=".9">
-        <text x="117" y="41">poste du membre</text><text x="359" y="41">GitHub Actions</text><text x="601" y="41">GHCR + serveur</text>
+        <text x="117" y="41">poste du membre</text><text x="359" y="41">GitHub Actions</text><text x="601" y="41">GHCR + Railway</text>
       </g>
 
       <g stroke-width="1.5" fill="#fff">
@@ -301,15 +302,15 @@
         <text x="117" y="254">docker compose up</text>
         <text x="117" y="326">déclenche le pipeline</text>
         <text x="359" y="110">composer · php -l · Pint</text>
-        <text x="311" y="182">PHPUnit · 360</text>
+        <text x="311" y="182">PHPUnit · 409</text>
         <text x="407" y="182">modèle + unittest</text>
         <text x="359" y="254">app · web · ai (cache)</text>
         <text x="359" y="326">pile complète, 11 contrôles</text>
         <text x="359" y="398">Trivy (HIGH / CRITICAL)</text>
         <text x="601" y="110">GHCR, tag = commit</text>
-        <text x="601" y="182">environnement production</text>
-        <text x="601" y="254">SSH · compose pull · up -d</text>
-        <text x="601" y="326">/nginx-health · /login</text>
+        <text x="601" y="182">environnement GitHub production</text>
+        <text x="601" y="254">Railway · railway up --ci (ai, retiss)</text>
+        <text x="601" y="326">URL publique : /nginx-health · /login</text>
         <text x="601" y="398">Prometheus · Grafana · alertes</text>
       </g>
 
@@ -332,7 +333,7 @@
       </g>
       <g font-size="10" fill="#5b6573" text-anchor="middle">
         <text x="359" y="432">toutes les branches</text>
-        <text x="601" y="432">⑥ main, integration · ⑦–⑨ main</text>
+        <text x="601" y="432">⑥–⑨ main, integration</text>
       </g>
     </svg>
     <div class="legende">Figure 3 — Pipeline complet : développement, intégration continue (CI), livraison et déploiement continus (CD)</div>
@@ -344,20 +345,21 @@
   <table class="serre">
     <tr><th style="width:24%">Étape</th><th>Ce qui est vérifié ou produit</th><th style="width:16%">Bloquante</th></tr>
     <tr><td>① Qualité</td><td><code>composer validate</code>, syntaxe de tous les fichiers PHP, style Pint sur les fichiers modifiés ; Pint sur tout le projet et <code>composer audit</code> à titre informatif.</td><td>oui</td></tr>
-    <tr><td>② Tests Laravel</td><td>360 tests PHPUnit sur SQLite en mémoire (modules M1 à M5, API, sécurité, rôles) ; rapport JUnit archivé.</td><td>oui</td></tr>
+    <tr><td>② Tests Laravel</td><td>409 tests PHPUnit sur SQLite en mémoire (modules M1 à M5, API, sécurité, rôles) ; rapport JUnit archivé.</td><td>oui</td></tr>
     <tr><td>② Tests IA</td><td>Entraînement du modèle de recyclage puis tests unitaires Python, en parallèle des tests Laravel.</td><td>oui</td></tr>
     <tr><td>③ Build</td><td>Images <code>app</code> (PHP-FPM), <code>web</code> (Nginx) et <code>ai</code> (FastAPI), avec cache des couches entre deux exécutions.</td><td>oui</td></tr>
     <tr><td>④ Tests de fumée</td><td>Démarrage de toute la pile (MySQL compris), puis 11 contrôles : pages publiques, redirection sans session, connexion d’un compte et redirection selon son rôle, accès protégé aux métriques, base et IA joignables.</td><td>oui</td></tr>
     <tr><td>⑤ Sécurité</td><td>Scan Trivy de l’image applicative (vulnérabilités élevées et critiques corrigeables).</td><td>non (rapport)</td></tr>
     <tr><td>⑥ Publication</td><td>Images poussées sur GHCR avec deux étiquettes : l’identifiant du commit et le nom de la branche.</td><td>—</td></tr>
-    <tr><td>⑦ Approbation</td><td>Environnement GitHub <code>production</code> : un membre peut exiger une validation manuelle avant le déploiement.</td><td>—</td></tr>
-    <tr><td>⑧ Déploiement</td><td>Copie de la configuration, <code>docker compose pull</code> puis <code>up -d --wait</code> sur le serveur ; migrations automatiques au démarrage.</td><td>—</td></tr>
-    <tr><td>⑨ Vérification</td><td>Requêtes HTTP sur l’application déployée ; l’échec rend le déploiement rouge dans GitHub.</td><td>—</td></tr>
+    <tr><td>⑦ Approbation</td><td>Environnement GitHub <code>production</code> (URL de l’application) : un membre peut exiger une validation manuelle avant le déploiement.</td><td>—</td></tr>
+    <tr><td>⑧ Déploiement</td><td>CLI Railway figée en version 5.71.0 ; <code>railway up --ci</code> envoie le code du commit, Railway construit et démarre le service IA puis l’application (image <code>docker/railway</code>) ; migrations automatiques au démarrage.</td><td>oui</td></tr>
+    <tr><td>⑨ Vérification</td><td>Requêtes HTTP sur l’URL publique (<code>/nginx-health</code>, <code>/login</code>) avec plusieurs tentatives ; l’échec rend le déploiement rouge dans GitHub.</td><td>oui</td></tr>
   </table>
   <p>
     Pour garder le pipeline vert sans bloquer l’équipe sur le code déjà écrit, le contrôle de style n’est bloquant
-    que sur les fichiers modifiés par le commit. Les secrets de déploiement (hôte, clé SSH) sont stockés dans les
-    secrets GitHub ; la CI génère une clé d’application jetable pour ses tests.
+    que sur les fichiers modifiés par le commit. Le jeton de projet Railway est stocké dans les secrets GitHub
+    (<code>RAILWAY_TOKEN</code>) et le déploiement n’est actif que si la variable <code>RAILWAY_ENABLED</code> vaut
+    <code>true</code> ; la CI génère une clé d’application jetable pour ses tests.
   </p>
   <h3>Extrait du workflow GitHub Actions</h3>
   <pre>on:
@@ -370,16 +372,72 @@ jobs:
   tests-ia:       # ② python -m unittest          needs: qualite
   docker:         # ③ build  ④ smoke.sh  ⑤ Trivy  ⑥ push GHCR
     needs: [tests-laravel, tests-ia]
-  deploiement:    # ⑦ approbation  ⑧ SSH + compose  ⑨ vérification
+  deploiement:    # ⑦ approbation  ⑧ railway up --ci  ⑨ vérification
     needs: docker
-    if: github.ref_name == 'main' &amp;&amp; vars.DEPLOY_ENABLED == 'true'
-    environment: production</pre>
+    if: (main ou integration) &amp;&amp; vars.RAILWAY_ENABLED == 'true'
+    environment: production   # https://retiss-production.up.railway.app</pre>
   <p>
-    <b>Hébergement :</b> la mise en ligne est prévue sur <b>Railway</b>, qui exécute directement les images Docker du projet
-    (application, base MySQL gérée, service IA en réseau privé). Elle est assurée par Ala, responsable de l’intégration ;
-    les étapes ⑦ à ⑨ seront alors branchées sur Railway. D’ici là, le job de déploiement reste désactivé et le pipeline
-    s’arrête après la livraison des images.
+    <b>Hébergement :</b> l’application est déployée sur <b>Railway</b>, qui exécute les conteneurs Docker du projet tels
+    quels (Vercel a été écarté : PHP y tourne en fonctions sans disque persistant, sans MySQL ni processus permanent).
+    La mise en ligne est assurée par Ala, responsable de l’intégration.
   </p>
+</section>
+
+<section class="garder">
+  <h3 style="margin-top:0">Architecture de production sur Railway</h3>
+  <div class="figure">
+    <svg viewBox="0 0 900 250" role="img" aria-label="Architecture de production RETISS sur Railway">
+      <defs>
+        <marker id="flr" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6573"/></marker>
+      </defs>
+      <rect x="230" y="12" width="660" height="226" rx="8" fill="#f4f0fe" stroke="#7c3aed" stroke-dasharray="5 4"/>
+      <text x="245" y="32" font-size="12" font-weight="700" fill="#7c3aed">Projet Railway « retiss » · environnement production · réseau privé *.railway.internal</text>
+
+      <g font-size="12" text-anchor="middle">
+        <rect x="10" y="95" width="170" height="64" rx="6" fill="#fff" stroke="#1c2430" stroke-width="1.5"/>
+        <text x="95" y="120" font-weight="700">Navigateur</text>
+        <text x="95" y="138" font-size="10" fill="#5b6573">retiss-production</text>
+        <text x="95" y="151" font-size="10" fill="#5b6573">.up.railway.app</text>
+
+        <rect x="260" y="60" width="290" height="150" rx="6" fill="#fff" stroke="#7c3aed" stroke-width="2"/>
+        <text x="405" y="82" font-weight="700" fill="#7c3aed">retiss (image docker/railway)</text>
+        <text x="405" y="102" font-size="10.5">supervisord : Nginx :${PORT} · PHP-FPM · file de tâches</text>
+        <text x="405" y="120" font-size="10.5" fill="#5b6573">démarrage : attente MySQL → migrations</text>
+        <text x="405" y="135" font-size="10.5" fill="#5b6573">→ seed de démo (base vide) → optimize</text>
+        <text x="405" y="153" font-size="10.5" fill="#5b6573">santé /nginx-health · arrêt propre (SIGTERM)</text>
+        <rect x="290" y="168" width="230" height="30" rx="4" fill="#fbf7e9" stroke="#b45309"/>
+        <text x="405" y="188" font-size="10.5" fill="#b45309">volume : storage/app/public (photos)</text>
+
+        <rect x="610" y="55" width="260" height="70" rx="6" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+        <text x="740" y="80" font-weight="700" fill="#2563eb">MySQL géré (+ volume)</text>
+        <text x="740" y="100" font-size="10.5" fill="#5b6573">mysql.railway.internal:3306</text>
+        <text x="740" y="115" font-size="10" fill="#5b6573">variables de référence ${{MySQL.*}}</text>
+
+        <rect x="610" y="145" width="260" height="70" rx="6" fill="#fff" stroke="#15803d" stroke-width="2"/>
+        <text x="740" y="170" font-weight="700" fill="#15803d">ai (FastAPI, IA M4)</text>
+        <text x="740" y="190" font-size="10.5" fill="#5b6573">ai.railway.internal:8001 · privé</text>
+        <text x="740" y="205" font-size="10" fill="#5b6573">socket IPv4 + IPv6</text>
+      </g>
+      <g stroke="#5b6573" stroke-width="1.5" fill="none" marker-end="url(#flr)">
+        <path d="M180 127 H258"/>
+        <path d="M550 100 H608"/>
+        <path d="M550 175 H608"/>
+      </g>
+      <g font-size="10" fill="#5b6573" text-anchor="middle">
+        <text x="219" y="120">HTTPS</text>
+        <text x="579" y="94">SQL</text>
+        <text x="579" y="169">HTTP</text>
+      </g>
+    </svg>
+    <div class="legende">Figure 4 — Production sur Railway : un conteneur tout-en-un (Railway ne partage pas de volume entre services), MySQL et l’IA en réseau privé</div>
+  </div>
+  <table class="serre">
+    <tr><th style="width:30%">Vérification en production</th><th>Résultat</th></tr>
+    <tr><td>Tests de fumée (<code>smoke.sh</code> sur l’URL publique)</td><td><b>11 / 11</b> : pages publiques, connexion et redirection par rôle, métriques protégées, base et IA joignables</td></tr>
+    <tr><td>6 comptes de démonstration</td><td>chacun arrive sur son tableau de bord, aucune erreur 500 ; un client reçoit 403 sur l’administration</td></tr>
+    <tr><td>Photo de profil</td><td>envoyée, servie en https, toujours présente après un redémarrage du service (volume)</td></tr>
+    <tr><td>Authentification</td><td>vérification d’e-mail par lien signé, mot de passe oublié, double authentification TOTP et code de récupération</td></tr>
+  </table>
 </section>
 
 <!-- ============================== 4. Architecture ============================== -->
@@ -467,7 +525,7 @@ jobs:
         <rect x="545" y="282" width="10" height="10" fill="#fdf6ec" stroke="#b45309"/><text x="560" y="291">supervision</text>
       </g>
     </svg>
-    <div class="legende">Figure 4 — Conteneurs de la plateforme (bleu) et de la supervision (orange)</div>
+    <div class="legende">Figure 5 — Conteneurs de la plateforme (bleu) et de la supervision (orange)</div>
   </div>
 
   <table>
@@ -488,11 +546,11 @@ jobs:
   </p>
   <div class="figure">
     <img src="img/grafana-tableau-de-bord.jpg" alt="Tableau de bord Grafana RETISS">
-    <div class="legende">Figure 5 — Tableau de bord Grafana « RETISS — Plateforme », chargé automatiquement au démarrage</div>
+    <div class="legende">Figure 6 — Tableau de bord Grafana « RETISS — Plateforme », chargé automatiquement au démarrage</div>
   </div>
   <div class="figure">
     <img src="img/prometheus-cibles.png" alt="Cibles Prometheus toutes en état UP">
-    <div class="legende">Figure 6 — Les quatre sources collectées par Prometheus sont en état UP</div>
+    <div class="legende">Figure 7 — Les quatre sources collectées par Prometheus sont en état UP</div>
   </div>
   <table class="garder">
     <tr><th style="width:32%">Alerte</th><th>Condition</th></tr>
@@ -515,7 +573,7 @@ jobs:
   </p>
   <div class="figure">
     <img src="img/github-execution.png" alt="Exécution verte du pipeline CI/CD sur GitHub Actions">
-    <div class="legende">Figure 7 — Exécution réussie du pipeline : chaque job est validé avant le suivant (le déploiement reste désactivé tant que l’hébergement n’est pas branché)</div>
+    <div class="legende">Figure 8 — Exécution réussie du pipeline : chaque job est validé avant le suivant (capture antérieure à l’activation du déploiement Railway, d’où le job Déploiement ignoré)</div>
   </div>
 
   <h3>Ce que la CI a détecté dès ses premières exécutions</h3>
@@ -532,7 +590,7 @@ jobs:
   </table>
   <div class="figure">
     <img style="width:60%;margin:0 auto" src="img/github-historique.png" alt="Historique des exécutions du pipeline">
-    <div class="legende">Figure 8 — Historique des exécutions : trois échecs corrigés, puis un pipeline vert</div>
+    <div class="legende">Figure 9 — Historique des exécutions : trois échecs corrigés, puis un pipeline vert</div>
   </div>
 </section>
 
@@ -541,26 +599,20 @@ jobs:
   <h2>7. Résultats obtenus</h2>
   <div class="chiffres">
     <div class="chiffre"><b>4 min</b><span>pipeline CI complet sur GitHub, 4 jobs verts</span></div>
-    <div class="chiffre"><b>360</b><span>tests PHPUnit réussis (1 505 assertions)</span></div>
-    <div class="chiffre"><b>11 / 11</b><span>tests de fumée sur la pile Docker</span></div>
+    <div class="chiffre"><b>409</b><span>tests PHPUnit réussis (1 775 assertions)</span></div>
+    <div class="chiffre"><b>11 / 11</b><span>tests de fumée, en local et en production</span></div>
     <div class="chiffre"><b>25</b><span>pages vérifiées pour les 6 rôles</span></div>
     <div class="chiffre"><b>4 / 4</b><span>cibles Prometheus en état UP</span></div>
   </div>
-  <pre>$ docker compose up -d --build --wait
- Container retiss-db-1       <span class="ok">Healthy</span>
- Container retiss-ai-1       <span class="ok">Healthy</span>
- Container retiss-app-1      <span class="ok">Healthy</span>
- Container retiss-web-1      <span class="ok">Healthy</span>
-
-$ bash devops/ci/smoke.sh http://localhost:8088
-== Tests de fumée sur http://localhost:8088
+  <pre>$ METRICS_TOKEN=… bash devops/ci/smoke.sh https://retiss-production.up.railway.app
+== Tests de fumée sur https://retiss-production.up.railway.app
   <span class="ok">[OK]</span>    GET / -> 200
   <span class="ok">[OK]</span>    GET /login -> 200
   <span class="ok">[OK]</span>    GET /register -> 200
   <span class="ok">[OK]</span>    GET /forgot-password -> 200
   <span class="ok">[OK]</span>    GET /nginx-health -> 200
   <span class="ok">[OK]</span>    GET /dashboard sans session -> 302
-  <span class="ok">[OK]</span>    connexion admin -> http://localhost:8088/admin/users
+  <span class="ok">[OK]</span>    connexion admin -> https://retiss-production.up.railway.app/admin/users
   <span class="ok">[OK]</span>    GET /admin/users connecté -> 200
   <span class="ok">[OK]</span>    GET /api/metrics sans jeton -> 401
   <span class="ok">[OK]</span>    métrique 'retiss_base_disponible 1'
@@ -573,13 +625,16 @@ $ bash devops/ci/smoke.sh http://localhost:8088
     <li><b>Tests échouant après l’intégration</b> : la fabrique d’utilisateurs ne fixait pas le rôle, ce qui faisait refuser l’accès par le middleware des rôles. Corrigé dans la fabrique, détecté par la suite de tests lancée à l’intégration.</li>
     <li><b>Problèmes révélés par la CI</b> : dépendance d’un test à la configuration locale, action GitHub retirée, variable perdue entre deux étapes (détail en section 6).</li>
     <li><b>Vulnérabilité de dépendance</b> : <code>composer audit</code> signale un avis de sécurité sur <code>symfony/mime</code>, suivi dans le pipeline.</li>
+    <li><b>Mise à jour d’une base existante</b> : après l’ajout des rôles Spatie, un administrateur d’une base déjà remplie recevait une erreur 403. Les rôles et permissions sont désormais créés par une migration, appliquée à chaque déploiement.</li>
+    <li><b>Réseau privé Railway</b> : le service IA n’écoutait qu’en IPv4 ; il ouvre maintenant une socket IPv4 + IPv6, valable pour Docker Compose comme pour Railway.</li>
   </ul>
 
   <h3>Lancer le projet</h3>
   <pre>cp .env.example .env && php artisan key:generate       # clé locale, jamais versionnée
 docker compose up -d --build --wait                      # application  http://localhost:8088
 docker compose --profile monitoring up -d                # Grafana      http://localhost:3000
-bash devops/ci/smoke.sh                                  # vérification</pre>
+bash devops/ci/smoke.sh                                  # vérification
+git push origin integration                              # CI verte → déploiement Railway</pre>
   <p>La documentation complète (variables, activation du déploiement, dépannage) se trouve dans <code>docs/devops/README.md</code>.</p>
 </section>
 
