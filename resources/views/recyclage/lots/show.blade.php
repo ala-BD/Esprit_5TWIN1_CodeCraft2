@@ -190,12 +190,6 @@
                                 État : {{ $lot->donVetement->etat }}
                                 @if($lot->donVetement->taille) | Taille : {{ $lot->donVetement->taille }} @endif
                             </p>
-                            @if($lot->donVetement->pointCollecte)
-                            <p class="text-emerald-400 text-xs mt-1">
-                                <i class="fas fa-map-marker-alt mr-1"></i>
-                                {{ $lot->donVetement->pointCollecte->nom }}
-                            </p>
-                            @endif
                         </div>
                         <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg">RECYCLÉ</span>
                     </div>
@@ -234,7 +228,6 @@
                             @foreach($donsDisponibles as $don)
                                 <option value="{{ $don->id }}">
                                     Don n°{{ $don->id }} — {{ $don->type }}, {{ $don->matiere }} ({{ $don->etat }})
-                                    @if($don->pointCollecte) | {{ $don->pointCollecte->nom }} @endif
                                 </option>
                             @endforeach
                         </select>

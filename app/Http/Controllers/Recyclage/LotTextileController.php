@@ -271,7 +271,6 @@ class LotTextileController extends Controller
         // Dons disponibles pour rattachement (EN_TRI, pas encore liés à un lot)
         $donsDisponibles = \App\Models\DonVetement::where('statut', 'EN_TRI')
             ->whereDoesntHave('lotTextile')
-            ->with('pointCollecte')
             ->latest()
             ->get();
 
@@ -425,13 +424,11 @@ class LotTextileController extends Controller
     {
         $dons = \App\Models\DonVetement::where('statut', 'EN_TRI')
             ->whereDoesntHave('lotTextile')
-            ->with('pointCollecte')
             ->latest()
             ->get()
             ->map(fn($d) => [
                 'id'     => $d->id,
                 'label'  => "Don n°{$d->id} — {$d->type}, {$d->matiere} ({$d->etat})",
-                'point'  => $d->pointCollecte?->nom ?? 'N/A',
                 'date'   => $d->date_depot?->format('d/m/Y'),
             ]);
 
