@@ -159,6 +159,12 @@ class User extends Authenticatable
         return $this->hasMany(Commande::class);
     }
 
+    /** Dernière position GPS envoyée par le collecteur (M5) */
+    public function dernierePosition(): HasOne
+    {
+        return $this->hasOne(PositionCollecteur::class)->latestOfMany('enregistree_le');
+    }
+
     /** Tournées effectuées par le collecteur (M5) */
     public function tournees(): HasMany
     {

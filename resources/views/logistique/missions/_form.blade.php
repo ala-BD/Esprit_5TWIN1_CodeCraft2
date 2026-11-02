@@ -1,4 +1,4 @@
-{{-- Champs partagés création / édition — attend $mission, $dons --}}
+{{-- Champs partagés création / édition — attend $mission, $dons, $commandes, $adressesLiees --}}
 @php
     $inputClass = fn (string $champ) => 'a-input' . ($errors->has($champ) ? ' invalid' : '');
 @endphp
@@ -33,8 +33,8 @@
                 @error('type') <p class="a-error">{{ $message }}</p> @enderror
             </div>
 
-            {{-- Don lié --}}
-            <div>
+            {{-- Don lié (collecte) --}}
+            <div data-lien="COLLECTE">
                 <label for="don_vetement_id" class="a-label">Don à collecter <span class="text-slate-400 font-normal">(facultatif)</span></label>
                 @include('admin.partials.select', [
                     'name'     => 'don_vetement_id',
@@ -45,12 +45,34 @@
                 @error('don_vetement_id') <p class="a-error">{{ $message }}</p> @enderror
             </div>
 
+            {{-- Commande liée (livraison) --}}
+            <div data-lien="LIVRAISON">
+                <label for="commande_id" class="a-label">Commande à livrer <span class="text-slate-400 font-normal">(facultatif)</span></label>
+                @include('admin.partials.select', [
+                    'name'     => 'commande_id',
+                    'invalid'  => $errors->has('commande_id'),
+                    'selected' => old('commande_id', $mission->commande_id),
+                    'options'  => $commandes,
+                ])
+                @error('commande_id') <p class="a-error">{{ $message }}</p> @enderror
+            </div>
+
             {{-- Adresse --}}
             <div class="sm:col-span-2">
-                <label for="adresse" class="a-label">Adresse</label>
+                <label for="adresse" class="a-label">Adresse <span class="text-slate-400 font-normal" id="adresse-aide"></span></label>
                 <input type="text" id="adresse" name="adresse" value="{{ old('adresse', $mission->adresse) }}"
                        placeholder="12 rue de Marseille, Tunis" autocomplete="off" class="{{ $inputClass('adresse') }}">
                 @error('adresse') <p class="a-error">{{ $message }}</p> @enderror
+                @if($mission->exists)
+                    <p class="a-hint">
+                        @if($mission->estLocalisee())
+                            <i class="fas fa-location-dot text-emerald-600"></i> Localisée
+                            ({{ ['COMMANDE' => "adresse de la commande", 'DONATEUR' => 'adresse du donateur', 'GEOCODAGE' => 'trouvée sur la carte', 'MANUELLE' => 'saisie à la main'][$mission->source_localisation] ?? 'source inconnue' }}).
+                        @else
+                            <i class="fas fa-triangle-exclamation text-amber-600"></i> Adresse introuvable sur la carte : précisez la ville ou le quartier.
+                        @endif
+                    </p>
+                @endif
             </div>
         </div>
     </section>
@@ -112,3 +134,43 @@
         </div>
     </section>
 </div>
+
+<script>
+    // Le don ne concerne qu'une collecte et la commande qu'une livraison : on affiche le bon champ,
+    // et l'adresse se remplit toute seule depuis ce qui est lié.
+    (function () {
+        const adresses = @json($adressesLiees);
+        const type     = document.querySelector('input[name="type"]');
+        const adresse  = document.getElementById('adresse');
+        const aide     = document.getElementById('adresse-aide');
+        const liens    = { COLLECTE: ['don_vetement_id', 'don'], LIVRAISON: ['commande_id', 'commande'] };
+
+        function champ(nom) { return document.querySelector('input[name="' + nom + '"]'); }
+
+        function lienActif() {
+            const [nom, cle] = liens[type.value] || [];
+            const input = nom ? champ(nom) : null;
+            return input && input.value ? (adresses[cle] || {})[input.value] || '' : '';
+        }
+
+        function appliquer() {
+            document.querySelectorAll('[data-lien]').forEach(function (bloc) {
+                const visible = bloc.dataset.lien === type.value;
+                bloc.hidden = !visible;
+                // Un champ masqué n'est pas envoyé : un don ne part jamais avec une livraison
+                bloc.querySelectorAll('input[type="hidden"]').forEach(i => i.disabled = !visible);
+            });
+            aide.textContent = lienActif() ? "(reprise de l'élément lié, modifiable)" : '';
+        }
+
+        function lienChange() {
+            const proposee = lienActif();
+            if (proposee) adresse.value = proposee;
+            appliquer();
+        }
+
+        type.addEventListener('change', appliquer);
+        Object.values(liens).forEach(([nom]) => champ(nom).addEventListener('change', lienChange));
+        appliquer();
+    })();
+</script>

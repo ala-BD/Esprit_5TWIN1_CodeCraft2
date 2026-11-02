@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Logistique;
 
 use App\Http\Controllers\Controller;
+use App\Models\Commande;
 use App\Models\DonVetement;
 use App\Models\Mission;
 use App\Models\Tournee;
@@ -32,7 +33,7 @@ class MissionController extends Controller
         return view('logistique.missions.create', [
             'tournee' => $tournee,
             'mission' => $mission,
-            'dons'    => $this->donOptions(),
+            ...$this->options(),
         ]);
     }
 
@@ -64,7 +65,7 @@ class MissionController extends Controller
         return view('logistique.missions.edit', [
             'tournee' => $mission->tournee,
             'mission' => $mission,
-            'dons'    => $this->donOptions(),
+            ...$this->options($mission),
         ]);
     }
 
@@ -77,7 +78,7 @@ class MissionController extends Controller
     {
         $this->autoriser($mission->tournee);
 
-        $mission->update($this->valider($request));
+        $mission->update($this->valider($request, $mission));
 
         return redirect()
             ->route('logistique.tournees.show', $mission->tournee)
@@ -107,12 +108,48 @@ class MissionController extends Controller
         abort_if($tournee->user_id !== Auth::id(), 403, 'Accès non autorisé.');
     }
 
-    /** Dons proposés dans la liste déroulante : id => libellé */
-    private function donOptions(): array
+    /**
+     * Commandes à livrer et dons à collecter qui ne sont pas déjà pris en charge
+     * par une autre mission active.
+     */
+    private function options(?Mission $mission = null): array
     {
-        return ['' => 'Aucun don lié'] + DonVetement::latest()->take(100)->get()
-            ->mapWithKeys(fn (DonVetement $don) => [$don->id => "Don n° {$don->id} — {$don->type}, {$don->matiere}"])
-            ->all();
+        $dejaPris = fn (string $colonne) => Mission::whereNotNull($colonne)
+            ->where('statut', '!=', Mission::STATUT_ECHOUEE)
+            ->when($mission, fn ($q) => $q->where('id', '!=', $mission->id))
+            ->pluck($colonne);
+
+        $commandes = Commande::with(['user', 'adresse'])
+            ->whereIn('statut', [Commande::STATUT_EN_ATTENTE, Commande::STATUT_CONFIRMEE, Commande::STATUT_EN_PREPARATION, Commande::STATUT_EXPEDIEE])
+            ->whereNotIn('id', $dejaPris('commande_id'))
+            ->latest('date_commande')->limit(100)->get();
+
+        $dons = DonVetement::with('user.adresseParDefaut')
+            ->where('statut', 'DEPOSE')
+            ->whereNotIn('id', $dejaPris('don_vetement_id'))
+            ->latest()->limit(100)->get();
+
+        // La valeur actuelle reste proposée même si elle ne remplit plus les critères
+        if ($mission?->commande_id && !$commandes->contains('id', $mission->commande_id) && $mission->commande) {
+            $commandes->prepend($mission->commande->load(['user', 'adresse']));
+        }
+        if ($mission?->don_vetement_id && !$dons->contains('id', $mission->don_vetement_id) && $mission->donVetement) {
+            $dons->prepend($mission->donVetement->load('user.adresseParDefaut'));
+        }
+
+        return [
+            'commandes' => ['' => 'Aucune commande liée'] + $commandes->mapWithKeys(fn (Commande $c) => [
+                $c->id => "{$c->numero} — {$c->user?->full_name}" . ($c->adresse?->ville ? ", {$c->adresse->ville}" : ''),
+            ])->all(),
+            'dons' => ['' => 'Aucun don lié'] + $dons->mapWithKeys(fn (DonVetement $d) => [
+                $d->id => "Don n° {$d->id} — {$d->type}, {$d->user?->full_name}" . ($d->user?->adresseParDefaut?->ville ? ", {$d->user->adresseParDefaut->ville}" : ''),
+            ])->all(),
+            // Adresses proposées dans le formulaire quand on lie une commande ou un don
+            'adressesLiees' => [
+                'commande' => $commandes->mapWithKeys(fn (Commande $c) => [$c->id => $c->adresse?->formatted_address ?? (string) $c->adresse_snapshot])->all(),
+                'don'      => $dons->mapWithKeys(fn (DonVetement $d) => [$d->id => (string) $d->user?->adresseParDefaut?->formatted_address])->all(),
+            ],
+        ];
     }
 
     /*
@@ -120,22 +157,29 @@ class MissionController extends Controller
     | Validation commune création / édition
     |------------------------------------------------------------------
     */
-    private function valider(Request $request): array
+    private function valider(Request $request, ?Mission $mission = null): array
     {
-        return $request->validate(self::regles(), self::MESSAGES);
+        return $request->validate(self::regles($mission), self::MESSAGES);
     }
 
     /** Règles de validation, partagées avec l'assistant vocal */
-    public static function regles(): array
+    public static function regles(?Mission $mission = null): array
     {
+        // Une commande ou un don ne peut être pris en charge que par une seule mission active
+        $libre = fn (string $colonne) => Rule::unique('missions', $colonne)
+            ->ignore($mission)
+            ->where(fn ($q) => $q->where('statut', '!=', Mission::STATUT_ECHOUEE));
+
         return [
             'type'             => ['required', Rule::in(array_keys(Mission::TYPES))],
-            'adresse'          => ['required', 'string', 'max:255'],
+            // Facultative quand une commande ou un don est lié : on reprend son adresse
+            'adresse'          => ['nullable', 'required_without_all:commande_id,don_vetement_id', 'string', 'max:255'],
             'ordre'            => ['required', 'integer', 'min:1', 'max:999'],
             'heure_prevue'     => ['required', 'date_format:H:i'],
             'statut'           => ['required', Rule::in(array_keys(Mission::STATUTS))],
             'preuve_livraison' => ['nullable', 'string', 'max:255'],
-            'don_vetement_id'  => ['nullable', 'integer', 'exists:don_vetements,id'],
+            'don_vetement_id'  => ['nullable', 'integer', 'exists:don_vetements,id', 'prohibited_unless:type,' . Mission::TYPE_COLLECTE, $libre('don_vetement_id')],
+            'commande_id'      => ['nullable', 'integer', 'exists:commandes,id', 'prohibited_unless:type,' . Mission::TYPE_LIVRAISON, $libre('commande_id')],
         ];
     }
 
@@ -143,7 +187,7 @@ class MissionController extends Controller
     public const MESSAGES = [
         'type.required'            => 'Le type de mission est obligatoire.',
         'type.in'                  => 'Le type sélectionné est invalide.',
-        'adresse.required'         => "L'adresse est obligatoire.",
+        'adresse.required_without_all' => "L'adresse est obligatoire si aucune commande ni aucun don n'est lié.",
         'ordre.required'           => "L'ordre de passage est obligatoire.",
         'ordre.integer'            => "L'ordre de passage doit être un nombre entier.",
         'ordre.min'                => "L'ordre de passage commence à 1.",
@@ -152,5 +196,10 @@ class MissionController extends Controller
         'statut.required'          => 'Le statut est obligatoire.',
         'statut.in'                => 'Le statut sélectionné est invalide.',
         'don_vetement_id.exists'   => "Le don sélectionné n'existe pas.",
+        'don_vetement_id.prohibited_unless' => 'Un don se lie uniquement à une collecte.',
+        'don_vetement_id.unique'   => 'Ce don est déjà pris en charge par une autre mission.',
+        'commande_id.exists'       => "La commande sélectionnée n'existe pas.",
+        'commande_id.prohibited_unless' => 'Une commande se lie uniquement à une livraison.',
+        'commande_id.unique'       => 'Cette commande est déjà prise en charge par une autre mission.',
     ];
 }

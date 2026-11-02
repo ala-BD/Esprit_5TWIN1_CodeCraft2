@@ -223,6 +223,18 @@
                 Statistiques
             </a>
 
+            <a href="{{ route('admin.logistique.index') }}"
+               class="a-nav-link {{ request()->routeIs('admin.logistique.*') && !request()->routeIs('admin.logistique.previsions') ? 'active' : '' }}">
+                <i class="fas fa-route"></i>
+                Logistique
+            </a>
+
+            <a href="{{ route('admin.logistique.previsions') }}"
+               class="a-nav-link {{ request()->routeIs('admin.logistique.previsions') ? 'active' : '' }}">
+                <i class="fas fa-chart-line"></i>
+                Prévisions des dons
+            </a>
+
             @show
 
             <p class="px-2.5 pt-5 pb-1.5 text-xs text-white/35">Marketplace</p>
@@ -292,6 +304,11 @@
                 <span class="hidden sm:inline">@yield('espace-nom', 'Administration')</span>
                 @yield('breadcrumb')
             </nav>
+
+            {{-- Centre de notifications commun à tous les modules --}}
+            <div class="ml-auto">
+                @include('components.notifications-cloche')
+            </div>
         </header>
 
         <main class="px-4 lg:px-5 py-5">
@@ -429,6 +446,7 @@
             input.value = option.dataset.value;
             label.textContent = option.textContent.trim();
             close();
+            if (changed) input.dispatchEvent(new Event('change', { bubbles: true }));
             if (changed && root.hasAttribute('data-submit')) input.form.submit();
         }
 

@@ -202,6 +202,10 @@ class Interpreteur
         - "deactivate / disable / block / suspend / désactive / bloque" → actif=false. "activate / enable / réactive" → actif=true.
         - To target an existing user, find them in the USER DIRECTORY and pass their `utilisateur_id`. Speech recognition mangles names ("Kareem Mansoori" is Karim Mansouri): pick the closest directory entry. Only if two entries fit equally well, ask which one, naming both.
         - Creating a user needs first name, last name and email. If the email is missing, ask for it. Never ask for a phone, a role or a password.
+        - "Where is X?", "how are the rounds going?", "who is late?" → answer from LOGISTICS TODAY. Describe a position by the nearest stop given there; never invent street names.
+        - "How many donations next week?", "what does the forecast say?" → answer from DONATION FORECAST, with the range. Say it is a forecast.
+        - "Assign / dispatch / répartis les commandes et les dons (de demain)" → repartir_automatiquement (date = tomorrow if not said).
+        - Pages: logistics overview → logistique, live map → carte_en_direct, assignment proposal → repartition, forecast → previsions.
         TXT : <<<'TXT'
         - Mission type: pickup/collect/collection/collecte/ramassage/récupérer → COLLECTE. delivery/deliver/drop-off/livraison/livrer → LIVRAISON.
         - Mission status: to do/à faire → A_FAIRE, in progress/started/en cours → EN_COURS, done/finished/completed/terminée/faite → TERMINEE, failed/missed/absent/échouée → ECHOUEE.
@@ -212,6 +216,9 @@ class Interpreteur
         - Adding a mission needs a type, an address and a time. The round's zone is NOT a field of a mission: never ask for a zone when adding a mission. Never ask for a stop number or a status; "make it last" / "at the end" means leave `ordre` empty.
         - Creating a round needs a date, a zone and a vehicle. If the vehicle is missing and earlier rounds used one, reuse the most recent vehicle.
         - "Mark mission 2 as done", "stop 3 failed, customer absent" → modifier_mission with statut (and preuve_livraison for the reason or proof).
+        - "Optimise / reorder my round", "find the shortest route", "optimise ma tournée" → optimiser_tournee.
+        - "Start my round", "drive mode", "lance la tournée", "mode tournée" → ouvrir_mode_tournee.
+        - "What's my next stop?", "what is left today?" → answer from ROUNDS.
         TXT;
 
         return <<<TXT
@@ -253,6 +260,7 @@ class Interpreteur
         - Reply in {$reponse}, whatever language the user or the data is in. Plain text that sounds natural read aloud: no lists, no markdown, no symbols.
         - A question or a remark about an action: one or two short sentences. An answer about the data: FOUR sentences at most, in a single paragraph with no line breaks, no dashes and no bullet points.
         - Never say an internal number: no "#2", no "round 2" for a round. Name a round by its zone and date, a user by their name.
+        - Say durations over an hour in hours and minutes ("9 h 22", "9 hours 22 minutes"), never as a large number of minutes.
         - Say roles and statuses in plain words in the reply language ("recyclers", "in progress", "collecteurs", "terminée").
         - Never show internal codes or parameter names (COLLECTE, A_FAIRE, tournee_id, HH:MM…). Say "pickup or delivery", "the time", "the round".
         - Do not announce what you are about to do and do not ask for confirmation: the app shows a confirmation card itself.

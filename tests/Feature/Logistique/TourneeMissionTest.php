@@ -237,7 +237,12 @@ class TourneeMissionTest extends TestCase
             ->post("/logistique/tournees/{$tournee->id}/missions", $this->missionPayload([
                 'type' => 'RAMASSAGE', 'adresse' => '', 'ordre' => 0, 'heure_prevue' => '25h', 'statut' => 'PERDUE', 'don_vetement_id' => 999,
             ]))
-            ->assertSessionHasErrors(['type', 'adresse', 'ordre', 'heure_prevue', 'statut', 'don_vetement_id']);
+            ->assertSessionHasErrors(['type', 'ordre', 'heure_prevue', 'statut', 'don_vetement_id']);
+
+        // Sans commande ni don lié, l'adresse est obligatoire
+        $this->actingAs($user)
+            ->post("/logistique/tournees/{$tournee->id}/missions", $this->missionPayload(['adresse' => '']))
+            ->assertSessionHasErrors(['adresse']);
 
         $this->assertSame(0, Mission::count());
     }

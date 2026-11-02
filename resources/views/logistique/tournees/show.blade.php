@@ -14,6 +14,10 @@
 @php
     $missions  = $tournee->missions;
     $terminees = $missions->where('statut', \App\Models\Mission::STATUT_TERMINEE)->count();
+    $restants  = $missions->whereIn('statut', [\App\Models\Mission::STATUT_A_FAIRE, \App\Models\Mission::STATUT_EN_COURS])->count();
+    $arretsCarte = $missions->filter->estLocalisee()->map(fn ($m) => [
+        'lat' => $m->latitude, 'lng' => $m->longitude, 'ordre' => $m->ordre, 'statut' => $m->statut, 'adresse' => $m->adresse, 'heure' => $m->heure,
+    ])->values();
 @endphp
 
 {{-- Header --}}
@@ -36,7 +40,20 @@
                 <i class="fas fa-trash-can"></i> Supprimer
             </button>
         </form>
-        <a href="{{ route('logistique.tournees.edit', $tournee) }}" class="a-btn a-btn-primary">
+        @if($restants > 0)
+            <a href="{{ route('logistique.tournees.conduite', $tournee) }}" class="a-btn a-btn-primary">
+                <i class="fas fa-mobile-screen"></i> Mode tournée
+            </a>
+        @endif
+        @if($restants >= 2)
+            <a href="{{ route('logistique.tournees.optimisation', $tournee) }}" class="a-btn">
+                <i class="fas fa-wand-magic-sparkles"></i> Optimiser l'itinéraire
+            </a>
+        @endif
+        <a href="{{ route('logistique.tournees.feuille-de-route', $tournee) }}" class="a-btn" title="Feuille de route imprimable (PDF)">
+            <i class="fas fa-print"></i> <span class="hidden xl:inline">Feuille de route</span>
+        </a>
+        <a href="{{ route('logistique.tournees.edit', $tournee) }}" class="a-btn">
             <i class="fas fa-pen"></i> Modifier
         </a>
     </div>
@@ -63,6 +80,18 @@
         </div>
     </dl>
 </div>
+
+{{-- Carte des arrêts --}}
+@if($arretsCarte->isNotEmpty())
+    <div class="a-card overflow-hidden mb-4">
+        <div id="carte-tournee" class="cr-carte" style="height: 300px;"></div>
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2 border-t border-slate-200 text-xs text-slate-600">
+            @foreach(\App\Models\Mission::STATUTS as $code => $statut)
+                <span class="flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-full" data-couleur-statut="{{ $code }}"></span> {{ $statut['label'] }}</span>
+            @endforeach
+        </div>
+    </div>
+@endif
 
 {{-- ===== Missions de la tournée ===== --}}
 <div class="a-card">
@@ -91,7 +120,7 @@
                         <th>Heure</th>
                         <th>Type</th>
                         <th>Adresse</th>
-                        <th>Don lié</th>
+                        <th>Lié à</th>
                         <th>Preuve</th>
                         <th>Statut</th>
                         <th class="w-px"><span class="sr-only">Actions</span></th>
@@ -105,9 +134,27 @@
                         <td class="text-slate-700">
                             <i class="fas {{ $mission->type === \App\Models\Mission::TYPE_COLLECTE ? 'fa-box-open' : 'fa-truck' }} text-slate-400 text-xs mr-1.5"></i>{{ $mission->type_label }}
                         </td>
-                        <td class="text-slate-700" style="white-space: normal; min-width: 220px;">{{ $mission->adresse }}</td>
-                        <td class="num text-slate-600">{{ $mission->donVetement ? 'Don n° ' . $mission->donVetement->id : '—' }}</td>
-                        <td class="text-slate-600">{{ $mission->preuve_livraison ?: '—' }}</td>
+                        <td class="text-slate-700" style="white-space: normal; min-width: 220px;">
+                            {{ $mission->adresse }}
+                            @unless($mission->estLocalisee())
+                                <span class="block text-xs text-amber-700 mt-0.5"><i class="fas fa-triangle-exclamation"></i> Introuvable sur la carte</span>
+                            @endunless
+                        </td>
+                        <td class="num text-slate-600">
+                            @if($mission->commande)
+                                Commande {{ $mission->commande->numero }}
+                            @elseif($mission->donVetement)
+                                Don n° {{ $mission->donVetement->id }}
+                            @else
+                                —
+                            @endif
+                        </td>
+                        <td class="text-slate-600" style="white-space: normal;">
+                            {{ $mission->preuve_livraison ?: '—' }}
+                            @if($mission->photo_preuve)
+                                <a href="{{ asset('storage/' . $mission->photo_preuve) }}" target="_blank" rel="noopener" class="block text-xs text-primary-dark mt-0.5"><i class="fas fa-camera"></i> Photo</a>
+                            @endif
+                        </td>
                         <td>@include('logistique.partials.statut-badge', ['badge' => $mission->statut_badge])</td>
                         <td>
                             <div class="flex items-center justify-end gap-0.5">
@@ -133,4 +180,27 @@
     @endif
 </div>
 
+@endsection
+
+@section('styles')
+@include('logistique.partials.carte', ['partie' => 'styles'])
+@endsection
+
+@section('scripts')
+@include('logistique.partials.carte', ['partie' => 'scripts'])
+<script>
+    (function () {
+        const arrets = @json($arretsCarte);
+        if (!window.CarteRetiss || !arrets.length) return;
+
+        document.querySelectorAll('[data-couleur-statut]').forEach(e => e.style.background = CarteRetiss.COULEURS[e.dataset.couleurStatut]);
+
+        const carte = CarteRetiss.creer('carte-tournee');
+        const depot = @json(['lat' => config('logistique.depot.latitude'), 'lng' => config('logistique.depot.longitude'), 'nom' => config('logistique.depot.nom')]);
+        CarteRetiss.depot(carte, depot);
+        CarteRetiss.trace(carte, [depot, ...arrets]);
+        arrets.forEach(a => CarteRetiss.arret(carte, a));
+        carte.fitBounds([[depot.lat, depot.lng], ...arrets.map(a => [a.lat, a.lng])], { padding: [30, 30] });
+    })();
+</script>
 @endsection

@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Controllers\Admin\ParametreCoutController;
+use App\Http\Controllers\Admin\PrevisionController as AdminPrevisionController;
+use App\Http\Controllers\Admin\AffectationController as AdminAffectationController;
+use App\Http\Controllers\Admin\LogistiqueController as AdminLogistiqueController;
 use App\Http\Controllers\Admin\StatistiqueController as AdminStatistiqueController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AdresseController;
@@ -12,7 +15,10 @@ use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DonVetementController;
 use App\Http\Controllers\FavoriController;
+use App\Http\Controllers\Logistique\ConduiteController;
+use App\Http\Controllers\Logistique\FeuilleDeRouteController;
 use App\Http\Controllers\Logistique\MissionController;
+use App\Http\Controllers\Logistique\OptimisationController;
 use App\Http\Controllers\Logistique\TourneeController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaiementController;
@@ -374,6 +380,16 @@ Route::middleware(['auth'])->group(function () {
         // Statistiques
         Route::get('statistiques', [AdminStatistiqueController::class, 'index'])
             ->name('statistiques');
+
+        // Logistique (M5) : supervision des tournées de tous les collecteurs
+        Route::get('logistique', [AdminLogistiqueController::class, 'index'])->name('logistique.index');
+        Route::get('logistique/tournees/{tournee}', [AdminLogistiqueController::class, 'show'])->name('logistique.show');
+        Route::get('logistique/carte', [AdminLogistiqueController::class, 'carte'])->name('logistique.carte');
+        Route::get('logistique/tournees/{tournee}/feuille-de-route', [FeuilleDeRouteController::class, 'admin'])->name('logistique.feuille-de-route');
+        Route::get('logistique/affectation', [AdminAffectationController::class, 'show'])->name('logistique.affectation');
+        Route::get('logistique/previsions', [AdminPrevisionController::class, 'index'])->name('logistique.previsions');
+        Route::post('logistique/affectation', [AdminAffectationController::class, 'store'])->name('logistique.affectation.appliquer');
+        Route::get('logistique/carte/donnees', [AdminLogistiqueController::class, 'donneesCarte'])->name('logistique.carte.donnees');
     });
 
     /*
@@ -385,6 +401,16 @@ Route::middleware(['auth'])->group(function () {
 
         // CRUD Tournées
         Route::resource('tournees', TourneeController::class);
+
+        // Optimisation de l'itinéraire : aperçu puis application
+        Route::get('tournees/{tournee}/optimisation', [OptimisationController::class, 'show'])->name('tournees.optimisation');
+        Route::post('tournees/{tournee}/optimisation', [OptimisationController::class, 'store'])->name('tournees.optimisation.appliquer');
+
+        // Mode tournée (téléphone) : avancement des arrêts et position GPS
+        Route::get('tournees/{tournee}/conduite', [ConduiteController::class, 'show'])->name('tournees.conduite');
+        Route::get('tournees/{tournee}/feuille-de-route', [FeuilleDeRouteController::class, 'collecteur'])->name('tournees.feuille-de-route');
+        Route::post('missions/{mission}/avancer', [ConduiteController::class, 'avancer'])->name('missions.avancer');
+        Route::post('position', [ConduiteController::class, 'position'])->middleware('throttle:20,1')->name('position');
 
         // CRUD Missions (nested sous une tournée)
         Route::resource('tournees.missions', MissionController::class)

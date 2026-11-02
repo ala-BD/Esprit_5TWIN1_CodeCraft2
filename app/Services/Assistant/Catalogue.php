@@ -71,8 +71,12 @@ class Catalogue
                 'actif'     => ['type' => 'boolean', 'description' => 'true : comptes actifs seulement, false : comptes désactivés seulement'],
             ]),
 
+            self::outil('repartir_automatiquement', "Répartir automatiquement entre les collecteurs les commandes à livrer et les dons à collecter qui ne sont dans aucune tournée.", [
+                'date' => ['type' => 'string', 'description' => 'Jour des tournées, AAAA-MM-JJ ; demain si non précisé'],
+            ]),
+
             self::outil('ouvrir_page', "Ouvrir une page de l'administration.", [
-                'page' => ['type' => 'string', 'enum' => ['utilisateurs', 'nouvel_utilisateur', 'statistiques']],
+                'page' => ['type' => 'string', 'enum' => ['utilisateurs', 'nouvel_utilisateur', 'statistiques', 'logistique', 'carte_en_direct', 'repartition', 'previsions']],
             ], ['page']),
         ];
     }
@@ -140,6 +144,10 @@ class Catalogue
             self::outil('supprimer_mission', "Supprimer une mission d'une tournée, désignée par son ordre de passage.", $tournee + [
                 'ordre' => ['type' => 'integer', 'description' => 'Numéro de passage'],
             ], ['ordre']),
+
+            self::outil('optimiser_tournee', "Calculer le meilleur ordre de passage des arrêts restants d'une tournée (trajet le plus court) et mettre à jour les heures.", $tournee),
+
+            self::outil('ouvrir_mode_tournee', "Ouvrir le mode tournée (écran de conduite, arrêt par arrêt) d'une tournée.", $tournee),
 
             self::outil('ouvrir_page', "Ouvrir une page de l'espace logistique.", [
                 'page' => ['type' => 'string', 'enum' => ['tournees', 'nouvelle_tournee']],

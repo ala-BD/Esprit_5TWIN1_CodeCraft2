@@ -657,4 +657,106 @@ class AssistantVocalTest extends TestCase
 
         Http::assertNothingSent();
     }
+
+    /*
+    |------------------------------------------------------------------
+    | Logistique avancée
+    |------------------------------------------------------------------
+    */
+
+    private function tourneeAvecArrets(User $collecteur, string $date, array $longitudes): Tournee
+    {
+        $tournee = Tournee::create(['user_id' => $collecteur->id, 'date' => $date, 'zone' => 'Grand Tunis', 'vehicule' => 'Fourgon', 'statut' => Tournee::STATUT_PLANIFIEE]);
+        foreach ($longitudes as $i => $lng) {
+            $tournee->missions()->create(['type' => 'LIVRAISON', 'adresse' => "Arrêt {$i}, 1000 Quartier {$i}", 'ordre' => $i + 1,
+                'heure_prevue' => '09:00', 'statut' => 'A_FAIRE', 'latitude' => 36.80, 'longitude' => $lng]);
+        }
+
+        return $tournee;
+    }
+
+    public function test_a_collecteur_can_optimise_a_round_by_voice_after_confirming(): void
+    {
+        config(['logistique.depot' => ['nom' => 'Dépôt', 'latitude' => 36.80, 'longitude' => 10.00, 'retour' => false]]);
+        $user = $this->collecteur();
+        $tournee = $this->tourneeAvecArrets($user, today()->addDay()->format('Y-m-d'), [10.05, 10.01, 10.03]);
+
+        $this->iaAppelle('optimiser_tournee', ['tournee_id' => $tournee->id]);
+        $proposition = $this->dicter($user, 'optimise ma tournée de demain')
+            ->assertJson(['type' => 'confirmation', 'action' => 'optimiser_tournee'])
+            ->assertJsonFragment(['label' => 'Nouvel ordre', 'valeur' => 'Quartier 1 → Quartier 2 → Quartier 0'])
+            ->json();
+        $this->assertSame(1, $tournee->missions()->where('longitude', 10.05)->value('ordre'));   // rien n'a encore bougé
+
+        $this->confirmer($user, $proposition['action'], $proposition['arguments'])->assertJsonPath('type', 'succes');
+        $this->assertSame(3, $tournee->missions()->where('longitude', 10.05)->value('ordre'));
+    }
+
+    public function test_a_stale_voice_proposal_is_not_applied(): void
+    {
+        $user = $this->collecteur();
+        $tournee = $this->tourneeAvecArrets($user, today()->format('Y-m-d'), [10.05, 10.01]);
+
+        $this->confirmer($user, 'optimiser_tournee', ['tournee_id' => $tournee->id, 'empreinte' => str_repeat('0', 32)])
+            ->assertJsonPath('type', 'message');
+        $this->assertNull($tournee->fresh()->itineraire_ia);
+    }
+
+    public function test_drive_mode_opens_by_voice(): void
+    {
+        $user = $this->collecteur();
+        $tournee = $this->tourneeAvecArrets($user, today()->format('Y-m-d'), [10.05]);
+
+        $this->confirmer($user, 'ouvrir_mode_tournee', [])
+            ->assertJson(['type' => 'navigation', 'url' => route('logistique.tournees.conduite', $tournee)]);
+    }
+
+    public function test_the_admin_can_dispatch_by_voice_after_confirming(): void
+    {
+        $admin = $this->admin();
+        $collecteur = $this->collecteur();
+        $client = User::factory()->create(['role' => User::ROLE_CLIENT]);
+        $adresse = \App\Models\Adresse::create(['user_id' => $client->id, 'libelle' => 'Domicile', 'rue' => 'Rue', 'code_postal' => '1000',
+            'ville' => 'Tunis', 'gouvernorat' => 'Tunis', 'latitude' => 36.81, 'longitude' => 10.18, 'par_defaut' => true]);
+        \App\Models\Commande::create(['user_id' => $client->id, 'adresse_id' => $adresse->id, 'numero' => 'TC-VOIX', 'statut' => 'CONFIRMEE']);
+
+        $this->iaAppelle('repartir_automatiquement', []);
+        $proposition = $this->dicter($admin, 'répartis les travaux de demain')
+            ->assertJson(['type' => 'confirmation', 'action' => 'repartir_automatiquement', 'arguments' => ['date' => today()->addDay()->format('Y-m-d')]])
+            ->json();
+        $this->assertSame(0, Tournee::count());
+
+        $this->confirmer($admin, $proposition['action'], $proposition['arguments'])->assertJsonPath('type', 'succes');
+        $this->assertSame(1, Tournee::where('user_id', $collecteur->id)->count());
+    }
+
+    public function test_dispatching_with_nothing_to_plan_or_in_the_past_is_refused(): void
+    {
+        $admin = $this->admin();
+        $this->collecteur();
+
+        $this->confirmer($admin, 'repartir_automatiquement', [])->assertJsonPath('type', 'message');
+        $this->confirmer($admin, 'repartir_automatiquement', ['date' => today()->subDay()->format('Y-m-d')])->assertJsonPath('type', 'message');
+        $this->assertSame(0, Tournee::count());
+    }
+
+    public function test_the_admin_assistant_knows_todays_rounds_positions_and_the_forecast(): void
+    {
+        $admin = $this->admin();
+        $collecteur = $this->collecteur();
+        $tournee = $this->tourneeAvecArrets($collecteur, today()->format('Y-m-d'), [10.18, 10.20]);
+        \App\Models\PositionCollecteur::create(['user_id' => $collecteur->id, 'latitude' => 36.80, 'longitude' => 10.181, 'enregistree_le' => now()->subMinutes(2)]);
+        $this->iaRepond('ok');
+
+        $this->dicter($admin, 'où est Youssef ?');
+
+        Http::assertSent(function (RequeteHttp $requete) {
+            $consigne = $requete['messages'][0]['content'];
+
+            return str_contains($consigne, 'LOGISTICS TODAY')
+                && str_contains($consigne, 'round "Grand Tunis" | 0 of 2 stops done')
+                && str_contains($consigne, 'position: live, about 0.1 km from stop 1')
+                && str_contains($consigne, 'DONATION FORECAST');
+        });
+    }
 }

@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Observers\MissionObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[ObservedBy(MissionObserver::class)]
 class Mission extends Model
 {
     use HasFactory;
@@ -20,7 +23,21 @@ class Mission extends Model
         'heure_prevue',
         'statut',
         'preuve_livraison',
+        'photo_preuve',
+        'latitude',
+        'longitude',
+        'source_localisation',
+        'terminee_le',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'latitude'    => 'float',
+            'longitude'   => 'float',
+            'terminee_le' => 'datetime',
+        ];
+    }
 
     /*
     |------------------------------------------------------------------
@@ -58,6 +75,24 @@ class Mission extends Model
     public function tournee(): BelongsTo
     {
         return $this->belongsTo(Tournee::class);
+    }
+
+    /** Commande livrée (optionnelle, M2) */
+    public function commande(): BelongsTo
+    {
+        return $this->belongsTo(Commande::class);
+    }
+
+    /** Personne à prévenir : le client de la commande ou le donateur */
+    public function contact(): ?User
+    {
+        return $this->commande?->user ?? $this->donVetement?->user;
+    }
+
+    /** L'arrêt a des coordonnées GPS (carte, optimisation) */
+    public function estLocalisee(): bool
+    {
+        return $this->latitude !== null && $this->longitude !== null;
     }
 
     /** Don collecté (optionnel) */

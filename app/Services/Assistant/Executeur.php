@@ -8,6 +8,8 @@ use App\Http\Controllers\Logistique\TourneeController;
 use App\Models\Mission;
 use App\Models\Tournee;
 use App\Models\User;
+use App\Services\Logistique\AffectationAutomatique;
+use App\Services\Logistique\OptimiseurItineraire;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
@@ -550,12 +552,12 @@ class Executeur
         }
 
         $donnees = [
-            ...$mission->only(['type', 'adresse', 'ordre', 'statut', 'preuve_livraison', 'don_vetement_id']),
+            ...$mission->only(['type', 'adresse', 'ordre', 'statut', 'preuve_livraison', 'don_vetement_id', 'commande_id']),
             'heure_prevue' => $mission->heure,
             ...$changements,
         ];
 
-        $this->valider($donnees, MissionController::regles(), MissionController::MESSAGES);
+        $this->valider($donnees, MissionController::regles($mission), MissionController::MESSAGES);
 
         if (!$executer) {
             $libelles = [
@@ -678,6 +680,10 @@ class Executeur
                 'utilisateurs'       => [route('admin.users.index'), $this->t('Voici les utilisateurs.', 'Here are the users.')],
                 'nouvel_utilisateur' => [route('admin.users.create'), $this->t("Voici le formulaire d'ajout.", 'Here is the new user form.')],
                 'statistiques'       => [route('admin.statistiques'), $this->t('Voici les statistiques.', 'Here are the statistics.')],
+                'logistique'         => [route('admin.logistique.index'), $this->t('Voici la logistique.', 'Here is the logistics overview.')],
+                'carte_en_direct'    => [route('admin.logistique.carte'), $this->t('Voici la carte en direct.', 'Here is the live map.')],
+                'repartition'        => [route('admin.logistique.affectation'), $this->t('Voici la répartition proposée.', 'Here is the proposed assignment.')],
+                'previsions'         => [route('admin.logistique.previsions'), $this->t('Voici les prévisions des dons.', 'Here is the donation forecast.')],
             ]
             : [
                 'tournees'         => [route('logistique.tournees.index'), $this->t('Voici vos tournées.', 'Here are your rounds.')],
@@ -688,6 +694,138 @@ class Executeur
             ?? throw new Interruption($this->t('Je ne connais pas cette page.', "I don't know that page."));
 
         return $this->navigation(...$page);
+    }
+
+    /*
+    |------------------------------------------------------------------
+    | Logistique avancée : répartition, optimisation, mode tournée
+    |------------------------------------------------------------------
+    */
+
+    private function repartirAutomatiquement(User $user, array $a, bool $executer): array
+    {
+        $texte = $this->texte($a, 'date');
+        if ($texte && Validator::make(['date' => $texte], ['date' => 'date'])->fails()) {
+            throw new Interruption($this->t("Je n'ai pas compris la date.", "I didn't understand the date."));
+        }
+
+        $date = $texte ? Carbon::parse($texte)->startOfDay() : $this->aujourdhui->copy()->addDay();
+        if ($date->lt($this->aujourdhui)) {
+            throw new Interruption($this->t('On ne peut pas planifier dans le passé.', 'Rounds cannot be planned in the past.'));
+        }
+
+        $service = app(AffectationAutomatique::class);
+        $proposition = $service->proposer($date);
+
+        if ($proposition['total'] === 0) {
+            throw new Interruption($proposition['non_affectes']->isEmpty()
+                ? $this->t('Il n\'y a rien à répartir : tout est déjà planifié.', 'There is nothing to assign: everything is already planned.')
+                : $this->t("Rien n'a pu être réparti : {$proposition['non_affectes']->first()['raison']}.", "Nothing could be assigned: {$proposition['non_affectes']->first()['raison']}."));
+        }
+
+        if (!$executer) {
+            return $this->confirmation(
+                $this->t(
+                    "Répartir {$proposition['total']} travaux pour le {$this->date($date->format('Y-m-d'))} ?",
+                    "Assign {$proposition['total']} jobs for {$this->date($date->format('Y-m-d'))}?"
+                ),
+                $proposition['plans']->map(fn (array $plan) => [
+                    $plan['collecteur']->full_name,
+                    $this->t(
+                        $plan['ajouts']->count() . ' arrêt(s), ' . ($plan['nouvelle'] ? 'nouvelle tournée' : 'tournée existante') . ", +{$plan['km_ajoutes']} km",
+                        $plan['ajouts']->count() . ' stop(s), ' . ($plan['nouvelle'] ? 'new round' : 'existing round') . ", +{$plan['km_ajoutes']} km"
+                    ),
+                ])->concat($proposition['non_affectes']->isNotEmpty()
+                    ? [[$this->t('Non répartis', 'Not assigned'), (string) $proposition['non_affectes']->count()]]
+                    : [])->all(),
+                'repartir_automatiquement',
+                ['date' => $date->format('Y-m-d'), 'empreinte' => $proposition['empreinte']],
+            );
+        }
+
+        // Ce qui a été confirmé doit être ce qui est appliqué
+        if (isset($a['empreinte']) && !hash_equals($proposition['empreinte'], (string) $a['empreinte'])) {
+            throw new Interruption($this->t(
+                'Les travaux à planifier ont changé depuis la proposition : redemandez la répartition.',
+                'The jobs to plan changed since the proposal: ask for the assignment again.'
+            ));
+        }
+
+        $tournees = $service->appliquer($proposition);
+
+        return $this->succes(
+            $this->t(
+                "{$proposition['total']} travaux répartis sur {$tournees->count()} tournée(s). Les collecteurs sont prévenus.",
+                "{$proposition['total']} jobs assigned to {$tournees->count()} round(s). The collectors have been notified."
+            ),
+            route('admin.logistique.index'),
+        );
+    }
+
+    private function optimiserTournee(User $user, array $a, bool $executer): array
+    {
+        $tournee = $this->trouverTournee($user, $a);
+        $optimiseur = app(OptimiseurItineraire::class);
+        $proposition = $optimiseur->proposer($tournee);
+
+        if ($proposition['etapes']->count() < 2) {
+            throw new Interruption($this->t(
+                "La tournée {$this->nomTournee($tournee)} n'a pas assez d'arrêts restants localisés pour être optimisée.",
+                "The round {$this->nomTournee($tournee)} does not have enough remaining located stops to optimise."
+            ));
+        }
+
+        if (!$executer) {
+            $gain = $proposition['gain_km'] > 0.05
+                ? $this->t("−{$proposition['gain_km']} km ({$proposition['gain_pct']} %)", "−{$proposition['gain_km']} km ({$proposition['gain_pct']} %)")
+                : $this->t("déjà l'ordre le plus court", 'already the shortest order');
+
+            return $this->confirmation(
+                $this->t("Optimiser l'itinéraire de la tournée {$this->nomTournee($tournee)} ?", "Optimise the route of the round {$this->nomTournee($tournee)}?"),
+                [
+                    [$this->t('Distance', 'Distance'), "{$proposition['distance_avant']} km → {$proposition['distance_apres']} km"],
+                    [$this->t('Gain', 'Saving'), $gain],
+                    [$this->t('Nouvel ordre', 'New order'), $proposition['etapes']->map(fn ($e) => $this->lieu($e['mission']->adresse))->join(' → ')],
+                    [$this->t('Dernier arrêt vers', 'Last stop around'), $proposition['etapes']->last()['arrivee']->format('H:i')],
+                ],
+                'optimiser_tournee',
+                ['tournee_id' => $tournee->id, 'empreinte' => $proposition['empreinte']],
+            );
+        }
+
+        if (isset($a['empreinte']) && !hash_equals($proposition['empreinte'], (string) $a['empreinte'])) {
+            throw new Interruption($this->t(
+                'La tournée a changé depuis la proposition : redemandez l\'optimisation.',
+                'The round changed since the proposal: ask for the optimisation again.'
+            ));
+        }
+
+        $optimiseur->appliquer($tournee, $proposition);
+
+        return $this->succes(
+            $proposition['gain_km'] > 0.05
+                ? $this->t("Itinéraire optimisé : {$proposition['gain_km']} km économisés.", "Route optimised: {$proposition['gain_km']} km saved.")
+                : $this->t("Heures de passage mises à jour : l'ordre était déjà le meilleur.", 'Times updated: the order was already the best.'),
+            route('logistique.tournees.show', $tournee),
+        );
+    }
+
+    private function ouvrirModeTournee(User $user, array $a, bool $executer): array
+    {
+        $tournee = $this->trouverTournee($user, $a);
+
+        return $this->navigation(
+            route('logistique.tournees.conduite', $tournee),
+            $this->t("C'est parti pour la tournée {$this->nomTournee($tournee)}.", "Here we go: round {$this->nomTournee($tournee)}."),
+        );
+    }
+
+    /** Partie lisible d'une adresse : la ville ou le quartier */
+    private function lieu(string $adresse): string
+    {
+        $parties = array_map('trim', explode(',', $adresse));
+
+        return preg_replace('/^\d{4}\s+/', '', end($parties)) ?: $adresse;
     }
 
     /*

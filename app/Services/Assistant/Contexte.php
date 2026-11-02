@@ -5,7 +5,12 @@ namespace App\Services\Assistant;
 use App\Models\Mission;
 use App\Models\Tournee;
 use App\Models\User;
+use App\Http\Controllers\Admin\LogistiqueController;
+use App\Models\PositionCollecteur;
+use App\Services\Logistique\OptimiseurItineraire;
+use App\Services\Logistique\PrevisionDons;
 use App\Services\StatistiquesUtilisateurs;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Carbon;
 
 /**
@@ -60,7 +65,70 @@ class Contexte
             $affiche = 'the list of users.';
         }
 
-        return $texte . "\n\n" . self::statistiquesComptes() . ($affiche ? "\n\nON SCREEN RIGHT NOW: {$affiche}" : '');
+        return $texte . "\n\n" . self::statistiquesComptes() . "\n\n" . self::logistiqueDuJour() . "\n\n" . self::previsionDons()
+            . ($affiche ? "\n\nON SCREEN RIGHT NOW: {$affiche}" : '');
+    }
+
+    /**
+     * Tournées du jour pour l'administrateur : avancement, retard, dernière position des collecteurs
+     * (située par rapport à leurs arrêts, puisqu'on ne connaît pas le nom des rues), et travaux à planifier.
+     */
+    private static function logistiqueDuJour(): string
+    {
+        $optimiseur = app(OptimiseurItineraire::class);
+        $tournees = Tournee::with(['user.dernierePosition', 'missions'])->whereDate('date', today())
+            ->where('statut', '!=', Tournee::STATUT_ANNULEE)->get();
+
+        $lignes = $tournees->map(function (Tournee $t) use ($optimiseur) {
+            $missions = $t->missions;
+            $faites = $missions->whereIn('statut', [Mission::STATUT_TERMINEE, Mission::STATUT_ECHOUEE])->count();
+            $prochain = $missions->firstWhere('statut', Mission::STATUT_EN_COURS) ?? $missions->firstWhere('statut', Mission::STATUT_A_FAIRE);
+            $retard = $prochain && now()->gt($t->date->copy()->setTimeFromTimeString($prochain->heure))
+                ? (int) $t->date->copy()->setTimeFromTimeString($prochain->heure)->diffInMinutes(now()) : 0;
+
+            $position = 'no position received today';
+            $p = $t->user?->dernierePosition;
+            if ($p && $p->enregistree_le->isToday()) {
+                $proche = $missions->filter->estLocalisee()
+                    ->map(fn (Mission $m) => ['m' => $m, 'km' => $optimiseur->distance(['latitude' => $p->latitude, 'longitude' => $p->longitude], ['latitude' => $m->latitude, 'longitude' => $m->longitude])])
+                    ->sortBy('km')->first();
+                $age = (int) $p->enregistree_le->diffInMinutes(now());
+                $position = ($age <= PositionCollecteur::MINUTES_EN_DIRECT ? 'live' : "{$age} min ago")
+                    . ($proche ? sprintf(', about %.1f km from stop %d (%s)', $proche['km'], $proche['m']->ordre, $proche['m']->adresse) : '');
+            }
+
+            return sprintf('- %s | round "%s" | %d of %d stops done (%d failed) | next: %s | late: %s | position: %s',
+                $t->user?->full_name, $t->zone, $faites, $missions->count(), $missions->where('statut', Mission::STATUT_ECHOUEE)->count(),
+                $prochain ? "stop {$prochain->ordre} at {$prochain->heure}, {$prochain->adresse}" : 'none, round finished',
+                $retard >= 15 ? "{$retard} min" : 'no', $position);
+        })->join("\n");
+
+        $aPlanifier = LogistiqueController::aPlanifier();
+
+        return "LOGISTICS TODAY (collector | round | progress | next stop | lateness | last position)\n"
+            . ($lignes ?: '- no round today')
+            . "\nWaiting to be planned: {$aPlanifier['commandes']->count()} deliveries and {$aPlanifier['dons']->count()} donation pickups (use repartir_automatiquement to assign them).";
+    }
+
+    /** Résumé de la prévision des dons (calcul mis en cache dix minutes) */
+    private static function previsionDons(): string
+    {
+        return Cache::remember('assistant:prevision', now()->addMinutes(10), function () {
+            $p = app(PrevisionDons::class)->prevoir(4);
+            $t = $p['total'];
+
+            if (!$t['prevision']) {
+                return 'DONATION FORECAST: not enough history yet.';
+            }
+
+            $semaines = collect($t['prevision'])->map(fn ($x) => "week of {$x['semaine']}: {$x['valeur']} (80% range {$x['bas']}-{$x['haut']})")->join('; ');
+            $zones = $p['zones']->map(fn ($z) => "{$z['zone']} " . ($z['prevision'][0]['valeur'] ?? 0) . " ({$z['tendance_pct']}%)")->join(', ');
+
+            return "DONATION FORECAST (statistical model, measured error on the total: " . ($t['erreur_pct'] ?? '?') . "%)\n"
+                . "- Next weeks: {$semaines}.\n"
+                . "- Average of the last 4 weeks: {$t['moyenne_4']}; change for this week: {$t['tendance_pct']}%.\n"
+                . "- This week by governorate (change vs last 4 weeks): {$zones}.";
+        });
     }
 
     /** Les chiffres de la page Statistiques, pour que l'assistant puisse les lire et les commenter */

@@ -76,7 +76,7 @@ class TourneeController extends Controller
     {
         $this->autoriser($tournee);
 
-        $tournee->load('missions.donVetement');
+        $tournee->load(['missions.donVetement', 'missions.commande']);
 
         return view('logistique.tournees.show', compact('tournee'));
     }
