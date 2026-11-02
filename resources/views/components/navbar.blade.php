@@ -150,27 +150,6 @@
                         <i class="fas fa-chevron-right nav-role" style="font-size:9px;margin-left:2px"></i>
                     </a>
 
-                    {{-- Marketplace --}}
-                    <a href="{{ route('articles.index') }}"
-                       class="nav-link flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-all duration-200 {{ request()->routeIs('articles.*') ? 'text-teal-600 bg-teal-50' : '' }}"
-                       title="Marketplace textile">
-                        <i class="fas fa-store text-xs text-teal-600"></i> Marketplace
-                    </a>
-
-                    {{-- Commandes --}}
-                    <a href="{{ route('commandes.index') }}"
-                       class="nav-link flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-all duration-200 {{ request()->routeIs('commandes.*') ? 'text-teal-600 bg-teal-50' : '' }}"
-                       title="Mes commandes & suivi">
-                        <i class="fas fa-shopping-bag text-xs text-teal-600"></i> Commandes
-                    </a>
-
-                    {{-- Adresses --}}
-                    <a href="{{ route('adresses.index') }}"
-                       class="nav-link flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-all duration-200 {{ request()->routeIs('adresses.*') ? 'text-teal-600 bg-teal-50' : '' }}"
-                       title="Mes adresses">
-                        <i class="fas fa-map-marker-alt text-xs text-teal-600"></i> Adresses
-                    </a>
-
                     {{-- Dashboard --}}
                     @if(Auth::user()->role === 'RECYCLEUR')
                         <a href="{{ route('recyclage.dashboard') }}"
@@ -208,7 +187,7 @@
                     {{-- Logout --}}
                     <form method="POST" action="{{ route('logout') }}" class="inline">
                         @csrf
-                        <button type="submit" class="nav-logout flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl transition-all duration-200">
+                        <button type="submit" class="nav-logout flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl transition-all duration-200" title="Se déconnecter">
                             <i class="fas fa-sign-out-alt text-xs"></i>
                         </button>
                     </form>
@@ -235,6 +214,103 @@
             </button>
         </div>
     </div>
+
+    {{-- ===== SOUS-HEADER — adapté au rôle ===== --}}
+    @auth
+    @php $currentRole = Auth::user()->role; @endphp
+    <div id="sub-header" class="border-t border-slate-200/80 bg-white/95 backdrop-blur-md shadow-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-12">
+                <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-1">
+
+                    {{-- Marketplace — visible par tous --}}
+                    <a href="{{ route('articles.index') }}"
+                       class="subnav-link flex items-center gap-2 text-xs font-semibold px-3.5 py-1.5 rounded-full transition-all duration-200 {{ request()->routeIs('articles.*') ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/25 font-bold' : 'text-slate-600 hover:text-teal-600 hover:bg-slate-100' }}"
+                       style="text-decoration:none">
+                        <i class="fas fa-store text-xs {{ request()->routeIs('articles.*') ? 'text-white' : 'text-teal-600' }}"></i>
+                        <span>Marketplace</span>
+                    </a>
+
+                    {{-- Commandes — libellé adapté au rôle --}}
+                    <a href="{{ route('commandes.index') }}"
+                       class="subnav-link flex items-center gap-2 text-xs font-semibold px-3.5 py-1.5 rounded-full transition-all duration-200 {{ request()->routeIs('commandes.*') ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/25 font-bold' : 'text-slate-600 hover:text-teal-600 hover:bg-slate-100' }}"
+                       style="text-decoration:none">
+                        <i class="fas fa-{{ $currentRole === 'ATELIER' ? 'inbox' : 'shopping-bag' }} text-xs {{ request()->routeIs('commandes.*') ? 'text-white' : 'text-teal-600' }}"></i>
+                        <span>{{ $currentRole === 'ATELIER' ? 'Commandes reçues' : 'Mes commandes' }}</span>
+                    </a>
+
+                    {{-- Mes articles (ATELIER) / Adresses (acheteurs) --}}
+                    @if($currentRole === 'ATELIER')
+                    <a href="{{ route('articles.index') }}?mine=1"
+                       class="subnav-link flex items-center gap-2 text-xs font-semibold px-3.5 py-1.5 rounded-full transition-all duration-200 text-slate-600 hover:text-orange-600 hover:bg-orange-50"
+                       style="text-decoration:none">
+                        <i class="fas fa-tshirt text-xs text-orange-500"></i>
+                        <span>Mes articles</span>
+                    </a>
+                    @else
+                    <a href="{{ route('adresses.index') }}"
+                       class="subnav-link flex items-center gap-2 text-xs font-semibold px-3.5 py-1.5 rounded-full transition-all duration-200 {{ request()->routeIs('adresses.*') ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/25 font-bold' : 'text-slate-600 hover:text-teal-600 hover:bg-slate-100' }}"
+                       style="text-decoration:none">
+                        <i class="fas fa-map-marker-alt text-xs {{ request()->routeIs('adresses.*') ? 'text-white' : 'text-teal-600' }}"></i>
+                        <span>Adresses</span>
+                    </a>
+                    @endif
+
+                    {{-- Favoris — masqué pour l'ATELIER --}}
+                    @if($currentRole !== 'ATELIER')
+                    <a href="{{ route('favoris.index') }}"
+                       id="subnav-favoris-link"
+                       class="subnav-link relative flex items-center gap-2 text-xs font-semibold px-3.5 py-1.5 rounded-full transition-all duration-200 {{ request()->routeIs('favoris.*') ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/25 font-bold' : 'text-slate-600 hover:text-rose-600 hover:bg-slate-100' }}"
+                       style="text-decoration:none">
+                        <span class="relative inline-flex items-center">
+                            <i class="fas fa-heart text-xs {{ request()->routeIs('favoris.*') ? 'text-white' : 'text-rose-500' }}"></i>
+                            <span id="navbar-favoris-badge"
+                                  class="favoris-badge-count absolute -top-2 -right-2.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold text-white items-center justify-center transition-all {{ ($favorisCount ?? 0) > 0 ? 'flex' : 'hidden' }}"
+                                  style="background:#f43f5e;line-height:1;">
+                                {{ ($favorisCount ?? 0) > 99 ? '99+' : ($favorisCount ?? 0) }}
+                            </span>
+                        </span>
+                        <span class="ml-1">Favoris</span>
+                    </a>
+                    @endif
+
+                    {{-- Panier — masqué pour l'ATELIER --}}
+                    @if($currentRole !== 'ATELIER')
+                    <a href="{{ route('panier.index') }}"
+                       id="subnav-cart-link"
+                       class="subnav-link relative flex items-center gap-2 text-xs font-semibold px-3.5 py-1.5 rounded-full transition-all duration-200 {{ request()->routeIs('panier.*') ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/25 font-bold' : 'text-slate-600 hover:text-teal-600 hover:bg-slate-100' }}"
+                       style="text-decoration:none">
+                        <span class="relative inline-flex items-center">
+                            <i class="fas fa-shopping-cart text-xs {{ request()->routeIs('panier.*') ? 'text-white' : 'text-teal-600' }}"></i>
+                            <span id="navbar-cart-badge"
+                                  class="cart-badge-count absolute -top-2 -right-2.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold text-white items-center justify-center transition-all {{ ($panierCount ?? 0) > 0 ? 'flex' : 'hidden' }}"
+                                  style="background:#ef4444;line-height:1;">
+                                {{ ($panierCount ?? 0) > 99 ? '99+' : ($panierCount ?? 0) }}
+                            </span>
+                        </span>
+                        <span class="ml-1">Panier</span>
+                    </a>
+                    @endif
+                </div>
+
+                {{-- Right: Status & Quick Info --}}
+                <div class="hidden md:flex items-center gap-4 text-xs">
+                    <span class="inline-flex items-center gap-1.5 text-slate-500 font-medium">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span class="text-[11px] font-medium text-slate-600">Mode Circulaire & Solidaire</span>
+                    </span>
+                    <span class="text-slate-300">|</span>
+                    <a href="{{ route('articles.index') }}"
+                       class="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-700 hover:text-teal-800 transition">
+                        <span>Explorer les nouveautés</span>
+                        <i class="fas fa-arrow-right text-[10px]"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endauth
+
 
     {{-- ===== MENU MOBILE ===== --}}
     <div id="mobile-menu" class="lg:hidden bg-white border-t border-slate-100 shadow-xl">
@@ -271,6 +347,8 @@
 
             <div class="pt-4 mt-2 space-y-2" style="border-top: 1px solid #e2e8f0">
                 @auth
+                @php $mobileRole = Auth::user()->role; @endphp
+
                     @if(Auth::user()->role === 'DONATEUR')
                         <a href="{{ route('collecte.dons.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50">
                             <i class="fas fa-box-open w-4 text-center" style="color:#0d9488"></i> Mes dons
@@ -279,13 +357,15 @@
                     <a href="{{ route('articles.index') }}"
                        class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors {{ request()->routeIs('articles.*') ? 'bg-teal-50 text-teal-700 font-bold' : '' }}"
                        style="text-decoration:none">
-                        <i class="fas fa-store w-4 text-center" style="color:#0d9488"></i> Marketplace Textile
+                        <i class="fas fa-store w-4 text-center" style="color:#0d9488"></i>
+                        {{ $mobileRole === 'ATELIER' ? 'Mes Articles' : 'Marketplace Textile' }}
                     </a>
 
                     <a href="{{ route('commandes.index') }}"
                        class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors {{ request()->routeIs('commandes.*') ? 'bg-teal-50 text-teal-700 font-bold' : '' }}"
                        style="text-decoration:none">
-                        <i class="fas fa-shopping-bag w-4 text-center" style="color:#0d9488"></i> Mes Commandes
+                        <i class="fas fa-{{ $mobileRole === 'ATELIER' ? 'inbox' : 'shopping-bag' }} w-4 text-center" style="color:#0d9488"></i>
+                        {{ $mobileRole === 'ATELIER' ? 'Commandes reçues' : 'Mes Commandes' }}
                     </a>
 
                     <a href="{{ route('adresses.index') }}"
@@ -324,6 +404,36 @@
                             <i class="fas fa-th-large text-xs"></i> Dashboard
                         </a>
                     @endif
+
+                    {{-- Favoris & Panier — masqués pour l'ATELIER --}}
+                    @if($mobileRole !== 'ATELIER')
+                    <a href="{{ route('favoris.index') }}"
+                       class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors {{ request()->routeIs('favoris.*') ? 'bg-rose-50 text-rose-600 font-bold' : '' }}"
+                       style="text-decoration:none">
+                        <i class="fas fa-heart w-4 text-center text-rose-500"></i>
+                        <span>Ma Liste de Souhaits</span>
+                        <span class="favoris-badge-count ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold text-white {{ ($favorisCount ?? 0) > 0 ? '' : 'hidden' }}"
+                              style="background:#f43f5e">
+                            {{ ($favorisCount ?? 0) > 99 ? '99+' : ($favorisCount ?? 0) }}
+                        </span>
+                    </a>
+                    <a href="{{ route('panier.index') }}"
+                       class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors {{ request()->routeIs('panier.*') ? 'bg-teal-50 text-teal-700 font-bold' : '' }}"
+                       style="text-decoration:none">
+                        <i class="fas fa-shopping-cart w-4 text-center" style="color:#0d9488"></i>
+                        <span>Mon Panier</span>
+                        <span class="cart-badge-count ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold text-white {{ ($panierCount ?? 0) > 0 ? '' : 'hidden' }}"
+                              style="background:#ef4444">
+                            {{ ($panierCount ?? 0) > 99 ? '99+' : ($panierCount ?? 0) }}
+                        </span>
+                    </a>
+                    @endif
+
+                    <a href="{{ route('dashboard.marketplace') }}"
+                       class="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold text-teal-700"
+                       style="border: 2px solid #99f6e4; text-decoration:none">
+                        <i class="fas fa-store text-xs"></i> Espace marketplace
+                    </a>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <button type="submit"

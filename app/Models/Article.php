@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\ArticleFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,6 +21,11 @@ use Illuminate\Support\Facades\Storage;
  * @property int $stock
  * @property string $categorie
  * @property string $statut
+ * @property string|null $taille
+ * @property string|null $matiere
+ * @property string|null $etat
+ * @property string|null $couleur
+ * @property float|null $co2_economise_kg
  * @property array|null $images
  * @property \Carbon\Carbon|null $created_at
  * @property \Carbon\Carbon|null $updated_at
@@ -28,26 +34,19 @@ use Illuminate\Support\Facades\Storage;
  */
 class Article extends Model
 {
-    /** @use HasFactory<ArticleFactory> */
     use HasFactory;
 
-    /**
-     * Catégories courantes de la marketplace textile.
-     */
     public const CATEGORIES = [
-        'Vêtements Homme',
-        'Vêtements Femme',
-        'Vêtements Enfant',
+        'Vetements Homme',
+        'Vetements Femme',
+        'Vetements Enfant',
         'Accessoires & Sacs',
         'Linge de maison',
-        'Textile Upcyclé',
+        'Textile Upcycle',
         'Chaussures',
         'Autre',
     ];
 
-    /**
-     * Statuts possibles de l'article.
-     */
     public const STATUT_DISPONIBLE = 'DISPONIBLE';
     public const STATUT_RESERVE    = 'RESERVE';
     public const STATUT_VENDU      = 'VENDU';
@@ -60,90 +59,141 @@ class Article extends Model
         self::STATUT_ARCHIVE,
     ];
 
-    /**
-     * Les attributs assignables en masse.
-     */
+    public const TAILLES  = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Unique'];
+    public const MATIERES = ['Coton', 'Lin', 'Polyester', 'Laine', 'Soie', 'Synthetique', 'Mixte', 'Autre'];
+    public const ETATS    = ['Neuf', 'Tres bon etat', 'Bon etat', 'Usage'];
+    public const COULEURS = ['Noir', 'Blanc', 'Gris', 'Bleu', 'Rouge', 'Vert', 'Jaune', 'Orange', 'Rose', 'Violet', 'Marron', 'Beige', 'Multicolore'];
+
     protected $fillable = [
-        'user_id',
-        'don_vetement_id',
-        'titre',
-        'description',
-        'prix',
-        'prix_estime_ia',
-        'stock',
-        'categorie',
-        'statut',
-        'images',
+        'user_id', 'don_vetement_id', 'titre', 'description', 'prix',
+        'prix_estime_ia', 'stock', 'categorie', 'statut',
+        'taille', 'matiere', 'etat', 'couleur', 'co2_economise_kg', 'images',
+        'poids_kg', 'cout_achat', 'heures_travail', 'cout_materiaux',
     ];
 
-    /**
-     * Les attributs à caster.
-     */
     protected function casts(): array
     {
         return [
-            'prix'           => 'decimal:2',
-            'prix_estime_ia' => 'decimal:2',
-            'stock'          => 'integer',
-            'images'         => 'array',
+            'prix'             => 'decimal:2',
+            'prix_estime_ia'   => 'decimal:2',
+            'co2_economise_kg' => 'decimal:3',
+            'poids_kg'         => 'decimal:3',
+            'cout_achat'       => 'decimal:2',
+            'heures_travail'   => 'decimal:2',
+            'cout_materiaux'   => 'decimal:2',
+            'stock'            => 'integer',
+            'images'           => 'array',
         ];
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Relations
-    |--------------------------------------------------------------------------
-    */
-
-    /**
-     * L'article appartient à un utilisateur propriétaire.
-     */
-    public function user(): BelongsTo
+    // Relations
+    public function user(): BelongsTo              { return $this->belongsTo(User::class); }
+    public function donVetement(): BelongsTo       { return $this->belongsTo(DonVetement::class, 'don_vetement_id'); }
+    public function lignesCommande(): HasMany      { return $this->hasMany(LigneCommande::class); }
+    public function panierLignes(): HasMany        { return $this->hasMany(PanierLigne::class); }
+    public function avis(): HasMany                { return $this->hasMany(Avis::class); }
+    public function favoris(): HasMany             { return $this->hasMany(Favori::class); }
+    public function estimations(): HasMany         { return $this->hasMany(Estimation::class); }
+    public function derniereEstimation(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
-        return $this->belongsTo(User::class);
+        return $this->hasOne(Estimation::class)->latestOfMany();
     }
 
     /**
-     * L'article peut provenir d'un don de vêtement (optionnel).
+     * Vérifie si cet article est dans les favoris d'un utilisateur donné.
      */
-    public function donVetement(): BelongsTo
+    public function isFavoriDe(?int $userId): bool
     {
-        return $this->belongsTo(DonVetement::class, 'don_vetement_id');
+        if (!$userId) return false;
+        return $this->favoris()->where('user_id', $userId)->exists();
+    }
+
+    // Query Scopes
+    public function scopeRecherche(Builder $q, string $terme): Builder
+    {
+        return $q->where(fn($s) => $s->where('titre','like',"%{$terme}%")->orWhere('description','like',"%{$terme}%"));
+    }
+    public function scopeCategorie(Builder $q, string $v): Builder   { return $q->where('categorie', $v); }
+    public function scopeTaille(Builder $q, string $v): Builder      { return $q->where('taille', $v); }
+    public function scopeMatiere(Builder $q, string $v): Builder     { return $q->where('matiere', $v); }
+    public function scopeEtat(Builder $q, string $v): Builder        { return $q->where('etat', $v); }
+    public function scopeCouleur(Builder $q, string $v): Builder     { return $q->where('couleur', $v); }
+    public function scopePrixEntre(Builder $q, ?float $min, ?float $max): Builder
+    {
+        if ($min !== null) $q->where('prix', '>=', $min);
+        if ($max !== null) $q->where('prix', '<=', $max);
+        return $q;
+    }
+    public function scopeDonsGratuits(Builder $q): Builder  { return $q->where('prix', 0); }
+    public function scopeVendeurRole(Builder $q, string $role): Builder
+    {
+        return $q->whereHas('user', fn($u) => $u->whereHas('roles', fn($r) => $r->where('name', $role)));
+    }
+    public function scopeEnStock(Builder $q): Builder   { return $q->where('statut', self::STATUT_DISPONIBLE)->where('stock', '>', 0); }
+    public function scopeDisponible(Builder $q): Builder { return $q->where('statut', self::STATUT_DISPONIBLE)->where('stock', '>', 0); }
+    
+    /**
+     * Filtrer les articles ayant au moins une note moyenne donnée
+     */
+    public function scopeNoteMin(Builder $q, float $noteMin): Builder
+    {
+        $min = (float) $noteMin;
+        return $q->whereIn('articles.id', function ($sub) use ($min) {
+            $sub->select('article_id')
+                ->from('avis')
+                ->groupBy('article_id')
+                ->havingRaw("AVG(note_globale) >= {$min}");
+        });
     }
 
     /**
-     * L'article peut être présent dans plusieurs lignes de commande.
+     * Trier par note moyenne décroissante
      */
-    public function lignesCommande(): HasMany
+    public function scopeMieuxNotes(Builder $q): Builder
     {
-        return $this->hasMany(LigneCommande::class);
+        return $q->withAvg('avis', 'note_globale')
+                 ->orderByDesc('avis_avg_note_globale');
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Helpers & Scopes
-    |--------------------------------------------------------------------------
-    */
+    // Helpers
+    public function isDisponible(): bool { return $this->statut === self::STATUT_DISPONIBLE && $this->stock > 0; }
 
     /**
-     * Vérifie si l'article est disponible à l'achat.
+     * Note moyenne globale de l'article (1 décimale, ex: 4.8)
      */
-    public function isDisponible(): bool
+    public function noteMoyenne(): float
     {
-        return $this->statut === self::STATUT_DISPONIBLE && $this->stock > 0;
-    }
-
-    /**
-     * Scope pour filtrer les articles disponibles.
-     */
-    public function scopeDisponible($query)
-    {
-        return $query->where('statut', self::STATUT_DISPONIBLE)->where('stock', '>', 0);
+        if (isset($this->avis_avg_note_globale)) {
+            return round((float) $this->avis_avg_note_globale, 1);
+        }
+        $avg = $this->avis()->avg('note_globale');
+        return $avg !== null ? round((float) $avg, 1) : 0.0;
     }
 
     /**
-     * Retourne l'URL de la première image ou null.
+     * Nombre d'avis reçus
      */
+    public function nbAvis(): int
+    {
+        if (isset($this->avis_count)) {
+            return (int) $this->avis_count;
+        }
+        return $this->avis()->count();
+    }
+
+    /**
+     * Détail des notes moyennes par critère
+     */
+    public function noteMoyenneParCritere(): array
+    {
+        return [
+            'livraison' => round((float) ($this->avis()->avg('note_livraison') ?? 0), 1),
+            'article'   => round((float) ($this->avis()->avg('note_article') ?? 0), 1),
+            'clarte'    => round((float) ($this->avis()->avg('note_clarte') ?? 0), 1),
+            'service'   => round((float) ($this->avis()->avg('note_service') ?? 0), 1),
+        ];
+    }
+
     public function getFirstImageUrl(): ?string
     {
         if (!empty($this->images) && is_array($this->images) && count($this->images) > 0) {
@@ -153,17 +203,9 @@ class Article extends Model
         return null;
     }
 
-    /**
-     * Retourne toutes les URLs d'images sous forme de tableau.
-     */
     public function getImageUrls(): array
     {
-        if (empty($this->images) || !is_array($this->images)) {
-            return [];
-        }
-
-        return array_map(function ($path) {
-            return str_starts_with($path, 'http') ? $path : Storage::url($path);
-        }, $this->images);
+        if (empty($this->images) || !is_array($this->images)) return [];
+        return array_map(fn($p) => str_starts_with($p, 'http') ? $p : Storage::url($p), $this->images);
     }
 }

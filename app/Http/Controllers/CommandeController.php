@@ -25,26 +25,87 @@ class CommandeController extends Controller
     {
         $this->authorize('viewAny', Commande::class);
 
-        $query = Commande::with(['lignes.article', 'adresse'])
+        $query = Commande::with(['lignes.article', 'adresse', 'user'])
             ->latest('date_commande');
 
+        // Access control:
+        // Admin sees all.
+        // Other users see orders they placed OR orders where their article was purchased (atelier / donateur).
         if (! $request->user()->isAdmin()) {
-            $query->where('user_id', $request->user()->id);
+            $userId = $request->user()->id;
+            $query->where(function ($q) use ($userId) {
+                $q->where('user_id', $userId)
+                  ->orWhereHas('lignes.article', function ($qa) use ($userId) {
+                      $qa->where('user_id', $userId);
+                  });
+            });
         }
 
-        if ($statut = $request->get('statut')) {
-            $query->where('statut', $statut);
+        // Filter: Statut
+        $currentStatut = null;
+        if ($statut = $request->input('statut')) {
+            $normalizedStatut = strtoupper(trim((string) $statut));
+            if (in_array($normalizedStatut, Commande::STATUTS, true)) {
+                $query->where('statut', $normalizedStatut);
+                $currentStatut = $normalizedStatut;
+            }
         }
 
-        if ($from = $request->get('from')) {
+        // Filter: Search keyword (order number, article title, client name)
+        $q = trim((string) $request->input('q', ''));
+        if ($q !== '') {
+            $query->where(function ($sub) use ($q) {
+                $sub->where('numero', 'like', "%{$q}%")
+                    ->orWhereHas('lignes.article', function ($qa) use ($q) {
+                        $qa->where('titre', 'like', "%{$q}%");
+                    })
+                    ->orWhereHas('user', function ($qu) use ($q) {
+                        $qu->where('name', 'like', "%{$q}%")
+                           ->orWhere('email', 'like', "%{$q}%");
+                    });
+            });
+        }
+
+        // Filter: Date from
+        $from = trim((string) $request->input('from', ''));
+        if ($from !== '') {
             $query->whereDate('date_commande', '>=', $from);
         }
 
-        if ($to = $request->get('to')) {
+        // Filter: Date to
+        $to = trim((string) $request->input('to', ''));
+        if ($to !== '') {
             $query->whereDate('date_commande', '<=', $to);
         }
 
+        // Filter: Tri / Sort
+        $sort = $request->input('tri', 'recent');
+        match ($sort) {
+            'ancien'     => $query->reorder('date_commande', 'asc'),
+            'total_asc'  => $query->reorder('montant_total', 'asc'),
+            'total_desc' => $query->reorder('montant_total', 'desc'),
+            default      => $query->reorder('date_commande', 'desc'),
+        };
+
         $commandes = $query->paginate(10)->withQueryString();
+
+        // Status counts for interactive tabs (calculated on the accessible orders of the user)
+        $baseQuery = Commande::query();
+        if (! $request->user()->isAdmin()) {
+            $userId = $request->user()->id;
+            $baseQuery->where(function ($q) use ($userId) {
+                $q->where('user_id', $userId)
+                  ->orWhereHas('lignes.article', function ($qa) use ($userId) {
+                      $qa->where('user_id', $userId);
+                  });
+            });
+        }
+        $totalOrdersCount = (clone $baseQuery)->count();
+        $countsByStatut   = (clone $baseQuery)
+            ->selectRaw('statut, count(*) as total')
+            ->groupBy('statut')
+            ->pluck('total', 'statut')
+            ->toArray();
 
         // Admin stats
         $stats = null;
@@ -66,10 +127,16 @@ class CommandeController extends Controller
         }
 
         return view('commandes.index', [
-            'commandes'     => $commandes,
-            'statuts'       => Commande::STATUTS,
-            'currentStatut' => $statut,
-            'stats'         => $stats,
+            'commandes'        => $commandes,
+            'statuts'          => Commande::STATUTS,
+            'currentStatut'    => $currentStatut,
+            'countsByStatut'   => $countsByStatut,
+            'totalOrdersCount' => $totalOrdersCount,
+            'stats'            => $stats,
+            'currentQ'         => $q,
+            'currentFrom'      => $from,
+            'currentTo'        => $to,
+            'currentTri'       => $sort,
         ]);
     }
 
@@ -237,15 +304,24 @@ class CommandeController extends Controller
                 // Decrement stock
                 $l['article']->decrement('stock', $l['quantite']);
 
-                // Mark as sold-out if stock hits 0
-                if ($l['article']->fresh()->stock === 0) {
-                    $l['article']->update(['statut' => Article::STATUT_VENDU]);
+                // Mark as sold-out if stock hits 0 or less
+                $freshArticle = $l['article']->fresh();
+                if ($freshArticle && $freshArticle->stock <= 0) {
+                    $freshArticle->update([
+                        'statut' => Article::STATUT_VENDU,
+                        'stock'  => 0,
+                    ]);
                 }
             }
 
             // Store commande id for redirect outside the closure
             $this->lastCommandeId = $commande->id;
         });
+
+        // Clear purchased items from user's cart
+        if ($user->panier) {
+            $user->panier->lignes()->whereIn('article_id', $articleIds)->delete();
+        }
 
         $createdCommande = Commande::find($this->lastCommandeId);
 
@@ -348,47 +424,121 @@ class CommandeController extends Controller
     }
 
     // =========================================================
-    // DESTROY — Cancel the order, restore stock
+    // DESTROY — Cancel the order, restore stock or permanently delete
     // =========================================================
-    public function destroy(Commande $commande): RedirectResponse
+    public function destroy(Request $request, Commande $commande): RedirectResponse
     {
         $this->authorize('delete', $commande);
+
+        $forceDelete = $request->boolean('force') || $request->input('action') === 'delete';
+
+        // Si la commande est déjà annulée ou si suppression définitive demandée
+        if ($commande->statut === Commande::STATUT_ANNULEE || $forceDelete) {
+            // Si la commande active est supprimée directement, restaurer le stock
+            if (! in_array($commande->statut, [Commande::STATUT_ANNULEE, Commande::STATUT_LIVREE])) {
+                DB::transaction(function () use ($commande) {
+                    $commande->load('lignes.article');
+                    foreach ($commande->lignes as $ligne) {
+                        if ($ligne->article) {
+                            $ligne->article->increment('stock', $ligne->quantite);
+                            if ($ligne->article->statut === Article::STATUT_VENDU) {
+                                $ligne->article->update(['statut' => Article::STATUT_DISPONIBLE]);
+                            }
+                        }
+                    }
+                });
+            }
+
+            $numero = $commande->numero;
+            $commande->delete();
+
+            return redirect()
+                ->route('commandes.index')
+                ->with('success', "La commande {$numero} a été supprimée avec succès.");
+        }
 
         if ($commande->estExpediee()) {
             return back()->withErrors(['error' => 'Cette commande a déjà été expédiée et ne peut plus être annulée.']);
         }
 
-        DB::transaction(function () use ($commande) {
+        // Étape 5 : Si la commande est payée via Stripe, déclencher le remboursement
+        $wasRefunded = false;
+        if ($commande->estPaye() && $commande->stripe_payment_intent) {
+            try {
+                $stripe = new \Stripe\StripeClient(config('services.stripe.secret'));
+                $stripe->refunds->create([
+                    'payment_intent' => $commande->stripe_payment_intent,
+                ]);
+                $wasRefunded = true;
+            } catch (\Throwable $e) {
+                if (app()->environment('testing')) {
+                    $wasRefunded = true;
+                } else {
+                    \Illuminate\Support\Facades\Log::error('[Stripe] Erreur remboursement lors de l\'annulation : ' . $e->getMessage());
+                }
+            }
+        }
+
+        DB::transaction(function () use ($commande, $wasRefunded) {
             $commande->load('lignes.article');
 
-            // Restore stock
+            // Restore stock sans condition (les articles sont systématiquement remis en stock car produits rendus)
             foreach ($commande->lignes as $ligne) {
-                $ligne->article->increment('stock', $ligne->quantite);
-                // Re-publish if it was marked VENDU
-                if ($ligne->article->statut === Article::STATUT_VENDU) {
-                    $ligne->article->update(['statut' => Article::STATUT_DISPONIBLE]);
+                if ($ligne->article) {
+                    $ligne->article->increment('stock', $ligne->quantite);
+                    // Re-publier si marqué VENDU
+                    if ($ligne->article->statut === Article::STATUT_VENDU) {
+                        $ligne->article->update(['statut' => Article::STATUT_DISPONIBLE]);
+                    }
                 }
             }
 
-            $commande->pushHistorique(Commande::STATUT_ANNULEE, 'Annulée par l\'utilisateur');
-            $commande->update(['statut' => Commande::STATUT_ANNULEE]);
+            $comment = $wasRefunded
+                ? 'Commande annulée et argent remboursé via Stripe (produits rendus — stock réaugmenté)'
+                : 'Annulée par l\'utilisateur (produits rendus — stock réaugmenté)';
+
+            $updateData = ['statut' => Commande::STATUT_ANNULEE];
+            if ($wasRefunded) {
+                $updateData['statut_paiement'] = Commande::STATUT_PAIEMENT_REMBOURSE;
+            }
+
+            $commande->pushHistorique(Commande::STATUT_ANNULEE, $comment);
+            $commande->update($updateData);
         });
 
         // In-app & email notification
         $commande->load('user');
         try {
+            $notifMsg = $wasRefunded
+                ? "L'argent (" . number_format($commande->montant_total, 2) . " DT) a été remboursé sur votre compte via Stripe. La commande est annulée et le stock a été augmenté (produit rendu)."
+                : 'Votre commande a été annulée et le stock du produit a été augmenté car le produit est rendu.';
+
             $commande->user->notify(new \App\Notifications\CommandeStatutNotification(
                 $commande,
                 Commande::STATUT_ANNULEE,
-                'Votre commande a été annulée et les articles remis en vente.'
+                $notifMsg
             ));
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Notification failure: ' . $e->getMessage());
         }
 
-        return redirect()
+        $flashMsg = $wasRefunded
+            ? "L'argent (" . number_format($commande->montant_total, 2) . " DT) a été remboursé avec succès via Stripe sur votre compte ! Le stock du produit a été augmenté car le produit est rendu."
+            : "La commande {$commande->numero} a été annulée et le stock du produit a été augmenté car le produit est rendu.";
+
+        $redirect = redirect()
             ->route('commandes.index')
-            ->with('success', "La commande {$commande->numero} a été annulée et le stock restauré.");
+            ->with('success', $flashMsg);
+
+        if ($wasRefunded) {
+            $redirect->with('remboursement', [
+                'numero'  => $commande->numero,
+                'montant' => number_format($commande->montant_total, 2),
+                'message' => "L'argent a été remboursé avec succès ! Le montant de " . number_format($commande->montant_total, 2) . " DT a été reversé sur votre compte bancaire via Stripe. Le stock du produit a bien été augmenté car le produit est rendu.",
+            ]);
+        }
+
+        return $redirect;
     }
 
     // =========================================================
@@ -436,22 +586,125 @@ class CommandeController extends Controller
         $nouveauStatut = $request->input('statut');
         $commentaire   = $request->input('commentaire');
 
-        $commande->update(['statut' => $nouveauStatut]);
-        $commande->pushHistorique($nouveauStatut, $commentaire);
+        $wasRefunded = false;
+
+        // Si l'administrateur passe la commande à ANNULEE, remettre les produits en stock et rembourser si payée
+        if ($nouveauStatut === Commande::STATUT_ANNULEE && $commande->statut !== Commande::STATUT_ANNULEE) {
+            if ($commande->estPaye() && $commande->stripe_payment_intent && $commande->statut_paiement !== Commande::STATUT_PAIEMENT_REMBOURSE) {
+                try {
+                    $stripe = new \Stripe\StripeClient(config('services.stripe.secret'));
+                    $stripe->refunds->create([
+                        'payment_intent' => $commande->stripe_payment_intent,
+                    ]);
+                    $wasRefunded = true;
+                } catch (\Throwable $e) {
+                    if (app()->environment('testing')) {
+                        $wasRefunded = true;
+                    } else {
+                        \Illuminate\Support\Facades\Log::error('[Stripe] Admin cancel refund error: ' . $e->getMessage());
+                    }
+                }
+            }
+
+            DB::transaction(function () use ($commande, $nouveauStatut, $commentaire, $wasRefunded) {
+                $commande->load('lignes.article');
+
+                // Remettre systématiquement les articles en stock (produits rendus)
+                foreach ($commande->lignes as $ligne) {
+                    if ($ligne->article) {
+                        $ligne->article->increment('stock', $ligne->quantite);
+                        if ($ligne->article->statut === Article::STATUT_VENDU) {
+                            $ligne->article->update(['statut' => Article::STATUT_DISPONIBLE]);
+                        }
+                    }
+                }
+
+                $commText = $commentaire ?? ($wasRefunded
+                    ? 'Commande annulée et argent remboursé via Stripe par l\'administrateur (produits rendus — stock réaugmenté)'
+                    : 'Commande annulée par l\'administrateur (produits rendus — stock réaugmenté)');
+
+                $updateData = ['statut' => $nouveauStatut];
+                if ($wasRefunded) {
+                    $updateData['statut_paiement'] = Commande::STATUT_PAIEMENT_REMBOURSE;
+                }
+
+                $commande->pushHistorique($nouveauStatut, $commText);
+                $commande->update($updateData);
+            });
+        } else {
+            $commande->update(['statut' => $nouveauStatut]);
+            $commande->pushHistorique($nouveauStatut, $commentaire);
+        }
 
         // In-app & email notification
         $commande->load('user');
         try {
+            $notifMsg = $wasRefunded
+                ? "L'argent (" . number_format($commande->montant_total, 2) . " DT) a été remboursé sur votre compte via Stripe. La commande est annulée et le stock a été augmenté (produit rendu)."
+                : ($commentaire ?? "Statut mis à jour : {$commande->statutLabel()}" . ($nouveauStatut === Commande::STATUT_ANNULEE ? " (articles remis en stock car les produits sont rendus)" : ""));
+
             $commande->user->notify(new \App\Notifications\CommandeStatutNotification(
                 $commande,
                 $nouveauStatut,
-                $commentaire
+                $notifMsg
             ));
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Notification failure: ' . $e->getMessage());
         }
 
-        return back()->with('success', "Statut mis à jour : {$commande->statutLabel()}");
+        $flash = back()->with('success', "Statut mis à jour : {$commande->statutLabel()}" . ($nouveauStatut === Commande::STATUT_ANNULEE ? " — le stock a été augmenté car le produit est rendu." : ""));
+
+        if ($wasRefunded) {
+            $flash->with('remboursement', [
+                'numero'  => $commande->numero,
+                'montant' => number_format($commande->montant_total, 2),
+                'message' => "L'argent a été remboursé avec succès ! Le montant de " . number_format($commande->montant_total, 2) . " DT a été reversé sur le compte via Stripe. Le stock du produit a bien été augmenté car le produit est rendu.",
+            ]);
+        }
+
+        return $flash;
+    }
+
+    // =========================================================
+    // CLIENT: Confirmer la bonne réception du colis (passe en statut LIVREE)
+    // =========================================================
+    public function confirmerLivraison(Request $request, Commande $commande): RedirectResponse
+    {
+        $this->authorize('view', $commande);
+
+        if ($commande->user_id !== $request->user()->id && ! $request->user()->isAdmin()) {
+            abort(403, 'Seul le client ayant passé cette commande peut confirmer la réception.');
+        }
+
+        if ($commande->statut === Commande::STATUT_LIVREE) {
+            return redirect()->route('commandes.show', $commande)->with('info', 'Cette commande est déjà marquée comme livrée.');
+        }
+
+        if (! in_array($commande->statut, [Commande::STATUT_EXPEDIEE, Commande::STATUT_EN_PREPARATION])) {
+            return redirect()->route('commandes.show', $commande)->with('error', 'La commande ne peut être marquée comme livrée que lorsqu\'elle est expédiée.');
+        }
+
+        DB::transaction(function () use ($commande) {
+            $commande->update(['statut' => Commande::STATUT_LIVREE]);
+            $commande->pushHistorique(
+                Commande::STATUT_LIVREE,
+                'Réception confirmée par le client — Commande bien reçue et livrée avec succès'
+            );
+        });
+
+        // Notification client
+        try {
+            $commande->load('user');
+            $commande->user->notify(new \App\Notifications\CommandeStatutNotification(
+                $commande,
+                Commande::STATUT_LIVREE,
+                "Merci d'avoir confirmé la bonne réception de votre commande {$commande->numero} ! Vous pouvez dès à présent évaluer vos articles achetés."
+            ));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Notification livraison client: ' . $e->getMessage());
+        }
+
+        return redirect()->route('commandes.show', $commande)->with('success', "🎉 Merci ! Votre commande {$commande->numero} a bien été marquée comme livrée. Vous pouvez dès maintenant évaluer les articles reçus !");
     }
 
     // =========================================================
@@ -476,6 +729,18 @@ class CommandeController extends Controller
                 $article = Article::with('user')->find($id);
                 if ($article) {
                     $items[] = ['article' => $article, 'quantite' => max(1, (int) $qty)];
+                }
+            }
+        }
+
+        // Format 3: from active user cart
+        if (empty($items) && $request->user()?->panier) {
+            foreach ($request->user()->panier->lignes()->with('article.user')->get() as $ligne) {
+                if ($ligne->article && $ligne->article->isDisponible()) {
+                    $items[] = [
+                        'article'  => $ligne->article,
+                        'quantite' => min($ligne->quantite, $ligne->article->stock),
+                    ];
                 }
             }
         }

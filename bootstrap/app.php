@@ -16,10 +16,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Permissions des tokens Sanctum (ex. abilities:upcycling:ecrire)
+        // Webhook Stripe exclu de la vérification CSRF (Stripe signe ses requêtes avec STRIPE_WEBHOOK_SECRET)
+        $middleware->validateCsrfTokens(except: [
+            'stripe/webhook',
+        ]);
+
+        // Alias : permissions des tokens Sanctum (ex. abilities:upcycling:ecrire) et rôle (ex. role:ATELIER,ADMIN)
         $middleware->alias([
             'abilities' => CheckAbilities::class,
             'ability'   => CheckForAnyAbility::class,
+            'role'      => \App\Http\Middleware\EnsureRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

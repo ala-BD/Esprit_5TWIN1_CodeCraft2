@@ -13,6 +13,10 @@ class DatabaseSeeder extends Seeder
             RecyclageSeeder::class,
             UpcyclingSeeder::class,
             LogistiqueSeeder::class,
+            MarketplaceSeeder::class,
+            TestAccountsSeeder::class,
+            ParametreCoutSeeder::class,
+            DonGratuitSeeder::class,
         ]);
     }
 }

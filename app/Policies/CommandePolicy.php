@@ -21,15 +21,18 @@ class CommandePolicy
      */
     public function view(User $user, Commande $commande): bool
     {
-        return $commande->user_id === $user->id || $user->isAdmin();
+        return $commande->user_id === $user->id
+            || $user->isAdmin()
+            || $commande->lignes()->whereHas('article', fn($q) => $q->where('user_id', $user->id))->exists();
     }
 
     /**
-     * Any logged-in user can place an order (business rules enforced in controller).
+     * Any logged-in user can place an order EXCEPT Atelier (vendor role).
+     * Atelier is a seller, not a buyer.
      */
     public function create(User $user): bool
     {
-        return true;
+        return $user->role !== User::ROLE_ATELIER;
     }
 
     /**
@@ -44,21 +47,44 @@ class CommandePolicy
     }
 
     /**
-     * Only the owner can cancel (before shipping), Admin always can.
+     * Only the owner can cancel or delete, Admin always can.
      */
     public function delete(User $user, Commande $commande): bool
     {
         if ($user->isAdmin()) {
             return true;
         }
-        return $commande->user_id === $user->id && $commande->estAnnulable();
+        return $commande->user_id === $user->id;
     }
 
     /**
-     * Only admin can update status (advance workflow).
+     * Admin can update any status.
+     * Atelier can confirm/prepare/ship orders that contain their articles.
      */
     public function updateStatut(User $user, Commande $commande): bool
     {
-        return $user->isAdmin();
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        // Atelier can manage orders that contain at least one of their articles
+        if ($user->role === User::ROLE_ATELIER) {
+            return $commande->lignes()
+                ->whereHas('article', fn($q) => $q->where('user_id', $user->id))
+                ->exists();
+        }
+
+        return false;
+    }
+
+    /**
+     * An owner can pay their own order via Stripe as long as it has not already been paid
+     * and is not cancelled.
+     */
+    public function payer(User $user, Commande $commande): bool
+    {
+        return $commande->user_id === $user->id
+            && ! $commande->estPaye()
+            && $commande->statut !== Commande::STATUT_ANNULEE;
     }
 }

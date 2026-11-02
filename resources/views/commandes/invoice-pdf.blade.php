@@ -191,8 +191,15 @@
                 <div class="invoice-meta">
                     <strong>N° :</strong> {{ $commande->numero }}<br>
                     <strong>Date de commande :</strong> {{ $commande->date_commande->format('d/m/Y') }}<br>
-                    <strong>Statut :</strong> <span class="badge">{{ $commande->statutLabel() }}</span><br>
+                    <strong>Statut commande :</strong> <span class="badge">{{ $commande->statutLabel() }}</span><br>
+                    <strong>Statut paiement :</strong> <span class="badge" style="background-color: {{ $commande->estPaye() ? '#dcfce7; color: #166534;' : '#fef3c7; color: #92400e;' }}">{{ $commande->statutPaiementLabel() }}</span><br>
                     <strong>Mode de paiement :</strong> {{ \App\Models\Commande::MODES_PAIEMENT[$commande->mode_paiement] ?? $commande->mode_paiement }}
+                    @if($commande->date_paiement)
+                        <br><strong>Payé le :</strong> {{ $commande->date_paiement->format('d/m/Y H:i') }}
+                    @endif
+                    @if($commande->stripe_payment_intent)
+                        <br><strong>Réf. Stripe :</strong> {{ $commande->stripe_payment_intent }}
+                    @endif
                 </div>
             </td>
         </tr>

@@ -23,6 +23,7 @@ class Adresse extends Model
         'libelle',
         'rue',
         'ville',
+        'gouvernorat',
         'code_postal',
         'latitude',
         'longitude',

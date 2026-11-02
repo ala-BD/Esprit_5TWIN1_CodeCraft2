@@ -20,6 +20,11 @@ use Laravel\Sanctum\HasApiTokens;
  * @property bool $actif
  * @property-read string $full_name
  * @property-read string $initials
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Adresse> $adresses
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\DonVetement> $dons
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Article> $articles
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Commande> $commandes
+ * @property-read \App\Models\Panier|null $panier
  */
 class User extends Authenticatable
 {
@@ -59,6 +64,7 @@ class User extends Authenticatable
         'telephone',
         'role',
         'actif',
+        'tarif_horaire',
         'password',
     ];
 
@@ -73,6 +79,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
             'actif'             => 'boolean',
+            'tarif_horaire'     => 'decimal:2',
         ];
     }
 
@@ -156,5 +163,91 @@ class User extends Authenticatable
     public function tournees(): HasMany
     {
         return $this->hasMany(Tournee::class);
+    }
+
+    /**
+     * Relation 1-1 : Le panier de l'utilisateur (créé à la demande).
+     */
+    public function panier(): HasOne
+    {
+        return $this->hasOne(Panier::class);
+    }
+
+    /**
+     * Relation 1-N : Avis rédigés par l'utilisateur.
+     */
+    public function avis(): HasMany
+    {
+        return $this->hasMany(Avis::class);
+    }
+
+    /**
+     * Relation 1-N : Votes émis par l'utilisateur (likes / dislikes).
+     */
+    public function avisVotes(): HasMany
+    {
+        return $this->hasMany(AvisVote::class);
+    }
+
+    /**
+     * Relation HasManyThrough : Avis reçus sur les articles vendus par cet utilisateur.
+     */
+    public function avisRecus(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
+    {
+        return $this->hasManyThrough(Avis::class, Article::class, 'user_id', 'article_id');
+    }
+
+    /**
+     * Note moyenne de l'Atelier / Vendeur (calculée sur l'ensemble de ses articles).
+     */
+    public function noteMoyenne(): float
+    {
+        $avg = $this->avisRecus()->avg('note_globale');
+        return $avg !== null ? round((float) $avg, 1) : 0.0;
+    }
+
+    /**
+     * Nombre total d'avis reçus sur ses articles.
+     */
+    public function nbAvisRecus(): int
+    {
+        return $this->avisRecus()->count();
+    }
+
+    /**
+     * Relation 1-N : Articles mis en favoris par l'utilisateur.
+     */
+    public function favoris(): HasMany
+    {
+        return $this->hasMany(Favori::class);
+    }
+
+    /**
+     * Relation 1-N : Recherches sauvegardées par l'utilisateur.
+     */
+    public function recherchesSauvegardees(): HasMany
+    {
+        return $this->hasMany(RechercheSauvegardee::class);
+    }
+
+    /**
+     * Relation 1-N : Estimations générées par cet atelier/utilisateur.
+     */
+    public function estimations(): HasMany
+    {
+        return $this->hasMany(Estimation::class);
+    }
+
+    /**
+     * Tarif horaire effectif de l'atelier (utilise le tarif configuré ou le barème par défaut).
+     */
+    public function getTarifHoraireEffectifAttribute(): float
+    {
+        if ($this->tarif_horaire !== null && (float) $this->tarif_horaire > 0) {
+            return (float) $this->tarif_horaire;
+        }
+
+        $param = ParametreCout::where('matiere', 'defaut')->first() ?? ParametreCout::first();
+        return $param ? (float) $param->tarif_horaire_defaut : 15.0;
     }
 }

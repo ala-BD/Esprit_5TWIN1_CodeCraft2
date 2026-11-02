@@ -28,15 +28,18 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
         $request->session()->regenerate();
 
-        $role = Auth::user()->role;
+        // Chaque rôle arrive dans l'espace de son module ; CLIENT et DONATEUR sur le tableau de bord général.
+        // intended() renvoie d'abord vers la page demandée avant la connexion, s'il y en a une.
+        $routeParRole = [
+            \App\Models\User::ROLE_RECYCLEUR  => 'recyclage.dashboard',
+            \App\Models\User::ROLE_ADMIN      => 'admin.users.index',
+            \App\Models\User::ROLE_COLLECTEUR => 'logistique.tournees.index',
+            \App\Models\User::ROLE_ATELIER    => 'upcycling.dashboard',
+        ];
 
-        return match($role) {
-            'RECYCLEUR'  => redirect()->route('recyclage.dashboard'),
-            'ADMIN'      => redirect()->route('admin.users.index'),
-            'COLLECTEUR' => redirect()->route('logistique.tournees.index'),
-            'ATELIER'    => redirect()->route('upcycling.dashboard'),
-            default      => redirect()->route('dashboard'),
-        };
+        $routeCible = $routeParRole[$request->user()->role] ?? 'dashboard';
+
+        return redirect()->intended(route($routeCible, absolute: false));
     }
 
     /**
