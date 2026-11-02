@@ -44,6 +44,21 @@ class RolesEtPermissionsTest extends TestCase
         $this->assertTrue($user->fresh()->hasRole(User::ROLE_RECYCLEUR));
     }
 
+    public function test_la_migration_aligne_une_base_existante_sans_roles_spatie(): void
+    {
+        // Base seedée avant Spatie : comptes sans rôle Spatie, admin bloqué (403)
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $admin->syncRoles([]);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->actingAs($admin->fresh())->get('/admin/users')->assertForbidden();
+
+        $migration = require database_path('migrations/2026_11_02_120000_creer_roles_et_permissions.php');
+        $migration->up();
+
+        $this->assertTrue($admin->fresh()->hasRole(User::ROLE_ADMIN));
+        $this->actingAs($admin->fresh())->get('/admin/users')->assertOk();
+    }
+
     public function test_la_fabrique_produit_des_utilisateurs_avec_le_role_spatie(): void
     {
         $donateur = User::factory()->create();
