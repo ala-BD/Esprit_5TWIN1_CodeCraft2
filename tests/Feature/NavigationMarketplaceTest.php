@@ -70,6 +70,31 @@ class NavigationMarketplaceTest extends TestCase
             ->assertDontSee('id="topbar-panier-link"', false);
     }
 
+    public function test_les_liens_de_la_vitrine_sont_masques_dans_l_espace_client(): void
+    {
+        $client = User::factory()->create(['role' => User::ROLE_CLIENT]);
+
+        foreach (['/favoris', '/panier'] as $page) {
+            // Liens de l'en-tête (classe nav-link) ; le pied de page garde les siens
+            $this->actingAs($client)->get($page)
+                ->assertOk()
+                ->assertDontSee(route('home').'#comment-ca-marche" class="nav-link"', false)
+                ->assertDontSee(route('home').'#impact" class="nav-link"', false)
+                ->assertDontSee(route('home').'#acteurs" class="nav-link"', false)
+                ->assertSee('id="subnav-favoris-link"', false)
+                ->assertSee('id="subnav-cart-link"', false);
+        }
+    }
+
+    public function test_les_liens_de_la_vitrine_restent_pour_les_visiteurs_et_sur_l_accueil(): void
+    {
+        $this->get('/')->assertOk()->assertSee('href="#comment-ca-marche" class="nav-link"', false);
+        $this->get('/login')->assertOk()->assertSee(route('home').'#impact" class="nav-link"', false);
+
+        $client = User::factory()->create(['role' => User::ROLE_CLIENT]);
+        $this->actingAs($client)->get('/')->assertOk()->assertSee('href="#comment-ca-marche" class="nav-link"', false);
+    }
+
     public function test_les_compteurs_affichent_le_contenu_du_panier_et_des_favoris(): void
     {
         $client = User::factory()->create(['role' => User::ROLE_CLIENT]);

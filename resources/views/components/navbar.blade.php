@@ -107,8 +107,12 @@
                 </div>
             </a>
 
-            {{-- ===== NAV DESKTOP ===== --}}
+            {{-- ===== NAV DESKTOP =====
+                 Liens de la page vitrine : visiteurs, ou page d'accueil. Dans l'espace connecté
+                 (panier, favoris, tableaux de bord…), la sous-barre ci-dessous les remplace. --}}
+            @php $liensVitrine = ! auth()->check() || request()->routeIs('home'); @endphp
             <div class="hidden lg:flex items-center gap-1">
+                @if($liensVitrine)
                 <a href="{{ route('home') }}" class="nav-link {{ request()->routeIs('home') ? 'font-semibold' : '' }}">
                     Accueil
                 </a>
@@ -128,6 +132,7 @@
                         </a>
                     @endif
                 @endauth
+                @endif
             </div>
 
             {{-- ===== AUTH BUTTONS ===== --}}
@@ -312,6 +317,7 @@
     {{-- ===== MENU MOBILE ===== --}}
     <div id="mobile-menu" class="lg:hidden bg-white border-t border-slate-100 shadow-xl">
         <div class="px-4 py-5 space-y-1">
+            @if($liensVitrine)
             <a href="{{ route('home') }}"
                class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                style="text-decoration:none">
@@ -341,6 +347,7 @@
                     </a>
                 @endif
             @endauth
+            @endif
 
             <div class="pt-4 mt-2 space-y-2" style="border-top: 1px solid #e2e8f0">
                 @auth
