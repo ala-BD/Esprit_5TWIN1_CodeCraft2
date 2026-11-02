@@ -1,0 +1,57 @@
+# Règles d'alerte (visibles dans Prometheus → Alerts)
+groups:
+  - name: retiss
+    rules:
+      - alert: ApplicationInjoignable
+        expr: up{job="retiss-laravel"} == 0
+        for: 1m
+        labels:
+          severite: critique
+        annotations:
+          resume: "RETISS ne répond plus"
+          description: "Prometheus n'arrive plus à lire /api/metrics depuis 1 minute (conteneurs web ou app arrêtés ?)."
+
+      - alert: BaseDeDonneesIndisponible
+        expr: retiss_base_disponible == 0
+        for: 30s
+        labels:
+          severite: critique
+        annotations:
+          resume: "La base MySQL ne répond pas"
+          description: "Laravel n'arrive plus à exécuter de requête sur la base."
+
+      - alert: BaseDeDonneesLente
+        expr: retiss_base_latence_secondes > 0.5
+        for: 2m
+        labels:
+          severite: avertissement
+        annotations:
+          resume: "La base de données répond lentement"
+          description: "Temps de réponse supérieur à 500 ms depuis 2 minutes."
+
+      - alert: IARecyclageIndisponible
+        expr: retiss_ia_recyclage_disponible == 0
+        for: 2m
+        labels:
+          severite: avertissement
+        annotations:
+          resume: "Le micro-service IA du module M4 est arrêté"
+          description: "Les règles métier prennent le relais, mais les prédictions de filière ne sont plus calculées par le modèle."
+
+      - alert: TachesEnEchec
+        expr: retiss_jobs_echoues > 0
+        for: 5m
+        labels:
+          severite: avertissement
+        annotations:
+          resume: "Des tâches de la file ont échoué"
+          description: "Consulter php artisan queue:failed dans le conteneur app."
+
+      - alert: ExporteurNginxArrete
+        expr: up{job="nginx"} == 0
+        for: 1m
+        labels:
+          severite: avertissement
+        annotations:
+          resume: "L'exporteur Nginx ne répond plus"
+          description: "Les statistiques de trafic ne sont plus collectées."

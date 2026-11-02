@@ -1,0 +1,33 @@
+# Prometheus — collecte des indicateurs de RETISS toutes les 15 secondes
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    projet: retiss
+
+rule_files:
+  - /etc/prometheus/alertes.yml
+
+scrape_configs:
+  # Indicateurs métier et santé exposés par Laravel (MetricsController)
+  - job_name: retiss-laravel
+    metrics_path: /api/metrics
+    authorization:
+      type: Bearer
+      credentials: retiss-metrics      # = METRICS_TOKEN du docker-compose (à changer ensemble)
+    static_configs:
+      - targets: ["web:80"]
+
+  # Trafic HTTP (requêtes, connexions) via nginx-prometheus-exporter
+  - job_name: nginx
+    static_configs:
+      - targets: ["nginx-exporter:9113"]
+
+  # Base de données (connexions, requêtes, lenteurs) via mysqld-exporter
+  - job_name: mysql
+    static_configs:
+      - targets: ["mysql-exporter:9104"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

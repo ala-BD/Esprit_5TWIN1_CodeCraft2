@@ -1,0 +1,285 @@
+# RETISS — pipeline d'intégration et de livraison continues
+#
+#   CI : qualité du code -> tests Laravel + tests IA -> images Docker -> tests de fumée -> scan de sécurité
+#   CD : publication des images sur GHCR (branches main / integration)
+#        puis déploiement SSH sur le serveur, si les secrets DEPLOY_* sont configurés
+#
+# Les secrets ne sont jamais dans le dépôt : la CI génère une APP_KEY jetable,
+# le serveur garde son propre fichier .env.
+
+name: CI/CD
+
+on:
+  push:
+    branches: [main, integration, ala, devops]
+  pull_request:
+    branches: [main, integration, ala]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PHP_VERSION: "8.4"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+
+  # ---------------------------------------------------------------- CI 1
+  qualite:
+    name: Qualité du code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: vendor-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+
+      - run: composer validate --no-check-publish
+      - run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Syntaxe PHP
+        run: find app bootstrap config database routes tests -name '*.php' -print0 | xargs -0 -n1 -P4 php -l > /dev/null
+
+      - name: Style (Pint) des fichiers PHP modifiés
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          if [ -z "$base" ] || ! git cat-file -e "$base" 2>/dev/null; then
+            base="HEAD~1"
+          fi
+          fichiers=$(git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.php' | grep -v '^storage/\|^bootstrap/cache/' || true)
+          if [ -z "$fichiers" ]; then
+            echo "Aucun fichier PHP modifié."
+            exit 0
+          fi
+          echo "$fichiers"
+          echo "$fichiers" | xargs vendor/bin/pint --test
+
+      - name: Style (Pint) du projet entier — informatif
+        continue-on-error: true
+        run: vendor/bin/pint --test
+
+      - name: Audit des dépendances
+        run: composer audit --no-interaction || echo "::warning::composer audit signale des vulnérabilités (voir le journal)"
+
+  # ---------------------------------------------------------------- CI 2
+  tests-laravel:
+    name: Tests Laravel
+    runs-on: ubuntu-latest
+    needs: qualite
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: pdo_sqlite, gd, zip, intl, bcmath
+          coverage: none
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: vendor-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+
+      - run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Préparer l'environnement de test
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: PHPUnit (SQLite en mémoire)
+        run: php artisan test --log-junit storage/logs/junit.xml
+
+      - name: Rapport JUnit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-laravel
+          path: storage/logs/junit.xml
+          if-no-files-found: ignore
+
+  tests-ia:
+    name: Tests IA recyclage (Python)
+    runs-on: ubuntu-latest
+    needs: qualite
+    defaults:
+      run:
+        working-directory: ai-recyclage
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: ai-recyclage/requirements.txt
+
+      - run: pip install -r requirements.txt
+      - name: Entraînement du modèle
+        run: python -c "import entrainement; entrainement.entrainer()"
+      - name: Tests unitaires
+        run: python -m unittest test_moteur -v
+
+  # ---------------------------------------------------------------- CI 3
+  docker:
+    name: Images Docker + tests de fumée
+    runs-on: ubuntu-latest
+    needs: [tests-laravel, tests-ia]
+    permissions:
+      contents: read
+      packages: write
+    env:
+      RETISS_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nom des images (GHCR exige des minuscules)
+        run: echo "RETISS_IMAGE_PREFIX=ghcr.io/${GITHUB_REPOSITORY,,}/retiss" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Construire l'image app (PHP-FPM)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: app
+          load: true
+          tags: ${{ env.RETISS_IMAGE_PREFIX }}-app:${{ env.RETISS_TAG }}
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,scope=app,mode=max
+
+      - name: Construire l'image web (Nginx)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: web
+          load: true
+          tags: ${{ env.RETISS_IMAGE_PREFIX }}-web:${{ env.RETISS_TAG }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+      - name: Construire l'image ai (FastAPI, modèle entraîné et testé au build)
+        uses: docker/build-push-action@v6
+        with:
+          context: ai-recyclage
+          load: true
+          tags: ${{ env.RETISS_IMAGE_PREFIX }}-ai:${{ env.RETISS_TAG }}
+          cache-from: type=gha,scope=ai
+          cache-to: type=gha,scope=ai,mode=max
+
+      - name: Démarrer la pile complète
+        run: |
+          APP_KEY="base64:$(openssl rand -base64 32)"
+          export APP_KEY
+          docker compose up -d --no-build --wait --wait-timeout 300
+
+      - name: Tests de fumée
+        run: bash devops/ci/smoke.sh http://localhost:8088
+
+      - name: Journaux des conteneurs
+        if: failure()
+        run: docker compose logs --no-color --tail=200
+
+      - name: Scan de vulnérabilités (Trivy)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.RETISS_IMAGE_PREFIX }}-app:${{ env.RETISS_TAG }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: table
+          exit-code: "0"
+
+      - name: Arrêter la pile
+        if: always()
+        run: docker compose down -v
+
+      # ------------------------------------------------------------ CD 1
+      - name: Connexion à GHCR
+        if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'integration')
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publier les images (sha + nom de branche)
+        if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'integration')
+        run: |
+          for image in app web ai; do
+            source="$RETISS_IMAGE_PREFIX-$image:$RETISS_TAG"
+            docker tag "$source" "$RETISS_IMAGE_PREFIX-$image:${GITHUB_REF_NAME}"
+            docker push "$source"
+            docker push "$RETISS_IMAGE_PREFIX-$image:${GITHUB_REF_NAME}"
+          done
+
+  # ---------------------------------------------------------------- CD 2
+  deploiement:
+    name: Déploiement
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.event_name == 'push' && github.ref_name == 'main' && vars.DEPLOY_ENABLED == 'true'
+    environment:
+      name: production
+      url: ${{ vars.DEPLOY_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copier la configuration sur le serveur
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: docker-compose.yml,devops/monitoring
+          target: ${{ vars.DEPLOY_PATH || '/opt/retiss' }}
+
+      - name: Tirer les nouvelles images et redémarrer
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RETISS_TAG: ${{ github.sha }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/retiss' }}
+          REPO: ${{ github.repository }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: GHCR_USER,GHCR_TOKEN,RETISS_TAG,DEPLOY_PATH,REPO
+          script: |
+            set -e
+            cd "$DEPLOY_PATH"
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            export RETISS_IMAGE_PREFIX="ghcr.io/$(echo "$REPO" | tr '[:upper:]' '[:lower:]')/retiss"
+            export RETISS_TAG SEED_DEMO=false
+            docker compose pull app web queue ai
+            docker compose up -d --no-build --wait --wait-timeout 300
+            docker image prune -f
+
+      - name: Vérification après déploiement
+        if: vars.DEPLOY_URL != ''
+        run: |
+          for chemin in /nginx-health /login; do
+            curl -fsS -o /dev/null --retry 5 --retry-delay 5 --retry-all-errors "${{ vars.DEPLOY_URL }}$chemin"
+            echo "GET $chemin OK"
+          done

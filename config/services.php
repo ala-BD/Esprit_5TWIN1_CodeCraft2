@@ -83,4 +83,9 @@ return [
         'devise'     => env('AI_DEVISE', 'EUR'),
     ],
 
+    // Supervision Prometheus (GET /api/metrics) — désactivée tant qu'aucun jeton n'est défini
+    'metrics' => [
+        'token' => env('METRICS_TOKEN'),
+    ],
+
 ];
