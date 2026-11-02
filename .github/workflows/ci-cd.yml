@@ -263,18 +263,34 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Relancer une ancienne exécution ne doit jamais remettre du vieux code en production
+      - name: Commit à jour avec la branche ?
+        id: version
+        run: |
+          dernier=$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | cut -f1)
+          if [ "$dernier" = "$GITHUB_SHA" ]; then
+            echo "a_jour=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "a_jour=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Déploiement ignoré : ${GITHUB_SHA::7} n'est plus le dernier commit de ${GITHUB_REF_NAME} (${dernier::7})."
+          fi
+
       - name: CLI Railway (version figée)
+        if: steps.version.outputs.a_jour == 'true'
         run: |
           npm install --global "@railway/cli@${RAILWAY_CLI_VERSION}"
           railway --version
 
       - name: Déployer le service IA (réseau privé)
+        if: steps.version.outputs.a_jour == 'true'
         run: railway up ai-recyclage --path-as-root --service ai --ci
 
       - name: Déployer l'application (image docker/railway)
+        if: steps.version.outputs.a_jour == 'true'
         run: railway up --service retiss --ci
 
       - name: Vérification après déploiement
+        if: steps.version.outputs.a_jour == 'true'
         run: |
           for chemin in /nginx-health /login; do
             curl -fsS -o /dev/null --retry 10 --retry-delay 10 --retry-all-errors "$URL$chemin"
