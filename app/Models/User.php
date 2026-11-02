@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -26,7 +27,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Commande> $commandes
  * @property-read \App\Models\Panier|null $panier
  */
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
@@ -119,7 +120,7 @@ class User extends Authenticatable
     public function getInitialsAttribute(): string
     {
         $prenom = $this->prenom ? strtoupper(substr($this->prenom, 0, 1)) : '';
-        $nom    = $this->name   ? strtoupper(substr($this->name,   0, 1)) : '';
+        $nom    = $this->name ? strtoupper(substr($this->name,   0, 1)) : '';
         return $prenom . $nom;
     }
 

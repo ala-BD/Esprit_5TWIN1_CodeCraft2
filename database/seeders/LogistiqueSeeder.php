@@ -23,6 +23,7 @@ class LogistiqueSeeder extends Seeder
                 'role'      => 'COLLECTEUR',
                 'actif'     => true,
                 'password'  => Hash::make('Password123!'),
+                'email_verified_at' => now(),
             ]
         );
 

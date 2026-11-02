@@ -54,7 +54,6 @@ Route::get('/passeport/{qrCode}', [PasseportNumeriqueController::class, 'verifie
 Route::get('/dons/verifier/{qrCode}', [DonVetementController::class, 'verifier'])
     ->name('collecte.dons.verifier');
 
-
 /*
 |--------------------------------------------------------------------------
 | Stripe Webhook — public, no auth, no CSRF (excluded in bootstrap/app.php)
@@ -65,10 +64,12 @@ Route::post('/stripe/webhook', [PaiementController::class, 'webhook'])
 
 /*
 |--------------------------------------------------------------------------
-| Routes protégées (auth requis)
+| Routes protégées (auth + e-mail vérifié requis)
+| Les routes Breeze (verify-email, verification.send, logout) restent
+| dans routes/auth.php, accessibles sans vérification.
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
 
     // Dashboard général
     Route::get('/dashboard', function () {
