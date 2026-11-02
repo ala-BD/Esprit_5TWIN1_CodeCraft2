@@ -75,9 +75,8 @@ jobs:
 
       - name: Style (Pint) du projet entier — informatif
         run: |
-          if ! vendor/bin/pint --test --format=json > pint.log; then
-            n=$(grep -o '"path"' pint.log | wc -l)
-            echo "::warning::Pint : $n fichier(s) existant(s) hors style (non bloquant, voir le journal)"
+          if ! vendor/bin/pint --test > pint.log 2>&1; then
+            echo "::warning::Pint : des fichiers existants ne respectent pas le style (non bloquant, liste dans le journal)"
             cat pint.log
           fi
 
