@@ -89,6 +89,10 @@ passer, mais tout nouveau code doit respecter `pint.json`.
 
 ### Activer le déploiement
 
+Hébergement prévu : **Railway** (images Docker du projet, MySQL géré, service IA en réseau privé), mis en ligne par
+l'intégrateur de l'équipe. Le job `deploiement` ci-dessous (SSH + Docker Compose) reste désactivé d'ici là et sera
+adapté à Railway à ce moment-là. Il fonctionne aussi tel quel sur n'importe quel serveur Linux équipé de Docker.
+
 Dans GitHub → Settings → Secrets and variables → Actions :
 
 | Type | Nom | Valeur |

@@ -65,7 +65,7 @@
   table.serre th, table.serre td { padding: 1.1mm 1.8mm; }
   .legende { font-size: 8.5pt; color: var(--doux); margin-top: 1.5mm; text-align: center; }
 
-  .chiffres { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 3mm 0 4mm; }
+  .chiffres { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.5mm; margin: 3mm 0 4mm; }
   .chiffre { background: var(--fond); border-radius: 3px; padding: 3mm; }
   .chiffre b { display: block; font-size: 17pt; color: var(--vert); line-height: 1.1; }
   .chiffre span { font-size: 8.5pt; color: var(--doux); }
@@ -93,6 +93,7 @@
   <div class="ecole">Esprit · 5TWIN1 · Projet Laravel · Équipe CodeCraft</div>
   <h1>RETISS</h1>
   <div class="sous-titre">Dossier DevOps — processus, pipeline CI/CD et supervision</div>
+  <div class="ecole" style="margin-top:4mm">Version finale · dépôt <span class="mono">github.com/ala-BD/Esprit_5TWIN1_CodeCraft2</span></div>
   <p class="resume">
     Plateforme d’économie circulaire du textile (collecte, marketplace, upcycling, recyclage, logistique).
     Ce dossier présente la démarche DevOps appliquée au projet : le cycle suivi par l’équipe, le pipeline
@@ -373,6 +374,12 @@ jobs:
     needs: docker
     if: github.ref_name == 'main' &amp;&amp; vars.DEPLOY_ENABLED == 'true'
     environment: production</pre>
+  <p>
+    <b>Hébergement :</b> la mise en ligne est prévue sur <b>Railway</b>, qui exécute directement les images Docker du projet
+    (application, base MySQL gérée, service IA en réseau privé). Elle est assurée par Ala, responsable de l’intégration ;
+    les étapes ⑦ à ⑨ seront alors branchées sur Railway. D’ici là, le job de déploiement reste désactivé et le pipeline
+    s’arrête après la livraison des images.
+  </p>
 </section>
 
 <!-- ============================== 4. Architecture ============================== -->
@@ -498,10 +505,42 @@ jobs:
   </table>
 </section>
 
-<!-- ============================== 6. Résultats ============================== -->
+<!-- ============================== 6. Pipeline sur GitHub ============================== -->
 <section class="saut">
-  <h2>6. Résultats obtenus</h2>
+  <h2>6. Le pipeline en exécution sur GitHub</h2>
+  <p>
+    Le pipeline tourne sur le dépôt de l’équipe (<code>ala-BD/Esprit_5TWIN1_CodeCraft2</code>, onglet <i>Actions</i>).
+    GitHub affiche les jobs sous forme de graphe : les tests Laravel et les tests IA s’exécutent en parallèle,
+    le job Docker attend qu’ils réussissent tous les deux, et le déploiement attend le job Docker.
+  </p>
+  <div class="figure">
+    <img src="img/github-execution.png" alt="Exécution verte du pipeline CI/CD sur GitHub Actions">
+    <div class="legende">Figure 7 — Exécution réussie du pipeline : chaque job est validé avant le suivant (le déploiement reste désactivé tant que l’hébergement n’est pas branché)</div>
+  </div>
+
+  <h3>Ce que la CI a détecté dès ses premières exécutions</h3>
+  <p>
+    Les premières exécutions ont échoué, et c’est le rôle attendu d’une CI : chaque échec a révélé un problème
+    réel, invisible sur les postes des développeurs, corrigé avant d’arriver dans la branche d’intégration.
+  </p>
+  <table class="serre">
+    <tr><th style="width:9%">N°</th><th style="width:26%">Étape en échec</th><th>Cause détectée</th><th style="width:30%">Correction</th></tr>
+    <tr><td>#1</td><td>② Tests Laravel</td><td>1 test sur 362 dépendait de la langue configurée dans le <code>.env</code> de chaque développeur : il passait en local (français) et échouait sur un environnement neuf (anglais).</td><td>Langue des tests fixée dans <code>phpunit.xml</code>.</td></tr>
+    <tr><td>#2</td><td>③ Build (préparation)</td><td>La version 0.28.0 de l’action de scan Trivy avait été retirée de GitHub.</td><td>Version 0.36.0, figée par l’identifiant de son commit (protection contre une modification de l’action).</td></tr>
+    <tr><td>#3</td><td>Arrêt de la pile</td><td>La clé d’application jetable n’existait que dans l’étape de démarrage ; Compose refusait de s’exécuter sans elle à l’arrêt.</td><td>Clé partagée entre les étapes et masquée dans les journaux.</td></tr>
+    <tr><td>#4 à #6</td><td>—</td><td>Pipeline complet au vert.</td><td>Actions mises à jour (Node 24), rapport de style global en simple avertissement.</td></tr>
+  </table>
+  <div class="figure">
+    <img style="width:60%;margin:0 auto" src="img/github-historique.png" alt="Historique des exécutions du pipeline">
+    <div class="legende">Figure 8 — Historique des exécutions : trois échecs corrigés, puis un pipeline vert</div>
+  </div>
+</section>
+
+<!-- ============================== 7. Résultats ============================== -->
+<section class="saut">
+  <h2>7. Résultats obtenus</h2>
   <div class="chiffres">
+    <div class="chiffre"><b>4 min</b><span>pipeline CI complet sur GitHub, 4 jobs verts</span></div>
     <div class="chiffre"><b>360</b><span>tests PHPUnit réussis (1 505 assertions)</span></div>
     <div class="chiffre"><b>11 / 11</b><span>tests de fumée sur la pile Docker</span></div>
     <div class="chiffre"><b>25</b><span>pages vérifiées pour les 6 rôles</span></div>
@@ -532,6 +571,7 @@ $ bash devops/ci/smoke.sh http://localhost:8088
   <ul>
     <li><b>Données de démonstration incomplètes en conteneur</b> : les seeders utilisaient Faker, absent de l’image de production. Le conteneur redémarrait sans erreur visible ; le contrôle de santé l’a signalé. Faker a été déplacé dans les dépendances de production.</li>
     <li><b>Tests échouant après l’intégration</b> : la fabrique d’utilisateurs ne fixait pas le rôle, ce qui faisait refuser l’accès par le middleware des rôles. Corrigé dans la fabrique, détecté par la suite de tests lancée à l’intégration.</li>
+    <li><b>Problèmes révélés par la CI</b> : dépendance d’un test à la configuration locale, action GitHub retirée, variable perdue entre deux étapes (détail en section 6).</li>
     <li><b>Vulnérabilité de dépendance</b> : <code>composer audit</code> signale un avis de sécurité sur <code>symfony/mime</code>, suivi dans le pipeline.</li>
   </ul>
 
