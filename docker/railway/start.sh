@@ -20,5 +20,15 @@ sed -e "s/listen 80 default_server;/listen ${PORT} default_server;\n    listen [
 
 nginx -t -q
 
+# Forfait gratuit Railway : 0,5 Go de mémoire par service, d'où moins de processus PHP-FPM
+# que dans docker-compose (20). Réglable avec la variable FPM_MAX_CHILDREN.
+cat > /usr/local/etc/php-fpm.d/zzz-railway.conf <<EOF
+[www]
+pm.max_children = ${FPM_MAX_CHILDREN:-5}
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
+EOF
+
 echo "[retiss] Démarrage de PHP-FPM, de la file de tâches et de Nginx sur le port ${PORT}."
 exec supervisord -n -c /etc/supervisord.conf
