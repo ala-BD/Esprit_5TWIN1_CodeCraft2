@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\DonVetement;
 use App\Models\User;
+use App\Services\DonationImageHashService;
 use App\Services\DonVetementAiService;
 use App\Services\DonVetementDuplicateService;
-use App\Services\DonationImageHashService;
 use App\Services\DonVetementImageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -29,7 +29,7 @@ class DonVetementController extends Controller
 
         if ($user->hasRole(User::ROLE_DONATEUR)) {
             $donsQuery->where('user_id', $user->id);
-        } elseif (!$this->canManageDonations()) {
+        } elseif (! $this->canManageDonations()) {
             abort(403);
         }
 
@@ -58,7 +58,7 @@ class DonVetementController extends Controller
             'photo.max' => 'La photo ne doit pas dépasser 5 Mo.',
         ]);
 
-        if (!$service->estConfigure()) {
+        if (! $service->estConfigure()) {
             return response()->json(['message' => "L'analyse IA est indisponible pour le moment."], 503);
         }
 
@@ -70,7 +70,7 @@ class DonVetementController extends Controller
             return response()->json(['message' => "L'IA n'a pas pu analyser cette photo. Réessayez ou remplissez les champs manuellement."], 502);
         }
 
-        if (!$suggestion['est_vetement']) {
+        if (! $suggestion['est_vetement']) {
             return response()->json(['message' => "L'IA ne reconnaît pas de vêtement sur cette photo."], 422);
         }
 
@@ -115,15 +115,22 @@ class DonVetementController extends Controller
 
         $request->validate([
             'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'mode' => ['nullable', Rule::in(['faithful', 'generative'])],
+            'type' => ['nullable', 'string', 'max:100'],
         ], [
             'photo.required' => 'Ajoutez une photo du vêtement.',
             'photo.image' => 'Le fichier doit être une image.',
             'photo.mimes' => 'Formats acceptés : JPG, PNG ou WEBP.',
             'photo.max' => 'La photo ne doit pas dépasser 5 Mo.',
         ]);
+        $mode = $request->input('mode', 'generative');
 
-        if (!$service->estConfigure()) {
-            return response()->json(['message' => "L'amélioration d'image IA est indisponible pour le moment."], 503);
+        if (! $service->estConfigure($mode)) {
+            $message = $mode === 'faithful'
+                ? 'Le détourage fidèle nécessite ComfyUI local. Sélectionnez le mode génératif ou configurez ComfyUI.'
+                : "L'amélioration d'image IA est indisponible pour le moment.";
+
+            return response()->json(['message' => $message], 503);
         }
 
         $directory = "don-enhancements/{$user->id}";
@@ -135,7 +142,11 @@ class DonVetementController extends Controller
         }
 
         try {
-            $generated = $service->ameliorer($request->file('photo')->getRealPath());
+            $generated = $service->ameliorer(
+                $request->file('photo')->getRealPath(),
+                $mode,
+                $request->input('type')
+            );
             $extension = match ($generated['mime_type']) {
                 'image/png' => 'png',
                 'image/jpeg' => 'jpg',
@@ -145,18 +156,25 @@ class DonVetementController extends Controller
             $token = (string) Str::uuid();
             $temporaryPath = "{$directory}/{$token}.{$extension}";
 
-            if (!$disk->put($temporaryPath, $generated['data'])) {
+            if (! $disk->put($temporaryPath, $generated['data'])) {
                 throw new \RuntimeException('Impossible d’enregistrer temporairement l’image générée.');
             }
         } catch (Throwable $e) {
             Log::warning('Don IA : amélioration photo échouée.', ['erreur' => $e->getMessage()]);
 
-            return response()->json(['message' => "L'IA n'a pas pu améliorer cette photo. Réessayez ou conservez l'original."], 502);
+            $message = $mode !== 'faithful'
+                ? "L'IA n'a pas pu améliorer cette photo. Réessayez ou conservez l'original."
+                : (str_contains($e->getMessage(), 'storyicon/comfyui_segment_anything')
+                    || str_starts_with($e->getMessage(), 'Aucun vêtement')
+                    ? $e->getMessage()
+                    : 'Le détourage fidèle a échoué. Vérifiez que ComfyUI, le node pack Segment Anything et les modèles SAM/GroundingDINO sont disponibles.');
+
+            return response()->json(['message' => $message], 502);
         }
 
         return response()->json([
             'token' => $token,
-            'preview' => 'data:' . $generated['mime_type'] . ';base64,' . base64_encode($generated['data']),
+            'preview' => 'data:'.$generated['mime_type'].';base64,'.base64_encode($generated['data']),
         ]);
     }
 
@@ -187,7 +205,7 @@ class DonVetementController extends Controller
             $metadata
         );
         if ($duplicateCheck === null) {
-            if (!empty($validated['duplicate_check_token'])) {
+            if (! empty($validated['duplicate_check_token'])) {
                 return back()
                     ->withErrors(['photo' => 'La vérification du doublon a expiré ou les informations ont changé. Relancez la vérification.'])
                     ->withInput($request->except('photo'));
@@ -198,7 +216,7 @@ class DonVetementController extends Controller
 
         if (
             $duplicateCheck['matches'] !== []
-            && !($validated['duplicate_confirmed'] ?? false)
+            && ! ($validated['duplicate_confirmed'] ?? false)
         ) {
             return back()
                 ->withErrors(['duplicate_confirmation' => 'Un don similaire existe déjà. Confirmez que vous souhaitez tout de même publier cet article.'])
@@ -210,7 +228,7 @@ class DonVetementController extends Controller
             ? $this->enhancedTemporaryPath($user->id, $enhancedToken)
             : null;
 
-        if ($validated['photo_choice'] === 'enhanced' && !$enhancedTemporaryPath) {
+        if ($validated['photo_choice'] === 'enhanced' && ! $enhancedTemporaryPath) {
             return back()
                 ->withErrors(['enhanced_token' => 'La version améliorée a expiré. Relancez son amélioration avant de valider.'])
                 ->withInput($request->except('photo'));
@@ -231,9 +249,9 @@ class DonVetementController extends Controller
                 'image/webp' => 'webp',
                 default => throw new \RuntimeException('Format d’image généré non pris en charge.'),
             };
-            $enhancedPhotoPath = 'dons/' . Str::uuid() . '.' . $extension;
+            $enhancedPhotoPath = 'dons/'.Str::uuid().'.'.$extension;
 
-            if (!Storage::disk('public')->put($enhancedPhotoPath, $enhancedImage)) {
+            if (! Storage::disk('public')->put($enhancedPhotoPath, $enhancedImage)) {
                 Storage::disk('public')->delete($originalPhotoPath);
                 throw new \RuntimeException('Impossible d’enregistrer la photo améliorée.');
             }
@@ -343,7 +361,7 @@ class DonVetementController extends Controller
 
     private function decodeDuplicateCheck(?string $token, User $user, string $photoPath, array $metadata): ?array
     {
-        if (!$token) {
+        if (! $token) {
             return null;
         }
 
@@ -357,10 +375,10 @@ class DonVetementController extends Controller
             ($check['user_id'] ?? null) !== $user->id
             || ($check['photo_hash'] ?? null) !== hash_file('sha256', $photoPath)
             || ($check['metadata_hash'] ?? null) !== $this->duplicateMetadataHash($metadata)
-            || !is_int($check['issued_at'] ?? null)
+            || ! is_int($check['issued_at'] ?? null)
             || $check['issued_at'] < now()->subMinutes(15)->timestamp
             || $check['issued_at'] > now()->timestamp
-            || !is_array($check['matches'] ?? null)
+            || ! is_array($check['matches'] ?? null)
         ) {
             return null;
         }

@@ -64,16 +64,35 @@
                     <p class="mt-1 text-xs text-slate-500">La photo peut être envoyée à Gemini pour analyse et comparaison avec vos propres anciens dons. Aucune photo d’un autre donateur n’est utilisée. Vérifiez les suggestions avant de valider.</p>
                     <p id="resultat-analyse" role="status" class="mt-2 hidden text-sm text-emerald-700"></p>
                     <p id="erreur-analyse" role="alert" class="mt-2 hidden text-sm text-red-600"></p>
+                    <fieldset class="mt-4 rounded-xl border border-slate-200 p-4">
+                        <legend class="px-2 text-sm font-semibold text-slate-700">Mode de traitement de la photo</legend>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <label class="cursor-pointer rounded-xl border border-slate-200 p-3 has-[:checked]:border-primary has-[:checked]:ring-2 has-[:checked]:ring-primary/20">
+                                <span class="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                                    <input type="radio" name="image_mode" value="faithful" checked>
+                                    Détourage fidèle
+                                </span>
+                                <span class="mt-2 block text-xs text-slate-600">Conserve les pixels visibles du vêtement et remplace le fond par un fond neutre. Pour un vêtement porté, les parties cachées ne peuvent pas être reconstituées.</span>
+                            </label>
+                            <label class="cursor-pointer rounded-xl border border-slate-200 p-3 has-[:checked]:border-primary has-[:checked]:ring-2 has-[:checked]:ring-primary/20">
+                                <span class="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                                    <input type="radio" name="image_mode" value="generative">
+                                    Retrait IA expérimental
+                                </span>
+                                <span class="mt-2 block text-xs text-slate-600">Tente de retirer la personne et le fond par génération. Le motif, le logo ou d’autres détails peuvent être modifiés ou inventés.</span>
+                            </label>
+                        </div>
+                    </fieldset>
                     <button id="ameliorer-photo" type="button" disabled class="mt-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50">
-                        <span data-label>Créer une photo style catalogue avec l’IA</span>
+                        <span data-label>Détourer le vêtement sans le recréer</span>
                     </button>
                     <p class="mt-1 text-xs text-slate-500">
                         @if(config('services.donation_images.provider') === 'comfyui')
-                            Votre photo est envoyée au serveur ComfyUI local pour générer une version à fond neutre.
+                            La photo est traitée par votre serveur ComfyUI local. Le détourage fidèle nécessite le node pack <code>storyicon/comfyui_segment_anything</code> et les modèles SAM/GroundingDINO.
                         @else
-                            Votre photo est envoyée à Gemini pour générer une version à fond neutre.
+                            Le mode génératif utilise Gemini. Le détourage fidèle est disponible uniquement avec ComfyUI local.
                         @endif
-                        Comparez les deux photos et choisissez celle qui représentera le don. Vérifiez que l’image améliorée montre fidèlement l’article.
+                        Comparez les deux photos avant de choisir celle qui représentera le don. Le détourage conserve uniquement les zones visibles : il ne peut pas retrouver les parties cachées par une personne.
                     </p>
                     <p id="erreur-amelioration" role="alert" class="mt-2 hidden text-sm text-red-600"></p>
                     <input type="hidden" name="enhanced_token" id="enhanced-token">
@@ -144,6 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const routeAnalyse = @json(route('collecte.dons.analyse-photo'));
     const routeAmelioration = @json(route('collecte.dons.ameliorer-photo'));
     const routeDetectionDoublon = @json(route('collecte.dons.detecter-doublon', [], false));
+    const modesImage = document.querySelectorAll('input[name="image_mode"]');
     let urlPhotoOriginale = null;
     let resultatsDoublons = [];
     let ignoreProchaineVerification = false;
@@ -160,6 +180,17 @@ document.addEventListener('DOMContentLoaded', () => {
         duplicateStatus.classList.add('text-slate-600');
         duplicateAiStatus.classList.add('hidden');
     };
+    const libelleAmelioration = () => document.querySelector('input[name="image_mode"]:checked').value === 'faithful'
+        ? 'Détourer le vêtement sans le recréer'
+        : 'Retrait IA expérimental';
+
+    modesImage.forEach((mode) => mode.addEventListener('change', () => {
+        boutonAmeliorer.querySelector('[data-label]').textContent = libelleAmelioration();
+        erreurAmelioration.classList.add('hidden');
+        comparaison.classList.add('hidden');
+        document.getElementById('enhanced-token').value = '';
+        document.querySelector('input[name="photo_choice"][value="original"]').checked = true;
+    }));
 
     photo.addEventListener('change', () => {
         invaliderVerificationDoublon();
@@ -343,6 +374,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const donnees = new FormData();
         donnees.append('photo', photo.files[0]);
+        donnees.append('mode', document.querySelector('input[name="image_mode"]:checked').value);
+        donnees.append('type', document.getElementById('type').value);
         donnees.append('_token', @json(csrf_token()));
 
         try {
@@ -367,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
             erreurAmelioration.classList.remove('hidden');
         } finally {
             boutonAmeliorer.disabled = photo.files.length === 0;
-            label.textContent = 'Créer une photo style catalogue avec l’IA';
+            label.textContent = libelleAmelioration();
         }
     });
 });

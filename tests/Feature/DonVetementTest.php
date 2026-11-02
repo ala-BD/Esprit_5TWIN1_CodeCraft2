@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class DonVetementTest extends TestCase
@@ -45,7 +46,7 @@ class DonVetementTest extends TestCase
         $this->actingAs($donor)
             ->get(route('collecte.dons.show', ['don' => $don->id]))
             ->assertOk()
-            ->assertSee('/storage/' . $don->photo_url, false)
+            ->assertSee('/storage/'.$don->photo_url, false)
             ->assertSee('Photo originale')
             ->assertSee('<svg', false)
             ->assertSee(route('collecte.dons.verifier', ['qrCode' => $don->qr_code]), false);
@@ -468,7 +469,7 @@ class DonVetementTest extends TestCase
                 'photo' => UploadedFile::fake()->image('blazer.webp'),
             ])
             ->assertOk()
-            ->assertJsonPath('preview', 'data:image/png;base64,' . base64_encode($imageBytes));
+            ->assertJsonPath('preview', 'data:image/png;base64,'.base64_encode($imageBytes));
 
         Storage::disk('local')->assertExists("don-enhancements/{$donor->id}/{$response->json('token')}.png");
         Http::assertSent(fn ($request) => parse_url($request->url(), PHP_URL_PATH) === '/upload/image');
@@ -476,13 +477,118 @@ class DonVetementTest extends TestCase
             && ($request->data()['prompt']['6']['inputs']['denoise'] ?? null) === 0.5
             && ($request->data()['prompt']['3']['inputs']['text'] ?? null)
                 === 'Extract the garment from this photo. Keep the exact same garment: same color, shape, fabric, '
-                    . 'print, text, logo, seams, and signs of wear. Remove the person and the background. Show only '
-                    . 'the garment, centered on a plain light background. Do not redesign it or add anything.'
+                    .'print, text, logo, seams, and signs of wear. Remove the person and the background. Show only '
+                    .'the garment, centered on a plain light background. Do not redesign it or add anything.'
             && ($request->data()['prompt']['4']['inputs']['text'] ?? null)
                 === 'person, human, face, hands, mannequin, model, background clutter, extra garments, '
-                    . 'accessories, watermark, blurry, deformed');
+                    .'accessories, watermark, blurry, deformed');
         Http::assertSent(fn ($request) => parse_url($request->url(), PHP_URL_PATH) === '/view'
             && ($request['filename'] ?? null) === 'textilecycle-output.png');
+    }
+
+    public function test_donor_can_create_a_faithful_cutout_with_local_comfyui(): void
+    {
+        config([
+            'services.donation_images.provider' => 'comfyui',
+            'services.donation_images.comfyui.url' => 'http://127.0.0.1:8188',
+            'services.donation_images.comfyui.checkpoint' => null,
+            'services.donation_images.comfyui.timeout' => 5,
+        ]);
+        $imageBytes = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0eUAAAAASUVORK5CYII=');
+        $mask = imagecreatetruecolor(8, 8);
+        imagefill($mask, 0, 0, imagecolorallocate($mask, 255, 255, 255));
+        ob_start();
+        imagepng($mask);
+        $maskBytes = ob_get_clean();
+        imagedestroy($mask);
+
+        Http::fake(function ($request) use ($imageBytes, $maskBytes) {
+            $path = parse_url($request->url(), PHP_URL_PATH);
+            if ($path === '/object_info') {
+                return Http::response(array_fill_keys([
+                    'SAMModelLoader',
+                    'GroundingDinoModelLoader',
+                    'GroundingDinoSAMSegment',
+                    'MaskToImage',
+                    'EmptyImage',
+                    'ImageCompositeMasked',
+                    'SaveImage',
+                    'LoadImage',
+                ], []));
+            }
+            if ($path === '/upload/image') {
+                return Http::response(['name' => 'textilecycle-source.png', 'subfolder' => '', 'type' => 'input']);
+            }
+            if ($path === '/prompt') {
+                return Http::response(['prompt_id' => 'faithful-prompt-id']);
+            }
+            if ($path === '/history/faithful-prompt-id') {
+                return Http::response([
+                    'faithful-prompt-id' => [
+                        'status' => ['status_str' => 'success', 'completed' => true],
+                        'outputs' => [
+                            '6' => ['images' => [['filename' => 'textilecycle-mask.png', 'subfolder' => '', 'type' => 'output']]],
+                            '9' => ['images' => [['filename' => 'textilecycle-cutout.png', 'subfolder' => '', 'type' => 'output']]],
+                        ],
+                    ],
+                ]);
+            }
+            if ($path === '/view') {
+                return Http::response(
+                    ($request['filename'] ?? '') === 'textilecycle-mask.png' ? $maskBytes : $imageBytes,
+                    200,
+                    ['Content-Type' => 'image/png']
+                );
+            }
+
+            return Http::response([], 404);
+        });
+        Storage::fake('local');
+        $donor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
+
+        $response = $this->actingAs($donor)
+            ->postJson(route('collecte.dons.ameliorer-photo'), [
+                'photo' => UploadedFile::fake()->image('chemise.png', 32, 32),
+                'mode' => 'faithful',
+                'type' => 'Chemise',
+            ])
+            ->assertOk()
+            ->assertJsonPath('preview', 'data:image/png;base64,'.base64_encode($imageBytes));
+
+        Storage::disk('local')->assertExists("don-enhancements/{$donor->id}/{$response->json('token')}.png");
+        Http::assertSent(fn ($request) => parse_url($request->url(), PHP_URL_PATH) === '/prompt'
+            && ($request->data()['prompt']['2']['class_type'] ?? null) === 'GroundingDinoModelLoader'
+            && ($request->data()['prompt']['3']['inputs']['model_name'] ?? null) === 'sam_vit_b (375MB)'
+            && ($request->data()['prompt']['4']['inputs']['prompt'] ?? null) === 'shirt'
+            && ($request->data()['prompt']['8']['class_type'] ?? null) === 'ImageCompositeMasked'
+            && ($request->data()['prompt']['8']['inputs']['source'] ?? null) === ['1', 0]
+            && ($request->data()['prompt']['8']['inputs']['mask'] ?? null) === ['4', 1]);
+        Http::assertSent(fn ($request) => parse_url($request->url(), PHP_URL_PATH) === '/upload/image');
+    }
+
+    public function test_faithful_cutout_explains_when_segmentation_nodes_are_missing(): void
+    {
+        config([
+            'services.donation_images.provider' => 'comfyui',
+            'services.donation_images.comfyui.url' => 'http://127.0.0.1:8188',
+            'services.donation_images.comfyui.checkpoint' => null,
+        ]);
+        Http::fake(['*/object_info' => Http::response([])]);
+        Storage::fake('local');
+        $donor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
+
+        $this->actingAs($donor)
+            ->postJson(route('collecte.dons.ameliorer-photo'), [
+                'photo' => UploadedFile::fake()->image('chemise.png'),
+                'mode' => 'faithful',
+                'type' => 'Chemise',
+            ])
+            ->assertStatus(502)
+            ->assertJsonPath(
+                'message',
+                'Le détourage fidèle nécessite le node pack ComfyUI Segment Anything (storyicon/comfyui_segment_anything). '
+                    .'Installez-le, redémarrez ComfyUI et vérifiez que les modèles SAM et GroundingDINO sont disponibles.'
+            );
     }
 
     public function test_local_image_enhancement_does_not_require_a_gemini_key(): void
@@ -568,7 +674,7 @@ class DonVetementTest extends TestCase
         Storage::fake('public');
         Storage::fake('local');
         $donor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
-        $token = (string) \Illuminate\Support\Str::uuid();
+        $token = (string) Str::uuid();
         $temporaryPath = "don-enhancements/{$donor->id}/{$token}.png";
         $imageBytes = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0eUAAAAASUVORK5CYII=');
         Storage::disk('local')->put($temporaryPath, $imageBytes);
@@ -604,7 +710,7 @@ class DonVetementTest extends TestCase
         Storage::fake('public');
         Storage::fake('local');
         $donor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
-        $token = (string) \Illuminate\Support\Str::uuid();
+        $token = (string) Str::uuid();
         Storage::disk('local')->put(
             "don-enhancements/{$donor->id}/{$token}.png",
             base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0eUAAAAASUVORK5CYII=')
@@ -634,7 +740,7 @@ class DonVetementTest extends TestCase
         Storage::fake('public');
         $owner = User::factory()->create(['role' => User::ROLE_DONATEUR]);
         $otherDonor = User::factory()->create(['role' => User::ROLE_DONATEUR]);
-        $token = (string) \Illuminate\Support\Str::uuid();
+        $token = (string) Str::uuid();
         Storage::disk('local')->put("don-enhancements/{$owner->id}/{$token}.png", 'private');
 
         $this->actingAs($otherDonor)
@@ -713,6 +819,9 @@ class DonVetementTest extends TestCase
             ->assertSee('Continuer malgré tout')
             ->assertSee('detecter-doublon', false)
             ->assertSee('serveur ComfyUI local')
+            ->assertSee('Détourage fidèle')
+            ->assertSee('Retrait IA expérimental')
+            ->assertSee('comfyui_segment_anything')
             ->assertSee('enctype="multipart/form-data"', false)
             ->assertDontSee('Point de dépôt');
     }
