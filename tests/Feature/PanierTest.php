@@ -95,13 +95,17 @@ class PanierTest extends TestCase
 
     public function test_user_cannot_add_own_article_to_panier(): void
     {
-        $response = $this->actingAs($this->atelier)->post(route('panier.ajouter', $this->articleAtelier), [
+        // Un DONATEUR peut vendre et acheter (l'ATELIER n'a pas accès au panier)
+        $vendeur = User::factory()->create(['role' => User::ROLE_DONATEUR]);
+        $article = Article::factory()->create(['user_id' => $vendeur->id, 'stock' => 5]);
+
+        $response = $this->actingAs($vendeur)->post(route('panier.ajouter', $article), [
             'quantite' => 1,
         ]);
 
         $response->assertSessionHas('error');
         $this->assertDatabaseMissing('panier_lignes', [
-            'article_id' => $this->articleAtelier->id,
+            'article_id' => $article->id,
         ]);
     }
 

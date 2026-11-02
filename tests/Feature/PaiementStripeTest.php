@@ -36,7 +36,7 @@ class PaiementStripeTest extends TestCase
 
     public function test_user_cannot_checkout_own_article(): void
     {
-        $user = User::factory()->create(['role' => User::ROLE_ATELIER]);
+        $user = User::factory()->create(['role' => User::ROLE_DONATEUR]);
         $article = Article::factory()->create([
             'user_id' => $user->id,
             'stock'   => 5,

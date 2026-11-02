@@ -57,7 +57,8 @@ class CommandeTest extends TestCase
 
     public function test_user_cannot_order_their_own_article(): void
     {
-        $seller = User::factory()->create(['role' => User::ROLE_ATELIER]);
+        // Un DONATEUR peut vendre et acheter : c'est lui qui pourrait commander son propre article
+        $seller = User::factory()->create(['role' => User::ROLE_DONATEUR]);
         $article = Article::factory()->create([
             'user_id' => $seller->id,
             'prix'    => 60.00,
@@ -71,9 +72,9 @@ class CommandeTest extends TestCase
         $response->assertSessionHas('error');
     }
 
-    public function test_atelier_cannot_post_order_containing_their_own_article(): void
+    public function test_seller_cannot_post_order_containing_their_own_article(): void
     {
-        $seller  = User::factory()->create(['role' => User::ROLE_ATELIER]);
+        $seller  = User::factory()->create(['role' => User::ROLE_DONATEUR]);
         $adresse = Adresse::factory()->create(['user_id' => $seller->id]);
         $article = Article::factory()->create([
             'user_id' => $seller->id,
