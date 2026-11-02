@@ -27,7 +27,7 @@ class DonVetementController extends Controller
         $user = $this->currentUser();
         $donsQuery = DonVetement::with('user')->latest('date_depot');
 
-        if ($user->hasRole(User::ROLE_DONATEUR)) {
+        if ($user->aLeRole(User::ROLE_DONATEUR)) {
             $donsQuery->where('user_id', $user->id);
         } elseif (! $this->canManageDonations()) {
             abort(403);
@@ -295,7 +295,7 @@ class DonVetementController extends Controller
         $canManage = $this->canManageDonations();
 
         abort_unless(
-            $canManage || ($user->hasRole(User::ROLE_DONATEUR) && $don->user_id === $user->id),
+            $canManage || ($user->aLeRole(User::ROLE_DONATEUR) && $don->user_id === $user->id),
             403
         );
 
@@ -328,14 +328,14 @@ class DonVetementController extends Controller
 
     private function authorizeDonor(): void
     {
-        abort_unless($this->currentUser()->hasRole(User::ROLE_DONATEUR), 403);
+        abort_unless($this->currentUser()->aLeRole(User::ROLE_DONATEUR), 403);
     }
 
     private function canManageDonations(): bool
     {
         $user = $this->currentUser();
 
-        return $user->hasRole(User::ROLE_COLLECTEUR) || $user->isAdmin();
+        return $user->aLeRole(User::ROLE_COLLECTEUR) || $user->isAdmin();
     }
 
     private function currentUser(): User

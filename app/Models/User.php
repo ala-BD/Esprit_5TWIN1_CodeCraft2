@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Traits\HasRoles;
 
 /**
  * @property int $id
@@ -30,7 +32,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     /*
     |----------------------------------------------------------------------
@@ -86,11 +88,41 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /*
     |----------------------------------------------------------------------
+    | Rôles Spatie : la colonne users.role reste la source de vérité.
+    | À chaque enregistrement qui change le rôle, le rôle Spatie est
+    | synchronisé (un seul rôle par utilisateur).
+    |----------------------------------------------------------------------
+    */
+    protected static function booted(): void
+    {
+        static::saved(function (User $user) {
+            if ($user->wasRecentlyCreated || $user->wasChanged('role')) {
+                $user->synchroniserRoleSpatie();
+            }
+        });
+    }
+
+    public function synchroniserRoleSpatie(): void
+    {
+        // Colonne non renseignée à la création : on relit la valeur par défaut de la base
+        $role = $this->role ?: static::whereKey($this->getKey())->value('role');
+
+        if ($role) {
+            $this->syncRoles([Role::findOrCreate($role, 'web')]);
+        }
+    }
+
+    /*
+    |----------------------------------------------------------------------
     | Helpers rôles
     |----------------------------------------------------------------------
     */
 
-    public function hasRole(string $role): bool
+    /**
+     * Vérifie le rôle à partir de la colonne users.role (sans requête).
+     * Renommée depuis hasRole() pour laisser hasRole() au trait Spatie HasRoles.
+     */
+    public function aLeRole(string $role): bool
     {
         return $this->role === strtoupper($role);
     }

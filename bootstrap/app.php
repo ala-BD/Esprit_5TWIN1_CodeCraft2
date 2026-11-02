@@ -22,10 +22,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         // Alias : permissions des tokens Sanctum (ex. abilities:upcycling:ecrire) et rôle (ex. role:ATELIER,ADMIN)
+        // 'role' reste EnsureRole (colonne users.role + pseudo-rôle ACHETEUR) ;
+        // les middlewares Spatie sont exposés sous 'permission' et 'role_or_permission'.
         $middleware->alias([
-            'abilities' => CheckAbilities::class,
-            'ability'   => CheckForAnyAbility::class,
-            'role'      => \App\Http\Middleware\EnsureRole::class,
+            'abilities'          => CheckAbilities::class,
+            'ability'            => CheckForAnyAbility::class,
+            'role'               => \App\Http\Middleware\EnsureRole::class,
+            'permission'         => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

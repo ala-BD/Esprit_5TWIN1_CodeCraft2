@@ -369,11 +369,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     */
     Route::prefix('admin')->name('admin.')->middleware(EnsureAdmin::class)->group(function () {
 
-        // CRUD Utilisateurs
-        Route::resource('users', AdminUserController::class);
+        // CRUD Utilisateurs (permission Spatie en plus du rôle ADMIN)
+        Route::resource('users', AdminUserController::class)
+            ->middleware('permission:gerer utilisateurs');
 
         // Statistiques
         Route::get('statistiques', [AdminStatistiqueController::class, 'index'])
+            ->middleware('permission:voir statistiques')
             ->name('statistiques');
     });
 

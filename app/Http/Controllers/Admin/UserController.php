@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
@@ -63,6 +64,8 @@ class UserController extends Controller
     */
     public function store(Request $request): RedirectResponse
     {
+        Gate::authorize('create', User::class);
+
         $data = $this->valider($request);
 
         $user = User::create([
@@ -106,6 +109,8 @@ class UserController extends Controller
     */
     public function update(Request $request, User $user): RedirectResponse
     {
+        Gate::authorize('update', $user);
+
         $data  = $this->valider($request, $user);
         $actif = $request->boolean('actif');
 
@@ -136,6 +141,8 @@ class UserController extends Controller
     */
     public function destroy(User $user): RedirectResponse
     {
+        Gate::authorize('delete', $user);
+
         if ($user->is(Auth::user())) {
             return back()->with('error', 'Vous ne pouvez pas supprimer votre propre compte.');
         }
