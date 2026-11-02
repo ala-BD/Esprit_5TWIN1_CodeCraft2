@@ -5,7 +5,13 @@ use App\Http\Controllers\Api\V1\AuthTokenController;
 use App\Http\Controllers\Api\V1\DevisController;
 use App\Http\Controllers\Api\V1\MessageProjetController;
 use App\Http\Controllers\Api\V1\ProjetUpcyclingController;
+use App\Http\Controllers\MetricsController;
 use Illuminate\Support\Facades\Route;
+
+/*
+| Supervision : indicateurs pour Prometheus (jeton METRICS_TOKEN), hors session et hors CSRF
+*/
+Route::get('metrics', MetricsController::class)->name('metrics');
 
 /*
 |--------------------------------------------------------------------------
