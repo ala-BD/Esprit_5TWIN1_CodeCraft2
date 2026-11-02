@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
@@ -32,7 +33,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, Notifiable;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
 
     /*
     |----------------------------------------------------------------------
@@ -74,12 +75,15 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
+            'email_verified_at'      => 'datetime',
+            'two_factor_confirmed_at' => 'datetime',
             'password'          => 'hashed',
             'actif'             => 'boolean',
             'tarif_horaire'     => 'decimal:2',
@@ -130,6 +134,21 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isAdmin(): bool
     {
         return $this->role === self::ROLE_ADMIN;
+    }
+
+    /**
+     * Route d'arrivée après connexion : chaque rôle arrive dans l'espace de son module,
+     * CLIENT et DONATEUR sur le tableau de bord général.
+     */
+    public function routeAccueil(): string
+    {
+        return match ($this->role) {
+            self::ROLE_RECYCLEUR  => 'recyclage.dashboard',
+            self::ROLE_ADMIN      => 'admin.users.index',
+            self::ROLE_COLLECTEUR => 'logistique.tournees.index',
+            self::ROLE_ATELIER    => 'upcycling.dashboard',
+            default               => 'dashboard',
+        };
     }
 
     /** Roles autorisés à créer/gérer des articles (M2) */

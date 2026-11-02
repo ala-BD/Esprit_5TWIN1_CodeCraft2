@@ -10,6 +10,7 @@ use App\Http\Controllers\Atelier\EstimationController;
 use App\Http\Controllers\AvisController;
 use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DeuxFacteursController;
 use App\Http\Controllers\DonVetementController;
 use App\Http\Controllers\FavoriController;
 use App\Http\Controllers\Logistique\MissionController;
@@ -417,6 +418,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile',      [ProfileController::class, 'update'])->name('profile.update');
     Route::patch('/profile/role', [ProfileController::class, 'updateRole'])->name('profile.role');
     Route::delete('/profile',     [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Authentification à deux facteurs (mot de passe reconfirmé avant toute modification)
+    Route::middleware('password.confirm')->prefix('profile/deux-facteurs')->name('deux-facteurs.')->group(function () {
+        Route::get('/',          [DeuxFacteursController::class, 'show'])->name('show');
+        Route::post('/',         [DeuxFacteursController::class, 'store'])->name('store');
+        Route::post('confirmer', [DeuxFacteursController::class, 'confirmer'])->name('confirmer');
+        Route::post('codes',     [DeuxFacteursController::class, 'regenererCodes'])->name('codes');
+        Route::delete('/',       [DeuxFacteursController::class, 'destroy'])->name('destroy');
+    });
 });
 
 /*

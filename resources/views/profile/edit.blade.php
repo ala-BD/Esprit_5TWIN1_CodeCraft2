@@ -1002,6 +1002,34 @@
                     </div>
                 </div>
 
+                {{-- Authentification à deux facteurs --}}
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6" id="section-deux-facteurs">
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #1a2744, #0d9488)">
+                                <i class="fas fa-mobile-alt text-white text-sm"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-slate-800 text-sm">Authentification à deux facteurs</h3>
+                                <p class="text-slate-400 text-xs">QR code TOTP, codes de récupération</p>
+                            </div>
+                        </div>
+                        @if($user->hasEnabledTwoFactorAuthentication())
+                            <span class="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Activée</span>
+                        @else
+                            <span class="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">Désactivée</span>
+                        @endif
+                    </div>
+                    <p class="text-xs text-slate-500 leading-relaxed mb-4">
+                        Ajoutez un code temporaire, généré par une application comme Google Authenticator, à votre mot de passe.
+                        Votre mot de passe vous sera redemandé avant toute modification.
+                    </p>
+                    <a href="{{ route('deux-facteurs.show') }}" class="btn-primary inline-flex" style="text-decoration:none">
+                        <i class="fas fa-shield-alt"></i>
+                        {{ $user->hasEnabledTwoFactorAuthentication() ? 'Gérer la double authentification' : 'Activer la double authentification' }}
+                    </a>
+                </div>
+
                 {{-- Danger zone --}}
                 <div class="danger-zone">
                     <div class="flex items-center gap-2 mb-3">
