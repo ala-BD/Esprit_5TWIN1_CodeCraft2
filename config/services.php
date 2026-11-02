@@ -32,6 +32,7 @@ return [
     'gemini' => [
         'key'     => env('GEMINI_API_KEY'),
         'model'   => env('GEMINI_MODEL', 'gemini-3.5-flash'),
+        'image_model' => env('GEMINI_IMAGE_MODEL', 'gemini-3.1-flash-image'),
         'timeout' => env('GEMINI_TIMEOUT', 45),
     ],
 
@@ -39,6 +40,19 @@ return [
     'ai_recyclage' => [
         'url'     => env('AI_RECYCLAGE_URL', 'http://127.0.0.1:8001'),
         'timeout' => env('AI_RECYCLAGE_TIMEOUT', 5),
+    ],
+
+    // IA M1 Collecte : détourage des photos de dons (ComfyUI local)
+    'donation_images' => [
+        'provider' => env('DONATION_IMAGE_PROVIDER', 'comfyui'),
+        'comfyui' => [
+            'url' => env('COMFYUI_URL', 'http://127.0.0.1:8188'),
+            'checkpoint' => env('COMFYUI_CHECKPOINT'),
+            'steps' => env('COMFYUI_STEPS', 20),
+            'cfg' => env('COMFYUI_CFG', 6.5),
+            'denoise' => env('COMFYUI_DENOISE', 0.5),
+            'timeout' => env('COMFYUI_TIMEOUT', 180),
+        ],
     ],
 
     'slack' => [

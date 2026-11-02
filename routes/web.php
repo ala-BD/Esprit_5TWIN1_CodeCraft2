@@ -10,7 +10,6 @@ use App\Http\Controllers\DonVetementController;
 use App\Http\Controllers\Logistique\MissionController;
 use App\Http\Controllers\Logistique\TourneeController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\PointCollecteController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureCollecteur;
@@ -44,6 +43,9 @@ Route::get('/', function () {
 Route::get('/passeport/{qrCode}', [PasseportNumeriqueController::class, 'verifier'])
     ->name('passeport.verifier');
 
+Route::get('/dons/verifier/{qrCode}', [DonVetementController::class, 'verifier'])
+    ->name('collecte.dons.verifier');
+
 /*
 |--------------------------------------------------------------------------
 | Routes protégées (auth requis)
@@ -56,19 +58,12 @@ Route::middleware(['auth'])->group(function () {
         return view('dashboard');
     })->name('dashboard');
 
-    /*
-    |----------------------------------------------------------------------
-    | Module M1 — Collecte / Points de collecte (Wassim)
-    |----------------------------------------------------------------------
-    */
-    Route::get('/collecte', [PointCollecteController::class, 'dashboard'])
-        ->name('collecte.dashboard');
-
     Route::prefix('collecte')->name('collecte.')->group(function () {
-        Route::resource('points', PointCollecteController::class);
-
         Route::get('dons',              [DonVetementController::class, 'index'])->name('dons.index');
         Route::get('dons/create',       [DonVetementController::class, 'create'])->name('dons.create');
+        Route::post('dons/detecter-doublon', [DonVetementController::class, 'detecterDoublon'])->middleware('throttle:10,1')->name('dons.detecter-doublon');
+        Route::post('dons/analyser-photo', [DonVetementController::class, 'analyserPhoto'])->middleware('throttle:5,1')->name('dons.analyse-photo');
+        Route::post('dons/ameliorer-photo', [DonVetementController::class, 'ameliorerPhoto'])->middleware('throttle:5,1')->name('dons.ameliorer-photo');
         Route::post('dons',             [DonVetementController::class, 'store'])->name('dons.store');
         Route::get('dons/{don}',        [DonVetementController::class, 'show'])->name('dons.show');
         Route::patch('dons/{don}/statut',[DonVetementController::class, 'updateStatut'])->name('dons.statut');

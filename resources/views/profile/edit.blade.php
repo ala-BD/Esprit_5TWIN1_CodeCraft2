@@ -861,7 +861,7 @@
                         'badge' => 'collecteur',
                         'title' => 'Collecteur',
                         'desc'  => 'Organisez et gérez la collecte de vêtements dans votre zone.',
-                        'perks' => ['Gérez les points de collecte', 'Planifiez les ramassages', 'Statistiques de collecte'],
+                        'perks' => ['Gérez vos tournées', 'Planifiez les ramassages', 'Suivez les missions de collecte'],
                     ],
                     'ATELIER'    => [
                         'icon'  => 'fa-cut',

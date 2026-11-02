@@ -72,10 +72,6 @@ $lien = fn($actif) => 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm fo
                 Historique des dons
             </a>
 
-            <a href="{{ route('collecte.dashboard') }}" class="{{ $lien(request()->routeIs('collecte.dashboard') || request()->routeIs('collecte.points.*')) }}">
-                <i class="fas fa-map-marker-alt w-4 text-center"></i>
-                Points de collecte
-            </a>
             @endif
 
             @if($isClient)
@@ -297,13 +293,6 @@ $lien = fn($actif) => 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm fo
                     <span class="text-xs font-semibold text-gray-700">Publier article</span>
                 </a>
 
-                <a href="{{ route('collecte.dashboard') }}"
-                   class="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-100 hover:border-green-200 hover:bg-green-50 transition-all text-center group">
-                    <div class="w-10 h-10 rounded-xl bg-green-50 group-hover:bg-green-100 flex items-center justify-center transition-colors">
-                        <i class="fas fa-map-marker-alt text-green-600 text-sm"></i>
-                    </div>
-                    <span class="text-xs font-semibold text-gray-700">Points collecte</span>
-                </a>
                 @endif
 
                 @if($isClient)

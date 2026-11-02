@@ -4,9 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DonVetement extends Model
 {
@@ -14,12 +14,15 @@ class DonVetement extends Model
 
     protected $fillable = [
         'user_id',
-        'point_collecte_id',
         'type',
         'matiere',
+        'couleur',
         'taille',
         'etat',
         'photo_url',
+        'photo_originale_url',
+        'photo_amelioree_url',
+        'photo_hashes',
         'qr_code',
         'statut',
         'date_depot',
@@ -32,6 +35,7 @@ class DonVetement extends Model
         return [
             'date_depot'         => 'date',
             'score_confiance_ia' => 'float',
+            'photo_hashes'       => 'array',
         ];
     }
 
@@ -45,11 +49,6 @@ class DonVetement extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function pointCollecte(): BelongsTo
-    {
-        return $this->belongsTo(PointCollecte::class);
     }
 
     /** Un don peut devenir un LotTextile */
