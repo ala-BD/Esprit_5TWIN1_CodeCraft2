@@ -187,11 +187,14 @@ jobs:
           cache-from: type=gha,scope=ai
           cache-to: type=gha,scope=ai,mode=max
 
-      - name: Démarrer la pile complète
+      - name: Clé d'application jetable (pour toutes les étapes suivantes)
         run: |
           APP_KEY="base64:$(openssl rand -base64 32)"
-          export APP_KEY
-          docker compose up -d --no-build --wait --wait-timeout 300
+          echo "::add-mask::$APP_KEY"
+          echo "APP_KEY=$APP_KEY" >> "$GITHUB_ENV"
+
+      - name: Démarrer la pile complète
+        run: docker compose up -d --no-build --wait --wait-timeout 300
 
       - name: Tests de fumée
         run: bash devops/ci/smoke.sh http://localhost:8088
