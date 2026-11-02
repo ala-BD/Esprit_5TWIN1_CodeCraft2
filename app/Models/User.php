@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Models\Role;
@@ -20,6 +21,8 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $prenom
  * @property string $email
  * @property string|null $telephone
+ * @property string|null $photo_profil
+ * @property-read string|null $photo_url
  * @property string $role
  * @property bool $actif
  * @property-read string $full_name
@@ -104,6 +107,28 @@ class User extends Authenticatable implements MustVerifyEmail
                 $user->synchroniserRoleSpatie();
             }
         });
+
+        // Compte supprimé (profil ou administration) : sa photo de profil aussi
+        static::deleted(function (User $user) {
+            $user->supprimerPhotoProfil();
+        });
+    }
+
+    /*
+    |----------------------------------------------------------------------
+    | Photo de profil (disque public, dossier avatars/)
+    |----------------------------------------------------------------------
+    */
+    public function getPhotoUrlAttribute(): ?string
+    {
+        return $this->photo_profil ? Storage::disk('public')->url($this->photo_profil) : null;
+    }
+
+    public function supprimerPhotoProfil(): void
+    {
+        if ($this->photo_profil) {
+            Storage::disk('public')->delete($this->photo_profil);
+        }
     }
 
     public function synchroniserRoleSpatie(): void

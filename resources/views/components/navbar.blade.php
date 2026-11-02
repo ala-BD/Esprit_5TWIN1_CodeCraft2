@@ -139,10 +139,7 @@
                        style="text-decoration:none"
                        title="Voir mon profil"
                        onmouseover="this.style.boxShadow='0 0 0 2px #0d9488'" onmouseout="this.style.boxShadow='none'">
-                        <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                             style="background: linear-gradient(135deg, #0d9488, #4ade80)">
-                            {{ Auth::user()->initials }}
-                        </div>
+                        <x-avatar :user="Auth::user()" class="w-7 h-7 rounded-lg text-xs" />
                         <div class="leading-tight">
                             <p class="nav-username text-xs font-semibold">{{ Auth::user()->prenom ?? Auth::user()->name }}</p>
                             <p class="nav-role text-[10px]">{{ Auth::user()->role }}</p>

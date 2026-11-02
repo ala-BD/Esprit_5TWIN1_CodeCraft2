@@ -449,7 +449,12 @@
                 {{-- Avatar --}}
                 <div class="profile-avatar">
                     <div class="profile-avatar-ring"></div>
-                    {{ Auth::user()->initials }}
+                    @if(Auth::user()->photo_profil)
+                        <img src="{{ Auth::user()->photo_url }}" alt="Photo de {{ Auth::user()->full_name }}"
+                             class="w-full h-full object-cover" style="border-radius: 1.5rem">
+                    @else
+                        {{ Auth::user()->initials }}
+                    @endif
                 </div>
 
                 {{-- Identity info --}}
@@ -527,6 +532,11 @@
                 <i class="fas fa-user-tag"></i> Rôle mis à jour avec succès !
             </div>
         @endif
+        @if(session('status') === 'photo-removed')
+            <div id="flash-photo" class="toast">
+                <i class="fas fa-check-circle"></i> Photo de profil retirée.
+            </div>
+        @endif
 
         {{-- Tab navigation --}}
         <div class="profile-tabs mb-8" role="tablist">
@@ -566,9 +576,25 @@
                             </div>
                         </div>
 
-                        <form method="POST" action="{{ route('profile.update') }}" class="space-y-5">
+                        <form method="POST" action="{{ route('profile.update') }}" class="space-y-5" enctype="multipart/form-data">
                             @csrf
                             @method('patch')
+
+                            {{-- Photo de profil --}}
+                            <div>
+                                <label for="photo" class="form-label">Photo de profil <span class="text-slate-400 font-normal">(JPG, PNG ou WebP, 2 Mo max.)</span></label>
+                                <div class="flex items-center gap-4">
+                                    <x-avatar :user="$user" class="w-16 h-16 rounded-2xl text-xl" id="apercu-photo" />
+                                    <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp"
+                                           onchange="apercuPhoto(this)"
+                                           class="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100">
+                                </div>
+                                @error('photo')
+                                    <p class="mt-1.5 text-xs text-red-500 flex items-center gap-1">
+                                        <i class="fas fa-exclamation-circle"></i> {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
 
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {{-- Prénom --}}
@@ -670,6 +696,16 @@
                                 </button>
                             </div>
                         </form>
+
+                        @if($user->photo_profil)
+                            <form method="POST" action="{{ route('profile.photo.destroy') }}" class="mt-4">
+                                @csrf
+                                @method('delete')
+                                <button type="submit" class="text-xs font-semibold text-red-500 hover:text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-user-slash"></i> Retirer la photo
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
 
@@ -1176,6 +1212,20 @@
             }, 3500);
         });
     });
+
+    /* ---- Aperçu de la photo de profil avant envoi ---- */
+    function apercuPhoto(input) {
+        const fichier = input.files && input.files[0];
+        if (!fichier) return;
+
+        const apercu = document.getElementById('apercu-photo');
+        const img = document.createElement('img');
+        img.id = 'apercu-photo';
+        img.className = apercu.className + ' object-cover';
+        img.alt = 'Aperçu de la photo';
+        img.src = URL.createObjectURL(fichier);
+        apercu.replaceWith(img);
+    }
 
     /* ---- Role picker ---- */
     let pendingRole = null;

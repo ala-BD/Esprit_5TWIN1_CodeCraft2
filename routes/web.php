@@ -418,6 +418,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile',      [ProfileController::class, 'update'])->name('profile.update');
     Route::patch('/profile/role', [ProfileController::class, 'updateRole'])->name('profile.role');
     Route::delete('/profile',     [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::delete('/profile/photo', [ProfileController::class, 'retirerPhoto'])->name('profile.photo.destroy');
 
     // Authentification à deux facteurs (mot de passe reconfirmé avant toute modification)
     Route::middleware('password.confirm')->prefix('profile/deux-facteurs')->name('deux-facteurs.')->group(function () {

@@ -140,10 +140,7 @@
                 <div class="relative" id="user-menu-wrapper">
                     <button onclick="toggleUserMenu()" id="user-menu-btn"
                             class="flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-200">
-                        <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                             style="background: linear-gradient(135deg, #0d9488, #4ade80)">
-                            {{ Auth::user()->initials ?? '?' }}
-                        </div>
+                        <x-avatar :user="Auth::user()" class="w-7 h-7 rounded-lg text-xs" />
                         <div class="hidden sm:block leading-tight text-left">
                             <p class="text-xs font-semibold text-slate-800">{{ Auth::user()->prenom ?? Auth::user()->name }}</p>
                             <p class="text-[10px] text-slate-400 font-medium">{{ Auth::user()->role }}</p>
