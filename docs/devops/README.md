@@ -131,7 +131,7 @@ HTTPS : `bootstrap/app.php` fait confiance au proxy de Railway (`trustProxies`),
 cookies soient en `https`. `railway.json` n'est pas utilisé : Railway l'a déprécié et ne l'accepte plus pour les
 nouveaux services ; la configuration passe par les variables et la CLI.
 
-**Activer le déploiement continu**
+**Activer le déploiement continu** (activé sur le dépôt de l'équipe le 2 novembre 2026)
 
 1. Railway → projet `retiss` → Settings → Tokens : créer un jeton de projet pour l'environnement `production`.
 2. GitHub → Settings → Secrets and variables → Actions :
