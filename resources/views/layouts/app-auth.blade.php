@@ -133,6 +133,33 @@
                     </a>
                 @endif
 
+                {{-- Marketplace (M2) : catalogue, favoris et panier — pas de favoris ni de panier pour l'ATELIER --}}
+                <a href="{{ route('articles.index') }}" title="Marketplace"
+                   class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all {{ request()->routeIs('articles.*') ? 'border-teal-600 bg-teal-600 text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50' }}">
+                    <i class="fas fa-store text-xs {{ request()->routeIs('articles.*') ? 'text-white' : 'text-teal-600' }}"></i>
+                    <span class="hidden md:inline">Marketplace</span>
+                </a>
+                @if(Auth::user()->role !== 'ATELIER')
+                    <a href="{{ route('favoris.index') }}" title="Mes favoris" id="topbar-favoris-link"
+                       class="relative inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all {{ request()->routeIs('favoris.*') ? 'border-rose-500 bg-rose-500 text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50' }}">
+                        <i class="fas fa-heart text-xs {{ request()->routeIs('favoris.*') ? 'text-white' : 'text-rose-500' }}"></i>
+                        <span class="hidden md:inline">Favoris</span>
+                        <span class="favoris-badge-count absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold text-white items-center justify-center"
+                              style="background:#f43f5e;line-height:1;display:{{ ($favorisCount ?? 0) > 0 ? 'flex' : 'none' }}">
+                            {{ ($favorisCount ?? 0) > 99 ? '99+' : ($favorisCount ?? 0) }}
+                        </span>
+                    </a>
+                    <a href="{{ route('panier.index') }}" title="Mon panier" id="topbar-panier-link"
+                       class="relative inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all {{ request()->routeIs('panier.*') ? 'border-teal-600 bg-teal-600 text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50' }}">
+                        <i class="fas fa-shopping-cart text-xs {{ request()->routeIs('panier.*') ? 'text-white' : 'text-teal-600' }}"></i>
+                        <span class="hidden md:inline">Panier</span>
+                        <span class="cart-badge-count absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold text-white items-center justify-center"
+                              style="background:#ef4444;line-height:1;display:{{ ($panierCount ?? 0) > 0 ? 'flex' : 'none' }}">
+                            {{ ($panierCount ?? 0) > 99 ? '99+' : ($panierCount ?? 0) }}
+                        </span>
+                    </a>
+                @endif
+
                 {{-- Notifications (commandes, upcycling...) --}}
                 @include('components.notifications-cloche')
 
