@@ -105,6 +105,19 @@
                     <i class="fas fa-plus-circle w-4 text-center"></i>
                     Publier un article
                 </a>
+
+                {{-- IA Atelier (M2) : estimation des dons gratuits et historique des estimations --}}
+                <a href="{{ route('atelier.dons') }}"
+                   class="{{ $lien(request()->routeIs('atelier.dons')) }}">
+                    <i class="fas fa-hand-holding-heart w-4 text-center"></i>
+                    Dons à évaluer (IA)
+                </a>
+
+                <a href="{{ route('atelier.estimations.historique') }}"
+                   class="{{ $lien(request()->routeIs('atelier.estimations.*')) }}">
+                    <i class="fas fa-wand-magic-sparkles w-4 text-center"></i>
+                    Historique IA
+                </a>
                 @endif
 
                 {{-- ===== MON COMPTE ===== --}}
@@ -154,6 +167,7 @@
                 <a href="{{ route('upcycling.projets.index') }}" class="flex-shrink-0 text-xs font-semibold px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700">Projets</a>
                 @if($estAtelier)
                 <a href="{{ route('upcycling.projets.kanban') }}" class="flex-shrink-0 text-xs font-semibold px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700">Production</a>
+                <a href="{{ route('atelier.dons') }}" class="flex-shrink-0 text-xs font-semibold px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700">Dons à évaluer (IA)</a>
                 @endif
                 @unless($estAtelier)
                 <a href="{{ route('upcycling.projets.create') }}" class="flex-shrink-0 text-xs font-semibold px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700">Nouvelle demande</a>

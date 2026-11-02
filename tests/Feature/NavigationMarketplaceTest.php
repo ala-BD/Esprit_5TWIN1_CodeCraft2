@@ -95,6 +95,25 @@ class NavigationMarketplaceTest extends TestCase
         $this->actingAs($client)->get('/')->assertOk()->assertSee('href="#comment-ca-marche" class="nav-link"', false);
     }
 
+    public function test_l_atelier_trouve_les_dons_a_evaluer_et_l_historique_ia_dans_son_espace(): void
+    {
+        $atelier = User::factory()->create(['role' => User::ROLE_ATELIER]);
+
+        $this->actingAs($atelier)->get(route('upcycling.dashboard'))
+            ->assertOk()
+            ->assertSee(route('atelier.dons'), false)
+            ->assertSee(route('atelier.estimations.historique'), false)
+            ->assertSee('Dons à évaluer (IA)');
+
+        $this->actingAs($atelier)->get(route('atelier.dons'))->assertOk();
+        $this->actingAs($atelier)->get(route('atelier.estimations.historique'))->assertOk();
+
+        $client = User::factory()->create(['role' => User::ROLE_CLIENT]);
+        $this->actingAs($client)->get(route('upcycling.dashboard'))
+            ->assertOk()
+            ->assertDontSee('Dons à évaluer (IA)');
+    }
+
     public function test_les_compteurs_affichent_le_contenu_du_panier_et_des_favoris(): void
     {
         $client = User::factory()->create(['role' => User::ROLE_CLIENT]);
