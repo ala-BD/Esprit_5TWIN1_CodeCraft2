@@ -44,7 +44,12 @@ class PaiementController extends Controller
                     ->with('info', 'Cette commande est déjà payée.');
             }
 
-            return $this->redirectToStripeSession($commande, $user);
+            if (! $this->stripeConfigure()) {
+                return redirect()->route('commandes.show', $commande)
+                    ->with('error', self::MESSAGE_STRIPE_NON_CONFIGURE);
+            }
+
+            return $this->redirectToStripeSession($commande, $user, nouvelleCommande: false);
         }
 
         // -------------------------------------------------------------
@@ -150,14 +155,51 @@ class PaiementController extends Controller
                 ->with('success', 'Commande confirmée (don gratuit) !');
         }
 
-        // ----------- 5. Create the commande in DB (pending payment) -----------
+        // ----------- 5. Stripe must be configured before reserving any stock -----------
+        if (! $this->stripeConfigure()) {
+            return redirect()->route('panier.index')
+                ->with('error', self::MESSAGE_STRIPE_NON_CONFIGURE);
+        }
+
+        // ----------- 6. Create the commande in DB (pending payment) -----------
         $commande = $this->creerCommande(
             $user, $lines, $sousTotal, $totalRemise, $fraisLiv, $total,
             $adresseModel?->id, $snapshot, $deliveryDays, 'STRIPE'
         );
 
-        // ----------- 6. Build Stripe Checkout session & redirect -----------
-        return $this->redirectToStripeSession($commande, $user);
+        // ----------- 7. Build Stripe Checkout session & redirect -----------
+        return $this->redirectToStripeSession($commande, $user, nouvelleCommande: true);
+    }
+
+    private const MESSAGE_STRIPE_NON_CONFIGURE = 'Le paiement en ligne est indisponible : Stripe n\'est pas configuré (clés STRIPE_KEY et STRIPE_SECRET). Aucune commande n\'a été créée.';
+
+    private function stripeConfigure(): bool
+    {
+        return filled(config('services.stripe.secret'));
+    }
+
+    /**
+     * Annule une commande jamais payée (session Stripe impossible à créer) et rend son stock.
+     */
+    private function annulerCommandeNonPayee(Commande $commande, string $motif): void
+    {
+        DB::transaction(function () use ($commande, $motif) {
+            $commande->load('lignes.article');
+            foreach ($commande->lignes as $ligne) {
+                if ($ligne->article) {
+                    $ligne->article->increment('stock', $ligne->quantite);
+                    if ($ligne->article->statut === Article::STATUT_VENDU) {
+                        $ligne->article->update(['statut' => Article::STATUT_DISPONIBLE]);
+                    }
+                }
+            }
+
+            $commande->update([
+                'statut'          => Commande::STATUT_ANNULEE,
+                'statut_paiement' => Commande::STATUT_PAIEMENT_ECHOUE,
+            ]);
+            $commande->pushHistorique(Commande::STATUT_ANNULEE, $motif);
+        });
     }
 
     /**
@@ -207,9 +249,10 @@ class PaiementController extends Controller
      *
      * @param  array<string, mixed> $params
      * @return object
+     *
      * @phpstan-return object{id: string, url: string, payment_status: string, payment_intent: string|null, metadata: object}
      */
-    private function createCheckoutSession(array $params): object
+    protected function createCheckoutSession(array $params): object
     {
         /** @var mixed $client */
         $client = new StripeClient((string) config('services.stripe.secret'));
@@ -223,14 +266,41 @@ class PaiementController extends Controller
     /**
      * Create Stripe session for a given Commande and redirect away to Stripe.
      */
-    private function redirectToStripeSession(Commande $commande, User $user): RedirectResponse
+    private function redirectToStripeSession(Commande $commande, User $user, bool $nouvelleCommande): RedirectResponse
     {
         $commande->loadMissing(['lignes.article']);
         $currency  = (string) config('services.stripe.currency', 'eur');
 
         $lineItems = $this->buildStripeLineItems($commande, $currency);
 
-        $session = $this->createCheckoutSession([
+        try {
+            $session = $this->creerSessionStripe($commande, $user, $currency, $lineItems);
+        } catch (\Throwable $e) {
+            Log::error('[Stripe] Création de la session impossible : ' . $e->getMessage(), ['commande_id' => $commande->id]);
+
+            $message = 'Le paiement Stripe n\'a pas pu démarrer (service indisponible ou clé invalide). Réessayez plus tard.';
+
+            // Nouvelle commande : elle n'a jamais pu être payée, on l'annule et on rend le stock
+            if ($nouvelleCommande) {
+                $this->annulerCommandeNonPayee($commande, 'Session de paiement Stripe impossible à créer (stock restitué)');
+
+                return redirect()->route('panier.index')->with('error', $message . ' Votre panier est conservé.');
+            }
+
+            return redirect()->route('commandes.show', $commande)->with('error', $message);
+        }
+
+        $commande->update(['stripe_session_id' => (string) $session->id]);
+
+        return redirect()->away((string) $session->url);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>> $lineItems
+     */
+    private function creerSessionStripe(Commande $commande, User $user, string $currency, array $lineItems): object
+    {
+        return $this->createCheckoutSession([
             'mode'                 => 'payment',
             'line_items'           => $lineItems,
             'customer_email'       => $user->email,
@@ -245,10 +315,6 @@ class PaiementController extends Controller
             'cancel_url'  => route('paiement.annule', ['commande' => $commande->id]),
             'expires_at'  => now()->addMinutes(30)->timestamp,
         ]);
-
-        $commande->update(['stripe_session_id' => (string) $session->id]);
-
-        return redirect()->away((string) $session->url);
     }
 
     // =========================================================
@@ -385,7 +451,7 @@ class PaiementController extends Controller
         match ($event->type) {
             'checkout.session.completed'   => $this->handleCheckoutCompleted($event->data->object),
             'checkout.session.expired'     => $this->handleCheckoutExpired($event->data->object),
-            'payment_intent.payment_failed'=> $this->handlePaymentFailed($event->data->object),
+            'payment_intent.payment_failed' => $this->handlePaymentFailed($event->data->object),
             'charge.refunded'              => $this->handleChargeRefunded($event->data->object),
             default                        => null,
         };
@@ -440,18 +506,18 @@ class PaiementController extends Controller
                 $commande->user->notify(new \App\Notifications\CommandeStatutNotification(
                     $commande,
                     Commande::STATUT_ANNULEE,
-                    "L'argent (" . number_format($commande->montant_total, 2) . " DT) a été remboursé sur votre compte via Stripe. Le stock du produit a été augmenté car le produit est rendu."
+                    "L'argent (" . number_format($commande->montant_total, 2) . ' DT) a été remboursé sur votre compte via Stripe. Le stock du produit a été augmenté car le produit est rendu.'
                 ));
             } catch (\Throwable $e) {
                 Log::warning('[Stripe] Notification error after refund: ' . $e->getMessage());
             }
 
             return back()
-                ->with('success', "L'argent (" . number_format($commande->montant_total, 2) . " DT) a été remboursé avec succès sur le compte du client via Stripe ! Le stock du produit a été augmenté car le produit est rendu.")
+                ->with('success', "L'argent (" . number_format($commande->montant_total, 2) . ' DT) a été remboursé avec succès sur le compte du client via Stripe ! Le stock du produit a été augmenté car le produit est rendu.')
                 ->with('remboursement', [
                     'numero'  => $commande->numero,
                     'montant' => number_format($commande->montant_total, 2),
-                    'message' => "L'argent a été remboursé avec succès ! Le montant de " . number_format($commande->montant_total, 2) . " DT a été reversé sur le compte via Stripe. Le stock du produit a bien été augmenté car le produit est rendu.",
+                    'message' => "L'argent a été remboursé avec succès ! Le montant de " . number_format($commande->montant_total, 2) . ' DT a été reversé sur le compte via Stripe. Le stock du produit a bien été augmenté car le produit est rendu.',
                 ]);
 
         } catch (\Exception $e) {

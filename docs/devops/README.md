@@ -82,31 +82,84 @@ Déclenché à chaque push sur `main`, `integration`, `ala`, `devops` et à chaq
 | CI 4 | Tests de fumée | oui | pile complète démarrée, `devops/ci/smoke.sh` (pages, connexion, rôle, IA, métriques) |
 | CI 5 | Sécurité | non | scan Trivy de l'image `app` (vulnérabilités HIGH/CRITICAL) |
 | CD 1 | Livraison | — | push des images sur GHCR (`main`, `integration`) : tags `<sha>` et `<branche>` |
-| CD 2 | Déploiement | — | `main` seulement, si `DEPLOY_ENABLED=true` : SSH, `compose pull`, `up -d`, vérification |
+| CD 2 | Déploiement | oui | `main` et `integration`, si `RAILWAY_ENABLED=true` : `railway up --ci` (ai puis retiss), vérification HTTP |
 
 Le style Pint n'est bloquant que sur les fichiers modifiés : le code existant de l'équipe n'empêche pas la CI de
 passer, mais tout nouveau code doit respecter `pint.json`.
 
-### Activer le déploiement
+### Déploiement sur Railway
 
-Hébergement prévu : **Railway** (images Docker du projet, MySQL géré, service IA en réseau privé), mis en ligne par
-l'intégrateur de l'équipe. Le job `deploiement` ci-dessous (SSH + Docker Compose) reste désactivé d'ici là et sera
-adapté à Railway à ce moment-là. Il fonctionne aussi tel quel sur n'importe quel serveur Linux équipé de Docker.
+Application en ligne : **https://retiss-production.up.railway.app** (projet Railway `retiss`, environnement
+`production`). Vercel a été écarté : PHP y tourne en fonctions serverless, sans disque persistant, sans MySQL
+ni processus permanent (file de tâches, service IA).
 
-Dans GitHub → Settings → Secrets and variables → Actions :
+**Architecture**
+
+| Service Railway | Source | Rôle |
+|---|---|---|
+| `retiss` | dépôt, `docker/railway/Dockerfile` | image tout-en-un : Nginx sur `${PORT}`, PHP-FPM et file de tâches sous `supervisord` ; volume monté sur `/var/www/html/storage/app/public` (photos) ; domaine public |
+| `MySQL` | base gérée Railway | données, avec son propre volume |
+| `ai` | dossier `ai-recyclage/` | IA M4, réseau privé uniquement : `http://ai.railway.internal:8001` (socket IPv4 + IPv6) |
+
+Railway n'autorise qu'un volume par service, sans partage : Nginx et PHP-FPM, séparés dans docker-compose,
+sont donc réunis dans une seule image. Au démarrage, `docker/railway/start.sh` lance l'entrypoint commun
+(`retiss-entrypoint --preparer` : attente de MySQL, migrations, seed de démo si `SEED_DEMO=true` et base vide,
+`storage:link`, `optimize`), puis `supervisord`, qui relaie SIGTERM à tous les processus.
+
+**Variables du service `retiss`** (valeurs dans Railway, jamais dans le dépôt)
+
+| Variable | Valeur |
+|---|---|
+| `APP_NAME`, `APP_ENV`, `APP_DEBUG` | `RETISS`, `production`, `false` |
+| `APP_URL` | URL publique en `https` |
+| `APP_KEY` | générée avec `php artisan key:generate --show --no-ansi` |
+| `APP_LOCALE`, `APP_FALLBACK_LOCALE` | `fr` |
+| `DB_CONNECTION` | `mysql` |
+| `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | références `${{MySQL.MYSQLHOST}}`, `${{MySQL.MYSQLPORT}}`, etc. |
+| `SESSION_DRIVER`, `CACHE_STORE`, `QUEUE_CONNECTION` | `database` |
+| `SESSION_SECURE_COOKIE` | `true` |
+| `LOG_CHANNEL`, `LOG_LEVEL` | `stderr`, `debug` (les e-mails `MAIL_MAILER=log` sont écrits au niveau debug) |
+| `MAIL_MAILER` | `log` : liens de vérification et de réinitialisation dans les journaux du service |
+| `AI_RECYCLAGE_URL` | `http://ai.railway.internal:8001` |
+| `METRICS_TOKEN` | valeur aléatoire |
+| `SEED_DEMO` | `true` au premier déploiement, puis `false` |
+| `RAILWAY_DOCKERFILE_PATH` | `docker/railway/Dockerfile` |
+| `FPM_MAX_CHILDREN` | `5` (0,5 Go de mémoire par service sur le forfait gratuit) |
+| `GEMINI_API_KEY`, `STRIPE_*`, `AI_API_KEY`, `ASSISTANT_API_KEY` | facultatives : l'application démarre sans elles |
+
+HTTPS : `bootstrap/app.php` fait confiance au proxy de Railway (`trustProxies`), pour que les URL, redirections et
+cookies soient en `https`. `railway.json` n'est pas utilisé : Railway l'a déprécié et ne l'accepte plus pour les
+nouveaux services ; la configuration passe par les variables et la CLI.
+
+**Activer le déploiement continu** (activé sur le dépôt de l'équipe le 2 novembre 2026)
+
+1. Railway → projet `retiss` → Settings → Tokens : créer un jeton de projet pour l'environnement `production`.
+2. GitHub → Settings → Secrets and variables → Actions :
 
 | Type | Nom | Valeur |
 |---|---|---|
-| Variable | `DEPLOY_ENABLED` | `true` |
-| Variable | `DEPLOY_URL` | `https://retiss.example.tn` |
-| Variable | `DEPLOY_PATH` | `/opt/retiss` (par défaut) |
-| Secret | `DEPLOY_HOST` | adresse du serveur |
-| Secret | `DEPLOY_USER` | utilisateur SSH (membre du groupe `docker`) |
-| Secret | `DEPLOY_SSH_KEY` | clé privée SSH |
+| Secret | `RAILWAY_TOKEN` | jeton de projet Railway |
+| Variable | `RAILWAY_ENABLED` | `true` |
+| Variable | `RAILWAY_URL` | `https://retiss-production.up.railway.app` (facultatif) |
 
-Sur le serveur : Docker installé et un fichier `/opt/retiss/.env` contenant au minimum `APP_KEY`,
-`RETISS_DB_PASSWORD`, `RETISS_DB_ROOT_PASSWORD`, `METRICS_TOKEN`, `GRAFANA_PASSWORD` et les clés d'API.
-L'environnement GitHub `production` permet d'exiger une approbation manuelle avant chaque déploiement.
+Ensuite, chaque push sur `main` ou `integration` dont la CI est verte déploie le service `ai`, puis `retiss`
+(`railway up --ci`, CLI figée en 5.71.0), et vérifie `/nginx-health` et `/login`. L'environnement GitHub
+`production` permet d'exiger une approbation manuelle avant chaque déploiement.
+
+**Déploiement manuel et retour arrière**
+
+```bash
+railway link                                   # projet retiss, environnement production
+railway up --service retiss --ci               # déployer le code du dossier courant
+railway up ai-recyclage --path-as-root --service ai --ci
+METRICS_TOKEN=<jeton> bash devops/ci/smoke.sh https://retiss-production.up.railway.app
+```
+
+Retour arrière : Railway → service → onglet *Deployments* → déploiement précédent → *Redeploy*. Le volume et la
+base sont conservés ; les migrations déjà appliquées ne sont pas annulées.
+
+**Arrêter après la validation** : la démo est publique avec des mots de passe connus. Supprimer le projet `retiss`
+(Railway → Settings → Danger) ou au minimum changer les mots de passe des comptes de démo.
 
 ### Lancer les mêmes vérifications en local
 
@@ -149,3 +202,6 @@ tableau de bord `RETISS — Plateforme`.
 | `app` reste `unhealthy` | migration ou seed en échec | `docker compose logs app` |
 | données de démo absentes | base déjà initialisée | `docker compose down -v` puis `up -d` |
 | photos M1 non détourées | ComfyUI non lancé sur l'hôte | lancer ComfyUI sur le port 8188 (optionnel) |
+| Railway : erreur 500 « Unsupported cipher » | `APP_KEY` avec des codes couleur | regénérer avec `--no-ansi` |
+| Railway : admin en 403 sur `/admin/users` | base remplie avant Spatie | `php artisan migrate` (migration des rôles) |
+| Railway : IA indisponible | service `ai` en veille (forfait gratuit) | la première requête le réveille, réessayer |

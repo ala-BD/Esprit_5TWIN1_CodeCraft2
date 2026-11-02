@@ -13,7 +13,7 @@ class CalculerEstimationRequest extends FormRequest
     public function authorize(): bool
     {
         $user = $this->user();
-        return $user && ($user->isAdmin() || $user->hasRole(User::ROLE_ATELIER));
+        return $user && ($user->isAdmin() || $user->aLeRole(User::ROLE_ATELIER));
     }
 
     /**
@@ -50,4 +50,3 @@ class CalculerEstimationRequest extends FormRequest
         ];
     }
 }
-

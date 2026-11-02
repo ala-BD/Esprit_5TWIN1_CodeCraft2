@@ -1,8 +1,10 @@
 #!/bin/sh
 # Démarrage du conteneur « app » : attendre MySQL, migrer, préparer les caches, puis lancer PHP-FPM.
+#   retiss-entrypoint --preparer : uniquement la préparation, sans lancer de processus
+#   (image tout-en-un Railway : docker/railway/start.sh lance ensuite supervisord).
 set -e
 
-if [ "$1" = "php-fpm" ]; then
+if [ "$1" = "php-fpm" ] || [ "$1" = "--preparer" ]; then
     echo "[retiss] Attente de la base de données ${DB_HOST}:${DB_PORT}…"
     essais=0
     until php -r 'new PDO("mysql:host=".getenv("DB_HOST").";port=".getenv("DB_PORT").";dbname=".getenv("DB_DATABASE"), getenv("DB_USERNAME"), getenv("DB_PASSWORD"));' 2>/dev/null; do
@@ -35,6 +37,10 @@ if [ "$1" = "php-fpm" ]; then
 
     chown -R www-data:www-data storage bootstrap/cache
     echo "[retiss] Application prête."
+fi
+
+if [ "$1" = "--preparer" ]; then
+    exit 0
 fi
 
 exec docker-php-entrypoint "$@"

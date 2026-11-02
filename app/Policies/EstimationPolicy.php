@@ -12,7 +12,7 @@ class EstimationPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isAdmin() || $user->hasRole(User::ROLE_ATELIER);
+        return $user->isAdmin() || $user->aLeRole(User::ROLE_ATELIER);
     }
 
     /**
@@ -24,7 +24,7 @@ class EstimationPolicy
             return true;
         }
 
-        return $user->hasRole(User::ROLE_ATELIER) && $estimation->user_id === $user->id;
+        return $user->aLeRole(User::ROLE_ATELIER) && $estimation->user_id === $user->id;
     }
 
     /**
@@ -32,7 +32,7 @@ class EstimationPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->hasRole(User::ROLE_ATELIER);
+        return $user->isAdmin() || $user->aLeRole(User::ROLE_ATELIER);
     }
 
     /**
@@ -44,7 +44,6 @@ class EstimationPolicy
             return true;
         }
 
-        return $user->hasRole(User::ROLE_ATELIER) && $estimation->user_id === $user->id;
+        return $user->aLeRole(User::ROLE_ATELIER) && $estimation->user_id === $user->id;
     }
 }
-

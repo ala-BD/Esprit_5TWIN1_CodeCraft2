@@ -14,7 +14,7 @@ class EnsureCollecteur
 {
     public function handle(Request $request, Closure $next): Response
     {
-        abort_unless($request->user()?->hasRole(User::ROLE_COLLECTEUR), 403, 'Accès réservé aux collecteurs.');
+        abort_unless($request->user()?->aLeRole(User::ROLE_COLLECTEUR), 403, 'Accès réservé aux collecteurs.');
 
         return $next($request);
     }

@@ -449,7 +449,12 @@
                 {{-- Avatar --}}
                 <div class="profile-avatar">
                     <div class="profile-avatar-ring"></div>
-                    {{ Auth::user()->initials }}
+                    @if(Auth::user()->photo_profil)
+                        <img src="{{ Auth::user()->photo_url }}" alt="Photo de {{ Auth::user()->full_name }}"
+                             class="w-full h-full object-cover" style="border-radius: 1.5rem">
+                    @else
+                        {{ Auth::user()->initials }}
+                    @endif
                 </div>
 
                 {{-- Identity info --}}
@@ -527,6 +532,11 @@
                 <i class="fas fa-user-tag"></i> Rôle mis à jour avec succès !
             </div>
         @endif
+        @if(session('status') === 'photo-removed')
+            <div id="flash-photo" class="toast">
+                <i class="fas fa-check-circle"></i> Photo de profil retirée.
+            </div>
+        @endif
 
         {{-- Tab navigation --}}
         <div class="profile-tabs mb-8" role="tablist">
@@ -566,9 +576,25 @@
                             </div>
                         </div>
 
-                        <form method="POST" action="{{ route('profile.update') }}" class="space-y-5">
+                        <form method="POST" action="{{ route('profile.update') }}" class="space-y-5" enctype="multipart/form-data">
                             @csrf
                             @method('patch')
+
+                            {{-- Photo de profil --}}
+                            <div>
+                                <label for="photo" class="form-label">Photo de profil <span class="text-slate-400 font-normal">(JPG, PNG ou WebP, 2 Mo max.)</span></label>
+                                <div class="flex items-center gap-4">
+                                    <x-avatar :user="$user" class="w-16 h-16 rounded-2xl text-xl" id="apercu-photo" />
+                                    <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp"
+                                           onchange="apercuPhoto(this)"
+                                           class="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100">
+                                </div>
+                                @error('photo')
+                                    <p class="mt-1.5 text-xs text-red-500 flex items-center gap-1">
+                                        <i class="fas fa-exclamation-circle"></i> {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
 
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {{-- Prénom --}}
@@ -670,6 +696,16 @@
                                 </button>
                             </div>
                         </form>
+
+                        @if($user->photo_profil)
+                            <form method="POST" action="{{ route('profile.photo.destroy') }}" class="mt-4">
+                                @csrf
+                                @method('delete')
+                                <button type="submit" class="text-xs font-semibold text-red-500 hover:text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-user-slash"></i> Retirer la photo
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
 
@@ -1002,6 +1038,34 @@
                     </div>
                 </div>
 
+                {{-- Authentification à deux facteurs --}}
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6" id="section-deux-facteurs">
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #1a2744, #0d9488)">
+                                <i class="fas fa-mobile-alt text-white text-sm"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-slate-800 text-sm">Authentification à deux facteurs</h3>
+                                <p class="text-slate-400 text-xs">QR code TOTP, codes de récupération</p>
+                            </div>
+                        </div>
+                        @if($user->hasEnabledTwoFactorAuthentication())
+                            <span class="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Activée</span>
+                        @else
+                            <span class="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">Désactivée</span>
+                        @endif
+                    </div>
+                    <p class="text-xs text-slate-500 leading-relaxed mb-4">
+                        Ajoutez un code temporaire, généré par une application comme Google Authenticator, à votre mot de passe.
+                        Votre mot de passe vous sera redemandé avant toute modification.
+                    </p>
+                    <a href="{{ route('deux-facteurs.show') }}" class="btn-primary inline-flex" style="text-decoration:none">
+                        <i class="fas fa-shield-alt"></i>
+                        {{ $user->hasEnabledTwoFactorAuthentication() ? 'Gérer la double authentification' : 'Activer la double authentification' }}
+                    </a>
+                </div>
+
                 {{-- Danger zone --}}
                 <div class="danger-zone">
                     <div class="flex items-center gap-2 mb-3">
@@ -1148,6 +1212,20 @@
             }, 3500);
         });
     });
+
+    /* ---- Aperçu de la photo de profil avant envoi ---- */
+    function apercuPhoto(input) {
+        const fichier = input.files && input.files[0];
+        if (!fichier) return;
+
+        const apercu = document.getElementById('apercu-photo');
+        const img = document.createElement('img');
+        img.id = 'apercu-photo';
+        img.className = apercu.className + ' object-cover';
+        img.alt = 'Aperçu de la photo';
+        img.src = URL.createObjectURL(fichier);
+        apercu.replaceWith(img);
+    }
 
     /* ---- Role picker ---- */
     let pendingRole = null;

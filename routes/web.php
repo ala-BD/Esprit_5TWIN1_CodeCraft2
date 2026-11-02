@@ -13,6 +13,7 @@ use App\Http\Controllers\Atelier\EstimationController;
 use App\Http\Controllers\AvisController;
 use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DeuxFacteursController;
 use App\Http\Controllers\DonVetementController;
 use App\Http\Controllers\FavoriController;
 use App\Http\Controllers\Logistique\ConduiteController;
@@ -60,7 +61,6 @@ Route::get('/passeport/{qrCode}', [PasseportNumeriqueController::class, 'verifie
 Route::get('/dons/verifier/{qrCode}', [DonVetementController::class, 'verifier'])
     ->name('collecte.dons.verifier');
 
-
 /*
 |--------------------------------------------------------------------------
 | Stripe Webhook — public, no auth, no CSRF (excluded in bootstrap/app.php)
@@ -71,10 +71,12 @@ Route::post('/stripe/webhook', [PaiementController::class, 'webhook'])
 
 /*
 |--------------------------------------------------------------------------
-| Routes protégées (auth requis)
+| Routes protégées (auth + e-mail vérifié requis)
+| Les routes Breeze (verify-email, verification.send, logout) restent
+| dans routes/auth.php, accessibles sans vérification.
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
 
     // Dashboard général
     Route::get('/dashboard', function () {
@@ -374,11 +376,13 @@ Route::middleware(['auth'])->group(function () {
     */
     Route::prefix('admin')->name('admin.')->middleware(EnsureAdmin::class)->group(function () {
 
-        // CRUD Utilisateurs
-        Route::resource('users', AdminUserController::class);
+        // CRUD Utilisateurs (permission Spatie en plus du rôle ADMIN)
+        Route::resource('users', AdminUserController::class)
+            ->middleware('permission:gerer utilisateurs');
 
         // Statistiques
         Route::get('statistiques', [AdminStatistiqueController::class, 'index'])
+            ->middleware('permission:voir statistiques')
             ->name('statistiques');
 
         // Logistique (M5) : supervision des tournées de tous les collecteurs
@@ -440,6 +444,16 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/profile',      [ProfileController::class, 'update'])->name('profile.update');
     Route::patch('/profile/role', [ProfileController::class, 'updateRole'])->name('profile.role');
     Route::delete('/profile',     [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::delete('/profile/photo', [ProfileController::class, 'retirerPhoto'])->name('profile.photo.destroy');
+
+    // Authentification à deux facteurs (mot de passe reconfirmé avant toute modification)
+    Route::middleware('password.confirm')->prefix('profile/deux-facteurs')->name('deux-facteurs.')->group(function () {
+        Route::get('/',          [DeuxFacteursController::class, 'show'])->name('show');
+        Route::post('/',         [DeuxFacteursController::class, 'store'])->name('store');
+        Route::post('confirmer', [DeuxFacteursController::class, 'confirmer'])->name('confirmer');
+        Route::post('codes',     [DeuxFacteursController::class, 'regenererCodes'])->name('codes');
+        Route::delete('/',       [DeuxFacteursController::class, 'destroy'])->name('destroy');
+    });
 });
 
 /*

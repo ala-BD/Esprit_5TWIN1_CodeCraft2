@@ -10,6 +10,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
+    {{-- Axios, Alpine.js et SweetAlert2 : mêmes versions que layouts.app (pages marketplace :
+         assistant IA, votes sur les avis, confirmations) --}}
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>[x-cloak] { display: none !important; }</style>
+
     <script>
         tailwind.config = {
             theme: {
@@ -133,6 +140,36 @@
                     </a>
                 @endif
 
+                {{-- Marketplace (M2) : catalogue, favoris et panier — pas de favoris ni de panier pour l'ATELIER,
+                     aucun bouton marketplace dans l'espace du RECYCLEUR (module M4) --}}
+                @if(Auth::user()->role !== 'RECYCLEUR')
+                <a href="{{ route('articles.index') }}" title="Marketplace"
+                   class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all {{ request()->routeIs('articles.*') ? 'border-teal-600 bg-teal-600 text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50' }}">
+                    <i class="fas fa-store text-xs {{ request()->routeIs('articles.*') ? 'text-white' : 'text-teal-600' }}"></i>
+                    <span class="hidden md:inline">Marketplace</span>
+                </a>
+                @if(Auth::user()->role !== 'ATELIER')
+                    <a href="{{ route('favoris.index') }}" title="Mes favoris" id="topbar-favoris-link"
+                       class="relative inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all {{ request()->routeIs('favoris.*') ? 'border-rose-500 bg-rose-500 text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50' }}">
+                        <i class="fas fa-heart text-xs {{ request()->routeIs('favoris.*') ? 'text-white' : 'text-rose-500' }}"></i>
+                        <span class="hidden md:inline">Favoris</span>
+                        <span class="favoris-badge-count absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold text-white items-center justify-center"
+                              style="background:#f43f5e;line-height:1;display:{{ ($favorisCount ?? 0) > 0 ? 'flex' : 'none' }}">
+                            {{ ($favorisCount ?? 0) > 99 ? '99+' : ($favorisCount ?? 0) }}
+                        </span>
+                    </a>
+                    <a href="{{ route('panier.index') }}" title="Mon panier" id="topbar-panier-link"
+                       class="relative inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all {{ request()->routeIs('panier.*') ? 'border-teal-600 bg-teal-600 text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50' }}">
+                        <i class="fas fa-shopping-cart text-xs {{ request()->routeIs('panier.*') ? 'text-white' : 'text-teal-600' }}"></i>
+                        <span class="hidden md:inline">Panier</span>
+                        <span class="cart-badge-count absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold text-white items-center justify-center"
+                              style="background:#ef4444;line-height:1;display:{{ ($panierCount ?? 0) > 0 ? 'flex' : 'none' }}">
+                            {{ ($panierCount ?? 0) > 99 ? '99+' : ($panierCount ?? 0) }}
+                        </span>
+                    </a>
+                @endif
+                @endif
+
                 {{-- Notifications (commandes, upcycling...) --}}
                 @include('components.notifications-cloche')
 
@@ -140,10 +177,7 @@
                 <div class="relative" id="user-menu-wrapper">
                     <button onclick="toggleUserMenu()" id="user-menu-btn"
                             class="flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-200">
-                        <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                             style="background: linear-gradient(135deg, #0d9488, #4ade80)">
-                            {{ Auth::user()->initials ?? '?' }}
-                        </div>
+                        <x-avatar :user="Auth::user()" class="w-7 h-7 rounded-lg text-xs" />
                         <div class="hidden sm:block leading-tight text-left">
                             <p class="text-xs font-semibold text-slate-800">{{ Auth::user()->prenom ?? Auth::user()->name }}</p>
                             <p class="text-[10px] text-slate-400 font-medium">{{ Auth::user()->role }}</p>

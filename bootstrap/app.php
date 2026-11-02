@@ -16,16 +16,24 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Derrière le proxy HTTPS de Railway : X-Forwarded-Proto/For pris en compte
+        // (URL, redirections et cookies en https, CSRF et connexion fonctionnels)
+        $middleware->trustProxies(at: '*');
+
         // Webhook Stripe exclu de la vérification CSRF (Stripe signe ses requêtes avec STRIPE_WEBHOOK_SECRET)
         $middleware->validateCsrfTokens(except: [
             'stripe/webhook',
         ]);
 
         // Alias : permissions des tokens Sanctum (ex. abilities:upcycling:ecrire) et rôle (ex. role:ATELIER,ADMIN)
+        // 'role' reste EnsureRole (colonne users.role + pseudo-rôle ACHETEUR) ;
+        // les middlewares Spatie sont exposés sous 'permission' et 'role_or_permission'.
         $middleware->alias([
-            'abilities' => CheckAbilities::class,
-            'ability'   => CheckForAnyAbility::class,
-            'role'      => \App\Http\Middleware\EnsureRole::class,
+            'abilities'          => CheckAbilities::class,
+            'ability'            => CheckForAnyAbility::class,
+            'role'               => \App\Http\Middleware\EnsureRole::class,
+            'permission'         => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

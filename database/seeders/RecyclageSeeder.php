@@ -26,6 +26,7 @@ class RecyclageSeeder extends Seeder
                 'role'      => 'RECYCLEUR',
                 'actif'     => true,
                 'password'  => Hash::make('Password123!'),
+                'email_verified_at' => now(),
             ]
         );
 

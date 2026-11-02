@@ -93,13 +93,23 @@ class StatistiqueController extends Controller
     private function evolutionParMois(int $recycleurId, string $aggregate, string $alias): \Illuminate\Support\Collection
     {
         return DB::table('lot_textiles')
-            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as mois, {$aggregate} as {$alias}")
+            ->selectRaw($this->expressionMois() . " as mois, {$aggregate} as {$alias}")
             ->where('recycleur_id', $recycleurId)
             ->where('created_at', '>=', now()->startOfMonth()->subMonths(11))
             ->groupBy('mois')
             ->orderBy('mois')
             ->get()
             ->keyBy('mois');
+    }
+
+    /** Mois « AAAA-MM » de created_at selon la base : MySQL (Docker, Railway) ou SQLite (local, tests) */
+    private function expressionMois(): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'sqlite' => "strftime('%Y-%m', created_at)",
+            'pgsql'  => "to_char(created_at, 'YYYY-MM')",
+            default  => "DATE_FORMAT(created_at, '%Y-%m')",
+        };
     }
 
     /** Construit un tableau de 12 valeurs à partir des résultats groupés */

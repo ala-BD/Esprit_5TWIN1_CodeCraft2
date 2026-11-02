@@ -90,6 +90,16 @@ $lien = fn($actif) => 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm fo
                 Mes commandes
             </a>
 
+            <a href="{{ route('favoris.index') }}" class="{{ $lien(request()->routeIs('favoris.*')) }}">
+                <i class="fas fa-heart w-4 text-center"></i>
+                Mes favoris
+            </a>
+
+            <a href="{{ route('panier.index') }}" class="{{ $lien(request()->routeIs('panier.*')) }}">
+                <i class="fas fa-shopping-cart w-4 text-center"></i>
+                Mon panier
+            </a>
+
             <div class="pt-4 pb-1.5 px-4">
                 <p class="text-white/30 text-xs uppercase tracking-wider font-semibold">Upcycling</p>
             </div>
@@ -114,6 +124,16 @@ $lien = fn($actif) => 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm fo
             <a href="{{ route('articles.create') }}" class="{{ $lien(request()->routeIs('articles.create')) }}">
                 <i class="fas fa-tag w-4 text-center"></i>
                 Publier un article
+            </a>
+
+            <a href="{{ route('favoris.index') }}" class="{{ $lien(request()->routeIs('favoris.*')) }}">
+                <i class="fas fa-heart w-4 text-center"></i>
+                Mes favoris
+            </a>
+
+            <a href="{{ route('panier.index') }}" class="{{ $lien(request()->routeIs('panier.*')) }}">
+                <i class="fas fa-shopping-cart w-4 text-center"></i>
+                Mon panier
             </a>
             @endif
 
@@ -310,6 +330,22 @@ $lien = fn($actif) => 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm fo
                         <i class="fas fa-shopping-bag text-amber-600 text-sm"></i>
                     </div>
                     <span class="text-xs font-semibold text-gray-700">Commandes</span>
+                </a>
+
+                <a href="{{ route('panier.index') }}"
+                   class="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-100 hover:border-teal-200 hover:bg-teal-50 transition-all text-center group">
+                    <div class="w-10 h-10 rounded-xl bg-teal-50 group-hover:bg-teal-100 flex items-center justify-center transition-colors">
+                        <i class="fas fa-shopping-cart text-teal-600 text-sm"></i>
+                    </div>
+                    <span class="text-xs font-semibold text-gray-700">Panier</span>
+                </a>
+
+                <a href="{{ route('favoris.index') }}"
+                   class="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-100 hover:border-rose-200 hover:bg-rose-50 transition-all text-center group">
+                    <div class="w-10 h-10 rounded-xl bg-rose-50 group-hover:bg-rose-100 flex items-center justify-center transition-colors">
+                        <i class="fas fa-heart text-rose-600 text-sm"></i>
+                    </div>
+                    <span class="text-xs font-semibold text-gray-700">Favoris</span>
                 </a>
 
                 <a href="{{ route('upcycling.projets.create') }}"

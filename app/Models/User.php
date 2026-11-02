@@ -3,12 +3,17 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Traits\HasRoles;
 
 /**
  * @property int $id
@@ -16,6 +21,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $prenom
  * @property string $email
  * @property string|null $telephone
+ * @property string|null $photo_profil
+ * @property-read string|null $photo_url
  * @property string $role
  * @property bool $actif
  * @property-read string $full_name
@@ -26,10 +33,10 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Commande> $commandes
  * @property-read \App\Models\Panier|null $panier
  */
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
 
     /*
     |----------------------------------------------------------------------
@@ -71,12 +78,15 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
+            'email_verified_at'      => 'datetime',
+            'two_factor_confirmed_at' => 'datetime',
             'password'          => 'hashed',
             'actif'             => 'boolean',
             'tarif_horaire'     => 'decimal:2',
@@ -85,11 +95,63 @@ class User extends Authenticatable
 
     /*
     |----------------------------------------------------------------------
+    | Rôles Spatie : la colonne users.role reste la source de vérité.
+    | À chaque enregistrement qui change le rôle, le rôle Spatie est
+    | synchronisé (un seul rôle par utilisateur).
+    |----------------------------------------------------------------------
+    */
+    protected static function booted(): void
+    {
+        static::saved(function (User $user) {
+            if ($user->wasRecentlyCreated || $user->wasChanged('role')) {
+                $user->synchroniserRoleSpatie();
+            }
+        });
+
+        // Compte supprimé (profil ou administration) : sa photo de profil aussi
+        static::deleted(function (User $user) {
+            $user->supprimerPhotoProfil();
+        });
+    }
+
+    /*
+    |----------------------------------------------------------------------
+    | Photo de profil (disque public, dossier avatars/)
+    |----------------------------------------------------------------------
+    */
+    public function getPhotoUrlAttribute(): ?string
+    {
+        return $this->photo_profil ? Storage::disk('public')->url($this->photo_profil) : null;
+    }
+
+    public function supprimerPhotoProfil(): void
+    {
+        if ($this->photo_profil) {
+            Storage::disk('public')->delete($this->photo_profil);
+        }
+    }
+
+    public function synchroniserRoleSpatie(): void
+    {
+        // Colonne non renseignée à la création : on relit la valeur par défaut de la base
+        $role = $this->role ?: static::whereKey($this->getKey())->value('role');
+
+        if ($role) {
+            $this->syncRoles([Role::findOrCreate($role, 'web')]);
+        }
+    }
+
+    /*
+    |----------------------------------------------------------------------
     | Helpers rôles
     |----------------------------------------------------------------------
     */
 
-    public function hasRole(string $role): bool
+    /**
+     * Vérifie le rôle à partir de la colonne users.role (sans requête).
+     * Renommée depuis hasRole() pour laisser hasRole() au trait Spatie HasRoles.
+     */
+    public function aLeRole(string $role): bool
     {
         return $this->role === strtoupper($role);
     }
@@ -97,6 +159,21 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === self::ROLE_ADMIN;
+    }
+
+    /**
+     * Route d'arrivée après connexion : chaque rôle arrive dans l'espace de son module,
+     * CLIENT et DONATEUR sur le tableau de bord général.
+     */
+    public function routeAccueil(): string
+    {
+        return match ($this->role) {
+            self::ROLE_RECYCLEUR  => 'recyclage.dashboard',
+            self::ROLE_ADMIN      => 'admin.users.index',
+            self::ROLE_COLLECTEUR => 'logistique.tournees.index',
+            self::ROLE_ATELIER    => 'upcycling.dashboard',
+            default               => 'dashboard',
+        };
     }
 
     /** Roles autorisés à créer/gérer des articles (M2) */
@@ -119,7 +196,7 @@ class User extends Authenticatable
     public function getInitialsAttribute(): string
     {
         $prenom = $this->prenom ? strtoupper(substr($this->prenom, 0, 1)) : '';
-        $nom    = $this->name   ? strtoupper(substr($this->name,   0, 1)) : '';
+        $nom    = $this->name ? strtoupper(substr($this->name,   0, 1)) : '';
         return $prenom . $nom;
     }
 
