@@ -2,10 +2,10 @@
 #
 #   CI : qualité du code -> tests Laravel + tests IA -> images Docker -> tests de fumée -> scan de sécurité
 #   CD : publication des images sur GHCR (branches main / integration)
-#        puis déploiement SSH sur le serveur, si les secrets DEPLOY_* sont configurés
+#        puis déploiement sur Railway, si RAILWAY_ENABLED et le secret RAILWAY_TOKEN sont configurés
 #
 # Les secrets ne sont jamais dans le dépôt : la CI génère une APP_KEY jetable,
-# le serveur garde son propre fichier .env.
+# la production garde ses variables dans Railway.
 
 name: CI/CD
 
@@ -239,53 +239,44 @@ jobs:
           done
 
   # ---------------------------------------------------------------- CD 2
+  # Déploiement sur Railway (projet « retiss », environnement production) après une CI verte.
+  # Activation : variable RAILWAY_ENABLED=true et secret RAILWAY_TOKEN (jeton de projet Railway).
+  # Retour arrière : redéployer une version précédente depuis l'onglet Deployments de Railway.
   deploiement:
-    name: Déploiement
+    name: Déploiement Railway
     runs-on: ubuntu-latest
     needs: docker
-    if: github.event_name == 'push' && github.ref_name == 'main' && vars.DEPLOY_ENABLED == 'true'
+    if: >-
+      github.event_name == 'push'
+      && (github.ref_name == 'main' || github.ref_name == 'integration')
+      && vars.RAILWAY_ENABLED == 'true'
+    concurrency:
+      group: deploiement-railway
+      cancel-in-progress: false
     environment:
       name: production
-      url: ${{ vars.DEPLOY_URL }}
+      url: ${{ vars.RAILWAY_URL || 'https://retiss-production.up.railway.app' }}
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_CLI_VERSION: "5.71.0"
+      URL: ${{ vars.RAILWAY_URL || 'https://retiss-production.up.railway.app' }}
     steps:
       - uses: actions/checkout@v7
 
-      - name: Copier la configuration sur le serveur
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: docker-compose.yml,devops/monitoring
-          target: ${{ vars.DEPLOY_PATH || '/opt/retiss' }}
+      - name: CLI Railway (version figée)
+        run: |
+          npm install --global "@railway/cli@${RAILWAY_CLI_VERSION}"
+          railway --version
 
-      - name: Tirer les nouvelles images et redémarrer
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          GHCR_USER: ${{ github.actor }}
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RETISS_TAG: ${{ github.sha }}
-          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/retiss' }}
-          REPO: ${{ github.repository }}
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: GHCR_USER,GHCR_TOKEN,RETISS_TAG,DEPLOY_PATH,REPO
-          script: |
-            set -e
-            cd "$DEPLOY_PATH"
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-            export RETISS_IMAGE_PREFIX="ghcr.io/$(echo "$REPO" | tr '[:upper:]' '[:lower:]')/retiss"
-            export RETISS_TAG SEED_DEMO=false
-            docker compose pull app web queue ai
-            docker compose up -d --no-build --wait --wait-timeout 300
-            docker image prune -f
+      - name: Déployer le service IA (réseau privé)
+        run: railway up ai-recyclage --path-as-root --service ai --ci
+
+      - name: Déployer l'application (image docker/railway)
+        run: railway up --service retiss --ci
 
       - name: Vérification après déploiement
-        if: vars.DEPLOY_URL != ''
         run: |
           for chemin in /nginx-health /login; do
-            curl -fsS -o /dev/null --retry 5 --retry-delay 5 --retry-all-errors "${{ vars.DEPLOY_URL }}$chemin"
+            curl -fsS -o /dev/null --retry 10 --retry-delay 10 --retry-all-errors "$URL$chemin"
             echo "GET $chemin OK"
           done
