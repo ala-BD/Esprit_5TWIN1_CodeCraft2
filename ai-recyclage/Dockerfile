@@ -36,4 +36,5 @@ EXPOSE 8001
 HEALTHCHECK --interval=20s --timeout=5s --start-period=30s --retries=5 \
     CMD curl -fsS http://127.0.0.1:8001/sante || exit 1
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8001"]
+# Socket double pile IPv4 + IPv6 (docker-compose en IPv4, réseau privé Railway en IPv6)
+CMD ["python", "serveur.py"]

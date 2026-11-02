@@ -16,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Derrière le proxy HTTPS de Railway : X-Forwarded-Proto/For pris en compte
+        // (URL, redirections et cookies en https, CSRF et connexion fonctionnels)
+        $middleware->trustProxies(at: '*');
+
         // Webhook Stripe exclu de la vérification CSRF (Stripe signe ses requêtes avec STRIPE_WEBHOOK_SECRET)
         $middleware->validateCsrfTokens(except: [
             'stripe/webhook',
