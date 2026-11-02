@@ -140,7 +140,9 @@
                     </a>
                 @endif
 
-                {{-- Marketplace (M2) : catalogue, favoris et panier — pas de favoris ni de panier pour l'ATELIER --}}
+                {{-- Marketplace (M2) : catalogue, favoris et panier — pas de favoris ni de panier pour l'ATELIER,
+                     aucun bouton marketplace dans l'espace du RECYCLEUR (module M4) --}}
+                @if(Auth::user()->role !== 'RECYCLEUR')
                 <a href="{{ route('articles.index') }}" title="Marketplace"
                    class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all {{ request()->routeIs('articles.*') ? 'border-teal-600 bg-teal-600 text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50' }}">
                     <i class="fas fa-store text-xs {{ request()->routeIs('articles.*') ? 'text-white' : 'text-teal-600' }}"></i>
@@ -165,6 +167,7 @@
                             {{ ($panierCount ?? 0) > 99 ? '99+' : ($panierCount ?? 0) }}
                         </span>
                     </a>
+                @endif
                 @endif
 
                 {{-- Notifications (commandes, upcycling...) --}}

@@ -6,11 +6,9 @@ use App\Models\DonVetement;
 use App\Models\EtapeTraitement;
 use App\Models\LotHistorique;
 use App\Models\LotTextile;
-use App\Models\PasseportNumerique;
 use App\Models\Recycleur;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -138,12 +136,16 @@ class RecyclageTest extends TestCase
 
     public function test_statistiques_page_renders(): void
     {
-        if (DB::connection()->getDriverName() === 'sqlite') {
-            $this->markTestSkipped('StatistiqueController utilise DATE_FORMAT (MySQL uniquement).');
-        }
+        // Regroupement par mois compatible SQLite (tests, local) et MySQL (Docker, Railway)
         $r = $this->recycleur();
         $this->lot($r);
-        $this->actingAs($r->user)->get(route('recyclage.statistiques'))->assertOk();
+
+        $reponse = $this->actingAs($r->user)->get(route('recyclage.statistiques'))->assertOk();
+
+        // Le lot créé ce mois-ci apparaît dans la dernière valeur de la courbe (12 mois)
+        $seriesLots = $reponse->viewData('seriesLots');
+        $this->assertCount(12, $seriesLots);
+        $this->assertSame(1.0, end($seriesLots));
     }
 
     /* ---------------------------------------------------------------

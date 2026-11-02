@@ -47,7 +47,7 @@ class NavigationMarketplaceTest extends TestCase
 
     public function test_tous_les_acheteurs_voient_les_boutons_sur_leurs_pages(): void
     {
-        foreach ([User::ROLE_CLIENT, User::ROLE_DONATEUR, User::ROLE_COLLECTEUR, User::ROLE_RECYCLEUR, User::ROLE_ADMIN] as $role) {
+        foreach ([User::ROLE_CLIENT, User::ROLE_DONATEUR, User::ROLE_COLLECTEUR, User::ROLE_ADMIN] as $role) {
             $user = User::factory()->create(['role' => $role]);
 
             foreach (['/dashboard', '/articles', '/commandes'] as $page) {
@@ -56,6 +56,26 @@ class NavigationMarketplaceTest extends TestCase
                     ->assertSee('id="topbar-favoris-link"', false)
                     ->assertSee('id="topbar-panier-link"', false);
             }
+        }
+    }
+
+    public function test_le_recycleur_ne_voit_ni_marketplace_ni_favoris_ni_panier_dans_son_espace(): void
+    {
+        $recycleur = User::factory()->create(['role' => User::ROLE_RECYCLEUR]);
+        \App\Models\Recycleur::create([
+            'user_id'      => $recycleur->id,
+            'nom'          => 'EcoTextile',
+            'agrement'     => 'AGR-TEST',
+            'capacite_kg'  => 5000,
+            'localisation' => 'Tunis',
+        ]);
+
+        foreach ([route('recyclage.dashboard'), route('recyclage.statistiques')] as $page) {
+            $this->actingAs($recycleur)->get($page)
+                ->assertOk()
+                ->assertDontSee('title="Marketplace"', false)
+                ->assertDontSee('id="topbar-favoris-link"', false)
+                ->assertDontSee('id="topbar-panier-link"', false);
         }
     }
 
