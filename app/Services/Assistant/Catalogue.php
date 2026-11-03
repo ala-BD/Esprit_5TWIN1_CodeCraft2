@@ -56,7 +56,7 @@ class Catalogue
             self::outil('creer_utilisateur', 'Créer un compte utilisateur. Le mot de passe est généré automatiquement.',
                 $champs, ['prenom', 'nom', 'email']),
 
-            self::outil('modifier_utilisateur', "Modifier un utilisateur existant. Ne renseigner que les champs à changer, avec leur nouvelle valeur.",
+            self::outil('modifier_utilisateur', 'Modifier un utilisateur existant. Ne renseigner que les champs à changer, avec leur nouvelle valeur.',
                 $cible + $champs),
 
             self::outil('supprimer_utilisateur', 'Supprimer définitivement un utilisateur.',
@@ -71,7 +71,7 @@ class Catalogue
                 'actif'     => ['type' => 'boolean', 'description' => 'true : comptes actifs seulement, false : comptes désactivés seulement'],
             ]),
 
-            self::outil('repartir_automatiquement', "Répartir automatiquement entre les collecteurs les commandes à livrer et les dons à collecter qui ne sont dans aucune tournée.", [
+            self::outil('repartir_automatiquement', 'Répartir automatiquement entre les collecteurs les commandes à livrer et les dons à collecter qui ne sont dans aucune tournée.', [
                 'date' => ['type' => 'string', 'description' => 'Jour des tournées, AAAA-MM-JJ ; demain si non précisé'],
             ]),
 

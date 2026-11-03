@@ -108,7 +108,7 @@ class BriefingPrevision
                     'messages'    => [
                         ['role' => 'system', 'content' => "Tu es l'analyste logistique d'une plateforme de dons de vêtements à Tunis. "
                             . "À partir des prévisions fournies, rédige pour l'administrateur un briefing de quatre phrases au maximum, en un seul paragraphe, "
-                            . "sans liste ni mise en forme : volume attendu et tendance, zone(s) à surveiller, moyens à prévoir (journées de collecteur), "
+                            . 'sans liste ni mise en forme : volume attendu et tendance, zone(s) à surveiller, moyens à prévoir (journées de collecteur), '
                             . "et la fiabilité (signale si l'erreur mesurée d'une zone est élevée). "
                             . "Utilise uniquement les chiffres fournis, arrondis à l'unité ; n'invente aucune cause (météo, fêtes, événements)."],
                         ['role' => 'user', 'content' => $donnees],

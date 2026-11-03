@@ -30,7 +30,7 @@ return [
         // Les routes ne sont pas droites : distance réelle ≈ distance à vol d'oiseau × ce facteur
         'facteur_detour'   => 1.3,
         'vitesse_kmh'      => 25,
-        'minutes_par_arret'=> 10,
+        'minutes_par_arret' => 10,
         'heure_depart'     => '08:30',
     ],
 

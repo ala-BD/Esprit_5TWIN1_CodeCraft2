@@ -124,7 +124,7 @@ class Contexte
             $semaines = collect($t['prevision'])->map(fn ($x) => "week of {$x['semaine']}: {$x['valeur']} (80% range {$x['bas']}-{$x['haut']})")->join('; ');
             $zones = $p['zones']->map(fn ($z) => "{$z['zone']} " . ($z['prevision'][0]['valeur'] ?? 0) . " ({$z['tendance_pct']}%)")->join(', ');
 
-            return "DONATION FORECAST (statistical model, measured error on the total: " . ($t['erreur_pct'] ?? '?') . "%)\n"
+            return 'DONATION FORECAST (statistical model, measured error on the total: ' . ($t['erreur_pct'] ?? '?') . "%)\n"
                 . "- Next weeks: {$semaines}.\n"
                 . "- Average of the last 4 weeks: {$t['moyenne_4']}; change for this week: {$t['tendance_pct']}%.\n"
                 . "- This week by governorate (change vs last 4 weeks): {$zones}.";
@@ -193,7 +193,7 @@ class Contexte
                 ->map(fn (string $statut) => $statut . ' ' . $liste->where('statut', $statut)->count())->join(', ');
 
             $resume = "SUMMARY: {$tournees->count()} rounds listed ("
-                . $tournees->countBy('statut')->map(fn (int $n, string $statut) => "{$statut} {$n}")->join(', ') . "), "
+                . $tournees->countBy('statut')->map(fn (int $n, string $statut) => "{$statut} {$n}")->join(', ') . '), '
                 . "{$missions->count()} missions in total ({$parStatut($missions)}), "
                 . "{$missions->where('type', Mission::TYPE_COLLECTE)->count()} pickups and {$missions->where('type', Mission::TYPE_LIVRAISON)->count()} deliveries, "
                 . round((float) $tournees->sum('distance_km'), 1) . ' km planned. '

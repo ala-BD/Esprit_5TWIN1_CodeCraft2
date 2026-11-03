@@ -13,7 +13,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 /**
  * Répartit automatiquement les commandes à livrer et les dons à collecter
@@ -68,7 +67,7 @@ class AffectationAutomatique
                 ];
             })->values()->all();
 
-        $nonAffectes = $sansPosition->map(fn (array $t) => $t + ['raison' => "Adresse sans position sur la carte"]);
+        $nonAffectes = $sansPosition->map(fn (array $t) => $t + ['raison' => 'Adresse sans position sur la carte']);
 
         if (!$collecteurs) {
             $nonAffectes = $nonAffectes->concat($travaux->map(fn (array $t) => $t + ['raison' => 'Aucun collecteur actif']));

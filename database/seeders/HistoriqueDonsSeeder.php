@@ -30,10 +30,10 @@ class HistoriqueDonsSeeder extends Seeder
 
     /** Coefficient saisonnier par mois */
     private const SAISONS = [1 => 0.90, 2 => 0.92, 3 => 1.15, 4 => 1.25, 5 => 1.05, 6 => 0.95,
-                             7 => 0.80, 8 => 0.65, 9 => 1.25, 10 => 1.35, 11 => 1.10, 12 => 1.00];
+        7 => 0.80, 8 => 0.65, 9 => 1.25, 10 => 1.35, 11 => 1.10, 12 => 1.00];
 
     private const VETEMENTS = [['Veste', 'Laine'], ['Jean', 'Coton'], ['Robe', 'Lin'], ['Manteau', 'Polyester'],
-                               ['Chemise', 'Coton'], ['Pull', 'Laine'], ['T-shirt', 'Coton'], ['Pantalon', 'Polyester']];
+        ['Chemise', 'Coton'], ['Pull', 'Laine'], ['T-shirt', 'Coton'], ['Pantalon', 'Polyester']];
 
     public function run(): void
     {
